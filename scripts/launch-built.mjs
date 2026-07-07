@@ -9,7 +9,13 @@ import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const PLUGIN_IDS = ['build-shopping-list', 'scalpel-lab']
+const PLUGIN_IDS = [
+  'build-shopping-list',
+  'scalpel-lab',
+  'scalpel-economy',
+  'runeshape-checker',
+  'well-tiers',
+]
 const OUT_DIR = join(root, 'src', 'shared', 'data', 'crafting')
 const appDataPlugins = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Scalpel', 'plugins')
 const electronBin = join(

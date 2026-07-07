@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Build Scalpel + Scalpel Lab from this repo and patch the normal Start-menu install
- * (Local\Programs\scalpel) — replaces app.asar and copies the lab plugin into AppData.
+ * (Local\Programs\scalpel) — replaces app.asar and copies bundled plugins into AppData.
  */
 import { copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { spawn, spawnSync, execSync } from 'node:child_process'
@@ -10,8 +10,13 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const PLUGIN_ID = 'scalpel-lab'
-const PLUGIN_IDS = ['build-shopping-list', PLUGIN_ID]
+const PLUGIN_IDS = [
+  'build-shopping-list',
+  'scalpel-lab',
+  'scalpel-economy',
+  'runeshape-checker',
+  'well-tiers',
+]
 const installedRoot =
   process.env.SCALPEL_INSTALL_DIR ??
   join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'Programs', 'scalpel')

@@ -1,22 +1,19 @@
 # Scalpel — My Version
 
-A fork of [Scalpel](https://github.com/scalpelpoe/scalpel) with **Scalpel Lab** built in: a PoE 2 crafting lab (odds simulator, emulator, target hits, craft paths, and mod weight cheat sheet).
-
-This repo patches your **normal installed Scalpel app** (Start menu) so Lab works without running a separate dev launcher.
+A fork of [Scalpel](https://github.com/scalpelpoe/scalpel) with custom PoE 2 plugins and a built-in craft engine. This repo patches your **normal installed Scalpel app** (Start menu) so everything works without a separate dev launcher.
 
 ---
 
 ## What you get
 
-| Feature | Description |
-|--------|-------------|
-| **Scalpel Lab** | In-game overlay tab (pickaxe icon) for PoE 2 crafting |
-| **Craft engine** | CoE-style per-base mod weights baked into the app |
-| **Simulator** | Roll odds for essences, orbs, etc. on a base |
-| **Emulator** | Step through crafts on a virtual item |
-| **Target odds** | Chance to hit a mod with a given method |
-| **Craft path** | Multi-step paths (e.g. alt until hit) |
-| **Mod cheat sheet** | Pop-out overlay of mod pools and weights |
+| Plugin / feature | Tab / hotkey | Description |
+|------------------|--------------|-------------|
+| **Scalpel Lab** | Pickaxe tab | PoE 2 crafting lab — simulator, emulator, target odds, craft paths, mod cheat sheet |
+| **Scalpel Economy** | Economy tab + overlay | In-game poe.ninja browser (currency, runes, uniques, omens, essences, etc.) |
+| **Runeshape Checker** | Runeshape tab | OCR hotkey that reads Runeshape Combinations rewards and shows poe.ninja prices |
+| **Scalpel OCR** (`well-tiers`) | — | OCR hotkey for Well of Souls affix tiers and Runeshape reward pricing |
+| **Build Shopping List** | Shopping list tab | Parse build guides into a shopping list |
+| **Craft engine** | (host) | CoE-style per-base mod weights baked into the patched app |
 
 Upstream Scalpel features (filter, price check, regex, etc.) are unchanged.
 
@@ -27,7 +24,7 @@ Upstream Scalpel features (filter, price check, regex, etc.) are unchanged.
 - **Windows** (install script targets `%LOCALAPPDATA%\Programs\scalpel`)
 - **[Scalpel](https://github.com/scalpelpoe/scalpel/releases)** already installed from the official installer
 - **[Node.js 22+](https://nodejs.org/)** (for building once)
-- **Path of Exile 2** (Lab is PoE 2 only)
+- **Path of Exile 2** (custom plugins are PoE 2 only)
 
 ---
 
@@ -46,11 +43,12 @@ cd Scalpel-My-Version
 
 ```powershell
 npm install
-cd plugins\scalpel-lab
-npm install
-cd ..\build-shopping-list
-npm install
-cd ..\..
+```
+
+Plugin dependencies are installed automatically when you run `install:local` (below). If you want to install them manually first:
+
+```powershell
+Get-ChildItem plugins -Directory | ForEach-Object { npm install --prefix $_.FullName }
 ```
 
 ### 3. Patch your installed Scalpel
@@ -66,7 +64,12 @@ This will:
 1. Build CoE crafting data and the full app bundle
 2. Pack a new `app.asar` with the craft engine + Lab support
 3. Replace `%LOCALAPPDATA%\Programs\scalpel\resources\app.asar` (old file backed up as `app.asar.bak-*`)
-4. Copy the **Scalpel Lab** plugin into `%APPDATA%\Scalpel\plugins\scalpel-lab\`
+4. Build and copy **all bundled plugins** into `%APPDATA%\Scalpel\plugins\`:
+   - `scalpel-lab`
+   - `scalpel-economy`
+   - `runeshape-checker`
+   - `well-tiers`
+   - `build-shopping-list`
 5. Launch Scalpel from your normal install
 
 **First build can take several minutes** and needs ~8 GB RAM. If the build fails with “JavaScript heap out of memory”, close other apps and run:
@@ -78,7 +81,20 @@ npm run install:local
 
 ### 4. Open Scalpel
 
-Launch **Scalpel** from the Start menu (not a separate dev exe). In the overlay toolbar, click the **pickaxe** tab — **Scalpel Lab**.
+Launch **Scalpel** from the Start menu (not a separate dev exe). You should see tabs for **Scalpel Lab**, **Economy**, **Runeshape**, and **Build Shopping List**.
+
+---
+
+## Using Scalpel Economy
+
+1. Set Scalpel to **PoE 2** and your league (Runes of Aldur).
+2. Open the overlay and select the **Economy** tab.
+3. Click **Open in-game panel** for a sister-style price window beside the game.
+4. Bind **Toggle Scalpel Economy** in Settings → Macros to show/hide the overlay quickly.
+5. Use the category dropdown for currency, fragments, runes, soul cores, omens, uniques, and more.
+6. Click **Refresh prices** to pull the latest poe.ninja data.
+
+Categories mirror the poe.ninja PoE 2 economy pages (currency, fragments, abyssal bones, essences, runes, omens, expedition, liquid emotions, unique weapons/armours/accessories/jewels/flasks, etc.).
 
 ---
 
@@ -109,9 +125,26 @@ In the Lab tab header, click **Pop out** to open the mod cheat sheet in a separa
 
 ---
 
+## Using Runeshape Checker & Scalpel OCR
+
+### Runeshape Checker
+
+1. Open the **Runeshape** tab for setup and diagnostics.
+2. Bind **Price Runeshape rewards** in Settings → Macros.
+3. With the Runeshape Combinations panel open in game, press the hotkey.
+4. OCR reads each reward row and shows poe.ninja prices beside them.
+
+### Scalpel OCR (`well-tiers`)
+
+1. Bind the Well / Runeshape OCR hotkeys in Settings → Macros (labels shown in plugin settings).
+2. For **Well of Souls**, press the hotkey with the well panel open — affix tiers appear beside each mod line.
+3. For **Runeshape**, similar OCR pricing overlay (separate from Runeshape Checker tab UI).
+
+---
+
 ## Developer workflow (optional)
 
-If you want to hack on Lab or run from source without patching the installer:
+If you want to hack on plugins or run from source without patching the installer:
 
 ```powershell
 npm run dev:plugin
@@ -160,13 +193,13 @@ Copy-Item "$env:LOCALAPPDATA\Programs\scalpel\resources\app.asar.bak-TIMESTAMP" 
 
 Then re-run `npm run install:local` with `$env:NODE_OPTIONS="--max-old-space-size=8192"`.
 
-### Lab tab missing
+### Plugin tab missing (Economy, Lab, Runeshape, etc.)
 
-Check `%APPDATA%\Scalpel\plugins\installed.json` includes `"scalpel-lab"`. Re-run `npm run install:local`.
+Check `%APPDATA%\Scalpel\plugins\installed.json` includes the plugin id (e.g. `"scalpel-economy"`). Re-run `npm run install:local`.
 
 ### Official Scalpel auto-update overwrote Lab
 
-The built-in updater may replace `app.asar` with a release that does not include Lab. Re-run:
+The built-in updater may replace `app.asar` with a release that does not include the craft engine. Re-run:
 
 ```powershell
 npm run install:local
@@ -179,9 +212,13 @@ The install script also updates the pending update staging folder so restarts ar
 ## Project layout
 
 ```
-plugins/scalpel-lab/     Scalpel Lab plugin (UI)
-src/shared/crafting/     Craft engine (host)
-src/main/handlers/       Craft IPC handlers
+plugins/scalpel-lab/          Scalpel Lab (crafting UI)
+plugins/scalpel-economy/      poe.ninja economy browser
+plugins/runeshape-checker/     Runeshape OCR pricing
+plugins/well-tiers/            Well of Souls + Runeshape OCR
+plugins/build-shopping-list/   Build guide shopping list
+src/shared/crafting/           Craft engine (host)
+src/main/handlers/             Craft IPC handlers
 scripts/install-to-local-scalpel.mjs   Patch normal Scalpel install
 ```
 
@@ -189,7 +226,7 @@ scripts/install-to-local-scalpel.mjs   Patch normal Scalpel install
 
 ## License
 
-Based on [Scalpel](https://github.com/scalpelpoe/scalpel) — **AGPL-3.0-only**. Scalpel Lab additions follow the same license. You must comply with AGPL if you distribute modified versions.
+Based on [Scalpel](https://github.com/scalpelpoe/scalpel) — **AGPL-3.0-only**. Custom plugin additions follow the same license. You must comply with AGPL if you distribute modified versions.
 
 ---
 
@@ -197,4 +234,4 @@ Based on [Scalpel](https://github.com/scalpelpoe/scalpel) — **AGPL-3.0-only**.
 
 - [Scalpel](https://github.com/scalpelpoe/scalpel) — Kyusung / Scalpel team
 - Mod weight data — Craft of Exile–style dataset (built via `npm run build-coe-crafting-data`)
-- Scalpel Lab — E9ine_AC
+- Scalpel Lab, Economy, Runeshape, OCR plugins — E9ine_AC

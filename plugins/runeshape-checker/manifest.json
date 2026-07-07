@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "runeshape-checker",
+  "version": "2.5.2",
+  "name": "Runeshape Checker",
+  "description": "OCR hotkey that reads the Runeshape Combinations panel and shows poe.ninja prices beside each reward",
+  "author": "scalpelpoe",
+  "scalpelMinVersion": ">=0.9.16-rc1",
+  "poeVersions": [2]
+}
