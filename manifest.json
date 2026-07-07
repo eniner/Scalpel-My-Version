@@ -1,0 +1,40 @@
+{
+  "ninjaLeagues": {
+    "poe1": {
+      "Mirage": "mirage",
+      "Hardcore Mirage": "miragehc",
+      "Standard": "standard",
+      "Hardcore": "hardcore"
+    },
+    "poe2": {
+      "Runes of Aldur": "runesofaldur",
+      "HC Runes of Aldur": "runesofaldurhc",
+      "Standard": "standard",
+      "Hardcore": "hardcore"
+    }
+  },
+  "poe2NinjaCategories": {
+    "Currency": "currency",
+    "Ritual": "omens",
+    "Fragments": "fragments",
+    "Abyss": "abyssal-bones",
+    "UncutGems": "uncut-gems",
+    "LineageSupportGems": "lineage-support-gems",
+    "Essences": "essences",
+    "SoulCores": "soul-cores",
+    "Ultimatum": "soul-cores",
+    "Idols": "idols",
+    "Runes": "runes",
+    "Expedition": "expedition",
+    "Delirium": "liquid-emotions",
+    "Breach": "breach-catalyst",
+    "UniqueWeapons": "unique-weapons",
+    "UniqueArmours": "unique-armours",
+    "UniqueAccessories": "unique-accessories",
+    "UniqueFlasks": "unique-flasks",
+    "UniqueCharms": "unique-charms",
+    "UniqueJewels": "unique-jewels",
+    "UniqueMaps": "unique-maps",
+    "UniqueSanctumRelics": "unique-relics"
+  }
+}

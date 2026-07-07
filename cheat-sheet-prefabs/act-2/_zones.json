@@ -1,0 +1,19 @@
+{
+  "01-vastiri-outskirts.png": ["G2_1"],
+  "02-mawdun-quarry.png": ["G2_10_1"],
+  "03-mawdun-mine.png": ["G2_10_2"],
+  "04-traitors-passage-1.png": ["G2_2"],
+  "04-traitors-passage-2.png": ["G2_2"],
+  "05-halani-gates.png": ["G2_3", "G2_3a"],
+  "06-keth.png": ["G2_4_1"],
+  "07-lost-city.png": ["G2_4_2"],
+  "08-buried-shrines.png": ["G2_4_3"],
+  "09-valley-of-the-titans.png": ["G2_6"],
+  "10-titan-grotto.png": ["G2_7"],
+  "11-deshar.png": ["G2_8"],
+  "12-path-of-mourning.png": ["G2_9_1"],
+  "13-mastodon-badlands.png": ["G2_5_1"],
+  "14-bone-pits.png": ["G2_5_2"],
+  "15-spires-of-deshar.png": ["G2_9_2"],
+  "16-dreadnought.png": ["G2_12_1", "G2_12_2"]
+}

@@ -1,0 +1,20 @@
+<!--
+  Direct iframe-body styling for the Storybook preview. The renderer's
+  ":root" tokens (loaded via styles.css in preview.tsx) wire the design
+  variables, but the iframe body itself defaults to white -- which makes
+  every translucent surface look wrong since blending against white
+  inverts the intended palette. Pinning the body to the renderer's
+  --bg-solid + --text gives every story the same backdrop the components
+  see in the real overlay.
+-->
+<style>
+  html,
+  body,
+  #storybook-root,
+  .sb-show-main,
+  .sb-main-padded,
+  .sb-main-fullscreen {
+    background: #171821 !important;
+    color: #e0d8cc;
+  }
+</style>

@@ -1,0 +1,158 @@
+{
+  "name": "scalpel",
+  "version": "0.9.15",
+  "description": "Path of Exile's First Fourth-Party Tool",
+  "author": "Scalpel",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/scalpelpoe/scalpel",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eniner/Scalpel-My-Version.git"
+  },
+  "engines": {
+    "node": "^22"
+  },
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "npm run build:i18n && npm run build:internal-assets && node scripts/sync-regex-data.js & electron-vite dev",
+    "dev:plugin": "node scripts/dev-with-plugin.mjs",
+    "launch": "node scripts/launch-built.mjs",
+    "install:local": "node scripts/install-to-local-scalpel.mjs",
+    "build": "npm run build:i18n && npm run build:internal-assets && electron-vite build",
+    "build:internal-assets": "node scripts/build-internal-assets.mjs",
+    "build:i18n": "paraglide-js compile --project ./project.inlang --outdir ./src/shared/paraglide",
+    "validate:premium-mods": "node scripts/validate-premium-mods.mjs",
+    "build-tier-data": "node scripts/build-tier-data.js",
+    "build-crafting-data": "node scripts/build-crafting-data.js",
+    "build-coe-crafting-data": "node scripts/build-coe-crafting-data.js",
+    "build-crafting-data:all": "node scripts/build-crafting-data.js && node scripts/build-coe-crafting-data.js",
+    "sync-regex": "node scripts/sync-regex-data.js",
+    "sync-prefabs": "node scripts/sync-prefabs.js",
+    "dist:win": "npm run build && electron-builder --win --x64",
+    "dist:linux": "npm run build && electron-builder --linux AppImage --x64",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.e2e.json",
+    "postinstall": "node scripts/postinstall.js",
+    "lint": "biome lint src && node scripts/check-import-aliases.mjs",
+    "format": "biome format --write src",
+    "format:check": "biome format src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run build && playwright test -c playwright.electron.config.ts",
+    "test:e2e:headed": "npm run build && playwright test -c playwright.electron.config.ts --headed",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "active-win": "^9.0.0",
+    "electron-overlay-window": "^4.0.2",
+    "electron-store": "^8.2.0",
+    "konva": "^9.3.22",
+    "react-konva": "^18.2.14",
+    "react-sortablejs": "^6.1.4",
+    "sortablejs": "^1.15.7",
+    "uiohook-napi": "^1.5.4",
+    "zustand": "^4.5.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "@electron/asar": "^4.1.1",
+    "@icon-park/react": "^1.4.2",
+    "@inlang/paraglide-js": "^2.18.2",
+    "@playwright/test": "^1.60.0",
+    "@storybook/react-vite": "^10.3.6",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/sortablejs": "^1.15.9",
+    "@vitejs/plugin-react": "^4.3.4",
+    "ajv": "^8.20.0",
+    "autoprefixer": "^10.4.27",
+    "cheerio": "^1.2.0",
+    "electron": "^32.3.3",
+    "electron-builder": "^25.1.8",
+    "electron-rebuild": "^3.2.9",
+    "electron-vite": "^2.3.0",
+    "esbuild": "^0.28.0",
+    "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
+    "lint-staged": "^16.4.0",
+    "patch-package": "^8.0.1",
+    "postcss": "^8.5.9",
+    "rcedit": "^5.0.2",
+    "react": "^18.3.1",
+    "react-colorful": "^5.6.1",
+    "react-dom": "^18.3.1",
+    "sharp": "^0.34.5",
+    "storybook": "^10.3.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.4"
+  },
+  "lint-staged": {
+    "{src/**/*.{ts,tsx,jsx,css},tests/**/*.ts,playwright.electron.config.ts}": [
+      "biome check --write --no-errors-on-unmatched"
+    ]
+  },
+  "build": {
+    "appId": "com.filterscalpel.app",
+    "productName": "Scalpel",
+    "directories": {
+      "output": "dist"
+    },
+    "afterPack": "./scripts/afterPack.js",
+    "win": {
+      "target": "nsis",
+      "icon": "resources/icon.ico",
+      "signAndEditExecutable": true
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game",
+      "executableName": "scalpel",
+      "icon": "resources/icon.png",
+      "artifactName": "Scalpel.${ext}",
+      "desktop": {
+        "StartupWMClass": "scalpel"
+      }
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "createDesktopShortcut": false,
+      "artifactName": "Scalpel-Setup.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "resources/icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "resources/icon.png",
+        "to": "icon.png"
+      }
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/uiohook-napi/**/*",
+      "node_modules/electron-overlay-window/**/*"
+    ],
+    "files": [
+      "out/**/*",
+      "node_modules/**/*",
+      "!node_modules/.cache",
+      "!node_modules/*/{test,tests,__tests__}/**",
+      "!node_modules/*/{example,examples}/**",
+      "!node_modules/*/*.md",
+      "!node_modules/*/*.ts",
+      "!node_modules/*/{.github,.vscode}/**"
+    ],
+    "npmRebuild": true,
+    "buildDependenciesFromSource": false
+  }
+}

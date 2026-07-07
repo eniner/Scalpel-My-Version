@@ -1,0 +1,16 @@
+{
+  "01-isle-of-kin.png": ["G4_1_1"],
+  "02-volcanic-warrens.png": ["G4_1_2"],
+  "03-kedge-bay.png": ["G4_2_1"],
+  "04-journeys-end.png": ["G4_2_2"],
+  "05-shrike-island.png": ["G4_7"],
+  "06-whakapanu-island.png": ["G4_3_1"],
+  "07-singing-caverns.png": ["G4_3_2"],
+  "08-solitary-confinement.png": ["G4_5_2"],
+  "09-eye-of-hinekora.png": ["G4_4_1"],
+  "10-halls-of-the-dead.png": ["G4_4_2"],
+  "11-arastas.png": ["G4_8a", "G4_8b"],
+  "12-excavation.png": ["G4_10"],
+  "13-ngakanu.png": ["G4_11_1a", "G4_11_1b"],
+  "14-heart-of-the-tribe.png": ["G4_11_2"]
+}

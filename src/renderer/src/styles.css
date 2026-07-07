@@ -1,0 +1,576 @@
+@font-face {
+  font-family: 'Fontin SmallCaps';
+  src:
+    url('./assets/fonts/Fontin-SmallCaps.otf') format('opentype'),
+    url('./assets/fonts/Fontin-SmallCaps.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design tokens ──────────────────────────────────────────────────────────── */
+
+:root {
+  --font-poe: 'Fontin SmallCaps', serif;
+  --bg: rgba(23, 24, 33, 0.99);
+  --bg-solid: #171821;
+  --bg-card: #23232e;
+  --bg-hover: #2c2c3a;
+  /* Translucent variants used for overlay-style windows that float over PoE
+     (cheat sheets today, eligible for the main overlay later). One alpha for
+     the whole overlay so retheming controls translucency in one place. */
+  --bg-solid-translucent: rgba(23, 24, 33, 0.95);
+  --bg-card-translucent: rgba(35, 35, 46, 0.95);
+  --border: rgba(56, 56, 77, 0.5);
+  --accent: #c8a96e;
+  --accent-dim: rgba(200, 169, 110, 0.3);
+  --accent-hover: #e0bd7b;
+  --match: #4caf50;
+  --match-dim: rgba(76, 175, 80, 0.2);
+  --match-hover: #55c45a;
+  --secondary-match: #7e57c2;
+  --secondary-match-dim: rgba(126, 87, 194, 0.2);
+  --text: #e0d8cc;
+  --text-dim: #9e9480;
+  --danger: #ef5350;
+  --warn: #e67e22;
+  --danger-bg: #b71c1c;
+  --hide-color: #ef5350;
+  --show-color: #4caf50;
+  --minimal-color: #7e57c2;
+  --radius: 10px;
+  --font-mono: 'Consolas', 'Cascadia Code', monospace;
+}
+
+/* ─── Preflight overrides ────────────────────────────────────────────────────── */
+
+* {
+  margin: 0;
+  padding: 0;
+}
+*,
+::before,
+::after {
+  border-color: var(--border);
+}
+
+html {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+img {
+  display: inline;
+  max-width: none;
+  height: unset;
+  vertical-align: middle;
+}
+
+body {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Element defaults ───────────────────────────────────────────────────────── */
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  transition: background 0.12s;
+  outline: none;
+}
+button:hover {
+  background: var(--bg-hover);
+}
+button[aria-pressed='true'] {
+  background: var(--bg-hover);
+}
+button:active {
+  background: var(--bg-hover);
+}
+
+/* Click bounce, opt-in via class. While the button is held down it scales up
+ * slightly; on release the spring transition snaps it back with a subtle
+ * overshoot. Reserved for SQUARE icon buttons (toolbar tools, title-bar
+ * tabs) — wide/text buttons get the bg flash but no scale, since 1.18× on
+ * a long pill looks goofy. */
+button.btn-bounce {
+  transition:
+    background 0.12s,
+    transform 380ms cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+button.btn-bounce:active {
+  transform: scale(1.18);
+}
+
+/* Ghost variant: no idle bg, opaque hover/selected. Used for the whiteboard
+ * toolbar's tool buttons, where the toolbar pill itself provides the surface
+ * and tool buttons should melt into it until interacted with. */
+button.btn-ghost {
+  background: transparent;
+}
+button.btn-ghost:hover {
+  background: var(--bg-hover);
+}
+button.btn-ghost[aria-pressed='true'] {
+  background: var(--bg-hover);
+}
+
+/* Flat list-item button for dropdown menu rows. No chip background or
+ * rounding; hover/active styling lives on the caller via Tailwind utilities
+ * (typically text-* color swaps). */
+button.menu-row {
+  background: transparent;
+  border-radius: 0;
+}
+button.menu-row:hover {
+  background: transparent;
+}
+/* Accent-colored buttons (Tailwind bg-accent) need a brighter gold on hover, else the
+ * default gray-overlay hover above washes them out and loses the toggle feedback. */
+button.bg-accent:hover {
+  background: var(--accent-hover);
+}
+/* Match-colored buttons (Tailwind bg-match) get the same hover treatment for the
+ * same reason - the default gray overlay would mask the green. */
+button.bg-match:hover {
+  background: var(--match-hover);
+}
+button:focus,
+button:focus-visible {
+  outline: none;
+}
+
+input[type='text'],
+input[type='number'] {
+  border: none;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+select {
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.4)' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+}
+
+select option {
+  background: var(--bg-card);
+  cursor: pointer;
+}
+select optgroup {
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+img {
+  vertical-align: middle;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text);
+  opacity: 0.3;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* Range sliders */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  height: 4px;
+  border-radius: 2px;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+}
+input[type='range']:focus {
+  outline: none;
+}
+.range-thumb::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+
+/* Hide number input spinners */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ─── Component layer: reusable patterns ─────────────────────────────────────── */
+
+@layer components {
+  button.primary {
+    @apply bg-accent text-bg-solid font-semibold;
+  }
+  button.primary:hover {
+    background: var(--accent-hover);
+  }
+
+  .section-title {
+    @apply text-sm font-bold text-accent;
+  }
+
+  .settings-section-title {
+    @apply text-[10px] text-accent tracking-[1.5px] uppercase font-bold;
+  }
+
+  .setting-box {
+    @apply flex items-center justify-between rounded bg-black/30 cursor-pointer;
+    padding: 8px 12px;
+  }
+  .setting-box .value {
+    @apply font-mono text-xs text-text truncate;
+  }
+  .setting-box .value.dim {
+    @apply text-text-dim;
+  }
+  .setting-box .value.recording {
+    @apply text-accent;
+  }
+  .setting-box .value.placeholder {
+    opacity: 0.5;
+  }
+  .setting-box button.primary {
+    @apply shrink-0 ml-2;
+    padding: 5px 12px;
+    font-size: 11px;
+  }
+
+  .unique-card:hover .icon-glow-blur {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 0.7;
+  }
+
+  .regex-tab-active::before,
+  .regex-tab-active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    width: 6px;
+    height: 6px;
+  }
+  .regex-tab-active::before {
+    left: -6px;
+    background: radial-gradient(circle at 0 0, transparent 6px, var(--bg-solid) 6px);
+  }
+  .regex-tab-active::after {
+    right: -6px;
+    background: radial-gradient(circle at 100% 0, transparent 6px, var(--bg-solid) 6px);
+  }
+
+  body.scrubbing,
+  body.scrubbing * {
+    cursor: ew-resize !important;
+    user-select: none !important;
+  }
+
+  .sticky-group-header {
+    background: var(--bg-solid);
+    border-bottom: 1px solid rgba(60, 70, 120, 0.4);
+    box-shadow: 0 -2px 0 0 var(--bg-solid);
+  }
+}
+
+/* ─── Utilities layer: one-offs ──────────────────────────────────────────────── */
+
+@layer utilities {
+  .panel-unmounted {
+    border-radius: 10px !important;
+    border: 1px solid var(--border) !important;
+  }
+}
+
+/* ─── Animations (outside layers, always available) ──────────────────────────── */
+
+/* Whiteboard FigJam-style pop-in for contextual pills and dialogs. */
+@keyframes wb-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.wb-pop-in {
+  animation: wb-pop-in 220ms cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+.wb-spring {
+  transition-timing-function: cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+/* Toolbar entrance: snappy bounce-and-scale, Apple-style spring. The
+ * cubic-bezier overshoots past scale(1) and translateY(0) before settling,
+ * so the curve does the bounce - no extra keyframe needed. Applied to the
+ * main toolbar pill only; contextual pills above it use wb-pop-in.
+ *
+ * `.wb-toolbar-hidden` is the FROM-state held statically when the window
+ * is hidden, so when it becomes visible the toolbar starts at the
+ * entrance-start state (no flash of the settled toolbar before the
+ * animation kicks in). `.wb-toolbar-enter` runs the animation; fill-mode
+ * forwards keeps it at the TO state once it completes. */
+.wb-toolbar-hidden,
+.wb-toolbar-enter {
+  transform-origin: 50% 100%;
+}
+.wb-toolbar-hidden {
+  opacity: 0;
+  transform: translateY(28px) scale(0.78);
+}
+@keyframes wb-toolbar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.78);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.wb-toolbar-enter {
+  animation: wb-toolbar-enter 380ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Ink-picker cropped 3D icon: sits low in the slot, rises on hover/active.
+ * Variables let the host element configure both bottom positions. */
+.wb-ink-slot .wb-ink-icon {
+  bottom: var(--ink-bottom, -28px);
+  transition: bottom 220ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.wb-ink-slot:hover .wb-ink-icon {
+  bottom: var(--ink-bottom-hover, -22px);
+}
+
+@keyframes panel-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes panel-slide-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+}
+@keyframes panel-slide-in-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes panel-slide-out-left {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+}
+@keyframes panel-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes panel-fade-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes pulse-red {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Sister overlay slides out from behind the main panel on mount. Directional based on
+ * which side of the main panel the sister sits on. */
+@keyframes sister-slide-out-right {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes sister-slide-out-left {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ─── Third-party overrides ──────────────────────────────────────────────────── */
+
+.react-colorful {
+  width: 180px !important;
+  gap: 6px !important;
+}
+.react-colorful__saturation {
+  border-radius: 4px !important;
+  height: 120px !important;
+  border-bottom: none !important;
+}
+.react-colorful__hue,
+.react-colorful__alpha {
+  height: 10px !important;
+  border-radius: 3px !important;
+}
+.react-colorful__pointer {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+body.dragging,
+body.dragging * {
+  cursor: grabbing !important;
+}
+
+.sortable-fallback {
+  opacity: 0.8 !important;
+  cursor: grabbing !important;
+}
+
+.sortable-ghost .preset-controls,
+.sortable-chosen .preset-controls {
+  opacity: 0 !important;
+}
+
+.preset-slider {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  user-select: none;
+}
+.preset-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.rate-limit-bar:hover .rate-limit-tooltip {
+  opacity: 1 !important;
+}
+.exchange-rate-chip:hover .exchange-rate-tooltip {
+  opacity: 1 !important;
+}
+
+/* ─── Skeleton shimmer ────────────────────────────────────────────────────── */
+/* Overlay that sweeps a soft highlight across a neutral placeholder background.
+   The outer element sets size + rounding; this absolute layer paints the motion. */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}

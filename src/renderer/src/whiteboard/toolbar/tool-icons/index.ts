@@ -1,0 +1,5 @@
+export { ToolMarker } from './ToolMarker'
+export { ToolHighlighter } from './ToolHighlighter'
+export { ToolEraser } from './ToolEraser'
+export { TipSquiggle } from './TipSquiggle'
+export { shade } from './shade'

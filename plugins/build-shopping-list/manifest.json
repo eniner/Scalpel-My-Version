@@ -1,0 +1,11 @@
+{
+  "manifestVersion": 1,
+  "id": "build-shopping-list",
+  "version": "0.1.0",
+  "name": "Build Shopping List",
+  "description": "Import a MaxRoll planner or .build file and track gear with poe.ninja prices.",
+  "author": "local-dev",
+  "homepage": "https://github.com/scalpelpoe/scalpel",
+  "scalpelMinVersion": ">=0.9.8",
+  "poeVersions": [2]
+}

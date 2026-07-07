@@ -1,0 +1,1046 @@
+import { contextBridge, ipcRenderer } from 'electron'
+import { IPC_CHANNELS } from '@shared/contracts/ipc'
+import type { BugReportResult, RendererDiagnosticPayload } from '@shared/diagnostics'
+import type { ExternalLinkTarget } from '@shared/external-link'
+import type {
+  AppSettings,
+  AuthResult,
+  FilterBlock,
+  FilterChange,
+  FilterListEntry,
+  FilterVersion,
+  GameVariant,
+  HistoryEntry,
+  Manifest,
+  OverlayData,
+  PoeProfileSummary,
+  ProfileSettingKey,
+  ProfileSettingValue,
+  RuntimeSettings,
+  Zone,
+} from '@shared/types'
+import type { BoardLibrary, BoardSnapshot, BoardState } from '@shared/whiteboard-types'
+
+export const api = {
+  // Manifest
+  getManifest: (): Promise<Manifest> => ipcRenderer.invoke('get-manifest'),
+
+  // Settings
+  getSettings: (): Promise<RuntimeSettings> => ipcRenderer.invoke('get-settings'),
+  setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void> =>
+    ipcRenderer.invoke('set-setting', key, value),
+  finishOnboarding: (): Promise<{ ok: true; restarting?: true; devRestartRequired?: true }> =>
+    ipcRenderer.invoke('finish-onboarding'),
+  setProfileSettingForGame: (
+    variant: GameVariant,
+    key: ProfileSettingKey,
+    value: ProfileSettingValue<typeof key>,
+  ): Promise<RuntimeSettings> => ipcRenderer.invoke('set-profile-setting-for-game', variant, key, value),
+  listProfiles: (): Promise<PoeProfileSummary[]> => ipcRenderer.invoke('list-profiles'),
+  createProfile: (input: {
+    name: string
+    gameVariant: GameVariant
+    cloneFromId?: string
+  }): Promise<PoeProfileSummary> => ipcRenderer.invoke('create-profile', input),
+  renameProfile: (id: string, name: string): Promise<PoeProfileSummary | null> =>
+    ipcRenderer.invoke('rename-profile', id, name),
+  duplicateProfile: (id: string, name: string): Promise<PoeProfileSummary> =>
+    ipcRenderer.invoke('duplicate-profile', id, name),
+  deleteProfile: (id: string): Promise<void> => ipcRenderer.invoke('delete-profile', id),
+  ensureProfileForGame: (variant: GameVariant): Promise<void> => ipcRenderer.invoke('ensure-profile-for-game', variant),
+  setActiveProfile: (
+    id: string,
+    restartIfNeeded = false,
+  ): Promise<
+    | { ok: true; settings: RuntimeSettings; devRestartRequired?: true }
+    | { ok: true; restarting: true; devRestartRequired?: true }
+    | { ok: false; requiresRestart: true; targetGame: GameVariant }
+    | { ok: false; error: string }
+  > => ipcRenderer.invoke('set-active-profile', id, restartIfNeeded),
+  refreshLeagues: (): Promise<{
+    leaguesPoe1: string[]
+    leaguesPoe2: string[]
+  }> => ipcRenderer.invoke('refresh-leagues'),
+  pickFilterFile: (): Promise<string | null> => ipcRenderer.invoke('pick-filter-file'),
+  pickFilterDir: (): Promise<string | null> => ipcRenderer.invoke('pick-filter-dir'),
+  scanFilterDir: (dir: string): Promise<FilterListEntry[]> => ipcRenderer.invoke('scan-filter-dir', dir),
+  scanSoundFiles: (dir: string): Promise<string[]> => ipcRenderer.invoke('scan-sound-files', dir),
+  getSoundDataUrl: (dir: string, filename: string): Promise<string | null> =>
+    ipcRenderer.invoke('get-sound-data-url', dir, filename),
+  importOnlineFilter: (
+    sourcePath: string,
+    filterName: string,
+    targetDir: string,
+    force = false,
+  ): Promise<{ ok: boolean; path?: string; error?: string; conflict?: boolean }> =>
+    ipcRenderer.invoke('import-online-filter', sourcePath, filterName, targetDir, force),
+  switchIngameFilter: (filterName: string, currentFilter?: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('switch-ingame-filter', filterName, currentFilter),
+
+  // Color frequencies
+  getColorFrequencies: (): Promise<
+    Record<string, Array<{ r: number; g: number; b: number; a: number; count: number; category: string }>>
+  > => ipcRenderer.invoke('get-color-frequencies'),
+
+  // Filter editing
+  saveBlockEdit: (
+    blockIndex: number,
+    block: FilterBlock,
+    itemJson?: string,
+  ): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('save-block-edit', blockIndex, block, itemJson),
+  reloadFilter: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('reload-filter'),
+  getUniqueVisibility: (): Promise<Record<string, 'Show' | 'Hide'>> => ipcRenderer.invoke('get-unique-visibility'),
+  lookupBaseType: (
+    baseType: string,
+    itemClass: string,
+    rarity?: string,
+    uniqueName?: string,
+    flags?: { zanaMemory?: boolean },
+  ): Promise<void> => ipcRenderer.invoke('lookup-base-type', baseType, itemClass, rarity, uniqueName, flags),
+  getUniquesForBase: (baseType: string): Promise<string[]> => ipcRenderer.invoke('get-uniques-for-base', baseType),
+  getSearchableItems: (): Promise<import('@shared/types').SearchableItem[]> =>
+    ipcRenderer.invoke('get-searchable-items'),
+  getDivCardTiers: (): Promise<{
+    tierStyles: Record<string, { border: string; bg: string; text: string }>
+    cardTiers: Record<string, string>
+    hiddenCards: Record<string, boolean>
+  }> => ipcRenderer.invoke('get-div-card-tiers'),
+  batchLookupDivCardPrices: (
+    cardNames: string[],
+    league: string,
+  ): Promise<Record<string, { chaosValue: number; divineValue?: number } | null>> =>
+    ipcRenderer.invoke('batch-lookup-div-card-prices', cardNames, league),
+  batchLookupPrices: (
+    baseTypes: string[],
+    league: string,
+    uniqueTier?: boolean,
+  ): Promise<Record<string, { chaosValue: number; divineValue?: number } | null>> =>
+    ipcRenderer.invoke('batch-lookup-prices', baseTypes, league, uniqueTier),
+  batchLookupRefPrices: (
+    refs: Array<{ name: string; baseType?: string }>,
+    league: string,
+  ): Promise<Record<string, { chaosValue: number; divineValue?: number } | null>> =>
+    ipcRenderer.invoke('batch-lookup-ref-prices', refs, league),
+  sisterOpenPriceCheck: (ref: {
+    name: string
+    baseType?: string
+    category: 'base' | 'unique' | 'divination' | 'gem' | 'beast'
+  }): Promise<void> => ipcRenderer.invoke('sister-open-price-check', ref),
+  moveItemTier: (
+    baseType: string,
+    fromBlockIndex: number,
+    toBlockIndex: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('move-item-tier', baseType, fromBlockIndex, toBlockIndex, itemJson),
+  batchMoveItemTier: (
+    baseTypes: string[],
+    fromBlockIndex: number,
+    toBlockIndex: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('batch-move-item-tier', baseTypes, fromBlockIndex, toBlockIndex, itemJson),
+  updateStackThresholds: (
+    oldBoundary: number,
+    newBoundary: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('update-stack-thresholds', oldBoundary, newBoundary, itemJson),
+  updateQualityThresholds: (
+    oldBoundary: number,
+    newBoundary: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('update-quality-thresholds', oldBoundary, newBoundary, itemJson),
+  updateStrandThresholds: (
+    oldBoundary: number,
+    newBoundary: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('update-strand-thresholds', oldBoundary, newBoundary, itemJson),
+
+  // History / undo
+  getHistory: (): Promise<HistoryEntry[]> => ipcRenderer.invoke('get-history'),
+  undoEdit: (itemJson?: string): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('undo-edit', itemJson),
+
+  // Filter versions
+  listVersions: (): Promise<FilterVersion[]> => ipcRenderer.invoke('list-versions'),
+  createCheckpoint: (label?: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('create-checkpoint', label),
+  restoreVersion: (filename: string, itemJson?: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('restore-version', filename, itemJson),
+  deleteVersion: (filename: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('delete-version', filename),
+
+  // App window
+  setAppWindowMode: (mode: 'onboarding' | 'settings'): void => ipcRenderer.send('app-window-mode', mode),
+
+  // Dev tools
+  openDevTools: (): void => ipcRenderer.send('open-devtools'),
+  reportRendererError: (payload: RendererDiagnosticPayload): void =>
+    ipcRenderer.send('diagnostics:renderer-error', payload),
+  createBugReport: (): Promise<BugReportResult> => ipcRenderer.invoke('diagnostics:create-report'),
+  showBugReport: (reportPath: string): Promise<void> => ipcRenderer.invoke('diagnostics:show-report', reportPath),
+  getDebugLog: (): Promise<string> => ipcRenderer.invoke('diagnostics:get-log'),
+  openLogFolder: (): Promise<void> => ipcRenderer.invoke('diagnostics:open-log-folder'),
+  onDevDiagnosticError: (cb: (payload: RendererDiagnosticPayload) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, payload: RendererDiagnosticPayload): void => cb(payload)
+    ipcRenderer.on('diagnostics:dev-error', handler)
+    return () => ipcRenderer.removeListener('diagnostics:dev-error', handler)
+  },
+
+  // Overlay control
+  closeOverlay: (): void => ipcRenderer.send('close-overlay'),
+  getOverlayState: (): Promise<{
+    poeVersion: 1 | 2
+    gameBounds: { gameWidth: number; gameHeight: number; sidebarWidth: number } | null
+  }> => ipcRenderer.invoke('get-overlay-state'),
+  getIconCache: (): Promise<Record<string, string>> => ipcRenderer.invoke('get-icon-cache'),
+  onIconCacheUpdated: (cb: (added: Record<string, string>) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, added: Record<string, string>): void => cb(added)
+    ipcRenderer.on('icon-cache-updated', handler)
+    return () => ipcRenderer.removeListener('icon-cache-updated', handler)
+  },
+  reportPanelRect: (
+    rects:
+      | { left: number; top: number; width: number; height: number }
+      | Array<{ left: number; top: number; width: number; height: number }>,
+  ): void => ipcRenderer.send('report-panel-rect', rects),
+  lockInteractive: (): void => ipcRenderer.send('lock-interactive'),
+  unlockInteractive: (): void => ipcRenderer.send('unlock-interactive'),
+  suspendHotkeys: (): void => ipcRenderer.send('suspend-hotkeys'),
+  resumeHotkeys: (): void => ipcRenderer.send('resume-hotkeys'),
+  suspendInputHook: (): Promise<void> => ipcRenderer.invoke('screen-pick:suspend-hook'),
+  resumeInputHook: (): Promise<void> => ipcRenderer.invoke('screen-pick:resume-hook'),
+  setOverlayInputFocused: (focused: boolean): void => ipcRenderer.send('overlay-input-focused', focused),
+  reportRegex: (regex: string): void => ipcRenderer.send('report-regex', regex),
+  refreshPrices: (): Promise<void> => ipcRenderer.invoke('refresh-prices'),
+  recordPrefObservation: (sessionId: number, chips: Array<{ id: string; type: string; enabled: boolean }>): void =>
+    ipcRenderer.send('record-pref-observation', sessionId, chips),
+  resetLearning: (scope: 'all' | { rarity: string; itemClass: string }): Promise<void> =>
+    ipcRenderer.invoke('reset-learning', scope),
+
+  // Regex presets
+  getRegexPresets: (): Promise<import('@shared/types').RegexPreset[]> => ipcRenderer.invoke('get-regex-presets'),
+  saveRegexPreset: (preset: import('@shared/types').RegexPreset): Promise<import('@shared/types').RegexPreset[]> =>
+    ipcRenderer.invoke('save-regex-preset', preset),
+  deleteRegexPreset: (id: string): Promise<import('@shared/types').RegexPreset[]> =>
+    ipcRenderer.invoke('delete-regex-preset', id),
+  reorderRegexPresets: (ids: string[]): Promise<import('@shared/types').RegexPreset[]> =>
+    ipcRenderer.invoke('reorder-regex-presets', ids),
+  regexRemoteApply: (presetId: string): void => ipcRenderer.send('regex-remote:apply', presetId),
+  closeRegexRemote: (): void => ipcRenderer.send('regex-remote:close'),
+  regexRemoteHandFocus: (): void => ipcRenderer.send('regex-remote:hand-focus'),
+  regexRemoteMountState: (): Promise<boolean> => ipcRenderer.invoke('regex-remote:mount-state'),
+  onRegexRemoteMountChanged: (cb: (flush: boolean) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, flush: boolean): void => cb(flush)
+    ipcRenderer.on('regex-remote:mount-changed', handler)
+    return () => ipcRenderer.removeListener('regex-remote:mount-changed', handler)
+  },
+
+  // Cheat sheets
+  addCheatSheetFromFile: (categoryId: string): Promise<Array<{ id: string; ext: string }>> =>
+    ipcRenderer.invoke('cheat-sheet:add-from-file', categoryId),
+  addCheatSheetFromUrl: (categoryId: string, url: string): Promise<{ id: string; ext: string }> =>
+    ipcRenderer.invoke('cheat-sheet:add-from-url', categoryId, url),
+  removeCheatSheet: (categoryId: string, sheetId: string, ext: string): Promise<void> =>
+    ipcRenderer.invoke('cheat-sheet:remove', categoryId, sheetId, ext),
+  removeCheatSheetCategory: (categoryId: string): Promise<void> =>
+    ipcRenderer.invoke('cheat-sheet:remove-category', categoryId),
+  listCheatSheetPrefabs: (): Promise<Array<{ slug: string; name: string; imageCount: number; poeVersion?: 1 | 2 }>> =>
+    ipcRenderer.invoke('cheat-sheet:list-prefabs'),
+  importCheatSheetPrefab: (
+    slug: string,
+  ): Promise<{ categoryId: string; sheets: Array<{ id: string; ext: string; areaCodes?: string[] }> }> =>
+    ipcRenderer.invoke('cheat-sheet:import-prefab', slug),
+  pinnedZoneSetVisible: (visible: boolean): void => ipcRenderer.send('pinned-zone:set-visible', visible),
+  pinnedZoneSetContentHeight: (height: number): void => ipcRenderer.send('pinned-zone:set-content-height', height),
+  closeCheatSheets: (): void => ipcRenderer.send('cheat-sheet:close'),
+  minimizeCheatSheets: (): void => ipcRenderer.send('cheat-sheet:minimize'),
+  restoreCheatSheets: (): void => ipcRenderer.send('cheat-sheet:restore'),
+  openSettingsTab: (tab: string): void => ipcRenderer.send('open-settings-tab', tab),
+  showCheatSheetPreview: (src: string): void => ipcRenderer.send('cheat-sheet-preview:show', src),
+  hideCheatSheetPreview: (): void => ipcRenderer.send('cheat-sheet-preview:hide'),
+  onCheatSheetFocusCategory: (cb: (categoryId: string | undefined) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, categoryId: string | undefined): void => cb(categoryId)
+    ipcRenderer.on('cheat-sheet:focus-category', handler)
+    return () => ipcRenderer.removeListener('cheat-sheet:focus-category', handler)
+  },
+  onSecondaryOverlaySnapGhost: (
+    cb: (rect: { x: number; y: number; width: number; height: number } | null) => void,
+  ): (() => void) => {
+    const handler = (
+      _: Electron.IpcRendererEvent,
+      rect: { x: number; y: number; width: number; height: number } | null,
+    ): void => cb(rect)
+    ipcRenderer.on('secondary-overlay-canvas:snap-ghost', handler)
+    return () => ipcRenderer.removeListener('secondary-overlay-canvas:snap-ghost', handler)
+  },
+  onCheatSheetPreview: (cb: (state: { src: string | null }) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, state: { src: string | null }): void => cb(state)
+    ipcRenderer.on('cheat-sheet-preview:render', handler)
+    return () => ipcRenderer.removeListener('cheat-sheet-preview:render', handler)
+  },
+
+  // Event subscriptions
+  onOverlayData: (cb: (data: OverlayData) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, data: OverlayData): void => cb(data)
+    ipcRenderer.on('overlay-data', handler)
+    return () => ipcRenderer.removeListener('overlay-data', handler)
+  },
+  onCursorSide: (cb: (side: 'left' | 'right') => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, side: 'left' | 'right'): void => cb(side)
+    ipcRenderer.on('cursor-side', handler)
+    return () => ipcRenderer.removeListener('cursor-side', handler)
+  },
+  onNoFilterLoaded: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('no-filter-loaded', handler)
+    return () => ipcRenderer.removeListener('no-filter-loaded', handler)
+  },
+  onNoItemInClipboard: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('no-item-in-clipboard', handler)
+    return () => ipcRenderer.removeListener('no-item-in-clipboard', handler)
+  },
+  onOpenSettings: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('open-settings', handler)
+    return () => ipcRenderer.removeListener('open-settings', handler)
+  },
+  onOpenView: (cb: (view: string, tab?: string) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, view: string, tab?: string): void => cb(view, tab)
+    ipcRenderer.on('open-view', handler)
+    return () => ipcRenderer.removeListener('open-view', handler)
+  },
+  onOpenLinkPending: (cb: (target: ExternalLinkTarget) => void): (() => void) => {
+    const handler = (_e: unknown, target: ExternalLinkTarget): void => cb(target)
+    ipcRenderer.on('open-link-pending', handler)
+    return () => ipcRenderer.removeListener('open-link-pending', handler)
+  },
+  onOverlayHide: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('overlay-hide', handler)
+    return () => ipcRenderer.removeListener('overlay-hide', handler)
+  },
+  onSettingUpdated: (cb: (key: string, value: unknown) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, key: string, value: unknown): void => cb(key, value)
+    ipcRenderer.on('setting-updated', handler)
+    return () => ipcRenderer.removeListener('setting-updated', handler)
+  },
+  onLeagueUpdated: (cb: (league: string) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, league: string): void => cb(league)
+    ipcRenderer.on('league-updated', handler)
+    return () => ipcRenderer.removeListener('league-updated', handler)
+  },
+  onSkipAnimation: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('skip-animation', handler)
+    return () => ipcRenderer.removeListener('skip-animation', handler)
+  },
+  onPoeVersion: (cb: (version: 1 | 2) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, version: 1 | 2): void => cb(version)
+    ipcRenderer.on('poe-version', handler)
+    return () => ipcRenderer.removeListener('poe-version', handler)
+  },
+  onZoneChanged: (cb: (zone: Zone | null) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, zone: Zone | null): void => cb(zone)
+    ipcRenderer.on('zone-changed', handler)
+    return () => ipcRenderer.removeListener('zone-changed', handler)
+  },
+  onLogLine: (cb: (line: string) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, line: string): void => cb(line)
+    ipcRenderer.send('client-log:subscribe')
+    ipcRenderer.on('client-log:line', handler)
+    return () => {
+      ipcRenderer.removeListener('client-log:line', handler)
+      ipcRenderer.send('client-log:unsubscribe')
+    }
+  },
+  getRecentLogLines: (count?: number): Promise<string[]> => ipcRenderer.invoke('client-log:recent-lines', count),
+  gameConfigRead: (): Promise<{ content: string; path: string }> => ipcRenderer.invoke('plugins:game-config-read'),
+  gameConfigWrite: (content: string): Promise<{ backupPath: string | null }> =>
+    ipcRenderer.invoke('plugins:game-config-write', content),
+  onGameConfigChange: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.send('plugins:game-config-watch')
+    ipcRenderer.on('plugins:game-config-changed', handler)
+    return () => {
+      ipcRenderer.removeListener('plugins:game-config-changed', handler)
+      ipcRenderer.send('plugins:game-config-unwatch')
+    }
+  },
+  buildPlannerGetPath: (): Promise<{ path: string }> => ipcRenderer.invoke('plugins:build-planner-path'),
+  buildPlannerList: (): Promise<{ path: string; files: { filename: string; name: string }[] }> =>
+    ipcRenderer.invoke('plugins:build-planner-list'),
+  buildPlannerRead: (filename: string): Promise<{ path: string; content: string }> =>
+    ipcRenderer.invoke('plugins:build-planner-read', filename),
+  buildPlannerOpenFolder: (): Promise<{ path: string }> => ipcRenderer.invoke('plugins:build-planner-open-folder'),
+  tradeOpenSearch: (
+    item: {
+      name: string
+      baseType: string
+      itemClass?: string
+      rarity: string
+      notes?: string
+      statPriority?: string[]
+      similarItems?: boolean
+    },
+  ): Promise<{ url: string; queryId: string; total: number; matchedStats?: number }> =>
+    ipcRenderer.invoke('plugins:trade-open-search', item),
+  pricesGet: (opts?: {
+    category?: string
+  }): Promise<{ prices: import('@shared/types').PriceEntry[]; updatedAt: number | null }> =>
+    ipcRenderer.invoke('plugins:prices-get', opts),
+  pricesRefresh: (): Promise<void> => ipcRenderer.invoke('plugins:prices-refresh'),
+  onPricesChange: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.send('plugins:prices-watch')
+    ipcRenderer.on('plugins:prices-changed', handler)
+    return () => {
+      ipcRenderer.removeListener('plugins:prices-changed', handler)
+      ipcRenderer.send('plugins:prices-unwatch')
+    }
+  },
+  onOverlayDetach: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('overlay-detach', handler)
+    return () => ipcRenderer.removeListener('overlay-detach', handler)
+  },
+  onOverlayReattach: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('overlay-reattach', handler)
+    return () => ipcRenderer.removeListener('overlay-reattach', handler)
+  },
+  onPriceCheckOpen: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on(IPC_CHANNELS.OVERLAY.PRICE_CHECK_OPEN_EVENT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.OVERLAY.PRICE_CHECK_OPEN_EVENT, handler)
+  },
+  onFilterHotkeyOpen: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('filter-hotkey-open', handler)
+    return () => ipcRenderer.removeListener('filter-hotkey-open', handler)
+  },
+  onGameSwitchPrompt: (cb: (target: 1 | 2) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, target: 1 | 2): void => cb(target)
+    ipcRenderer.on('game-switch-prompt', handler)
+    return () => ipcRenderer.removeListener('game-switch-prompt', handler)
+  },
+  respondGameSwitch: (choice: 'restart' | 'cancel'): void => {
+    ipcRenderer.send('game-switch-response', choice)
+  },
+  onPriceCheck: (
+    cb: (data: {
+      item: import('@shared/types').PoeItem
+      priceInfo?: import('@shared/types').PriceInfo
+      statFilters: Array<{
+        id: string
+        text: string
+        value: number | null
+        min: number | null
+        max: number | null
+        enabled: boolean
+        type: string
+        learned?: boolean
+      }>
+      league: string
+      chaosPerDivine?: number
+      divineGraph?: (number | null)[]
+      unidCandidates?: Array<{ name: string; chaosValue: number }>
+      sessionId: number
+      learnedDecisions: Record<string, boolean>
+    }) => void,
+  ): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, data: Parameters<typeof cb>[0]): void => cb(data)
+    ipcRenderer.on(IPC_CHANNELS.OVERLAY.PRICE_CHECK_EVENT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.OVERLAY.PRICE_CHECK_EVENT, handler)
+  },
+  tradeSearch: (
+    item: {
+      name: string
+      baseType: string
+      itemClass: string
+      rarity: string
+      armour?: number
+      evasion?: number
+      energyShield?: number
+      ward?: number
+      block?: number
+      vaalGem?: boolean
+    },
+    statFilters: Array<{
+      id: string
+      text: string
+      value: number | null
+      min: number | null
+      max: number | null
+      enabled: boolean
+      type: string
+    }>,
+    searchOptions?: { listedTime?: string; priceOption?: string; statusOption?: string },
+  ): Promise<{
+    total: number
+    listings: Array<{
+      id: string
+      price: { amount: number; currency: string } | null
+      account: string
+      characterName?: string
+      online: boolean
+      instantBuyout: boolean
+      icon?: string
+      indexed?: string
+      itemData?: { name?: string; baseType?: string; explicitMods?: string[]; implicitMods?: string[]; ilvl?: number }
+    }>
+    queryId: string
+    remainingIds: string[]
+    loginRequiredPseudoIds?: string[]
+  }> => ipcRenderer.invoke('trade-search', item, statFilters, searchOptions),
+  bulkExchange: (
+    itemName: string,
+    baseType: string,
+    haveId?: string,
+  ): Promise<{
+    total: number
+    listings: Array<{
+      id: string
+      account: string
+      characterName?: string
+      online: boolean
+      stock: number
+      pay: { amount: number; currency: string }
+      get: { amount: number; currency: string }
+      ratio: number
+      whisper?: string
+    }>
+    queryId: string
+  }> => ipcRenderer.invoke('bulk-exchange', itemName, baseType, haveId),
+  checkBulkItem: (itemName: string, baseType: string, itemClass: string, rarity?: string): Promise<boolean> =>
+    ipcRenderer.invoke('check-bulk-item', itemName, baseType, itemClass, rarity),
+  mapRegexTrade: (params: {
+    tier: number
+    avoidTexts: string[]
+    wantTexts: string[]
+    wantMode: 'any' | 'all'
+    qualifiers: Record<string, number>
+    nightmare: boolean
+    originator: boolean
+    corrupted8mod: boolean
+  }): Promise<{
+    total: number
+    listings: Array<{
+      id: string
+      price: { amount: number; currency: string } | null
+      account: string
+      characterName?: string
+      online: boolean
+      instantBuyout: boolean
+      icon?: string
+      indexed?: string
+      itemData?: {
+        name?: string
+        baseType?: string
+        rarity?: string
+        explicitMods?: string[]
+        implicitMods?: string[]
+        ilvl?: number
+        mapProperties?: Array<{ name: string; value: string }>
+      }
+    }>
+    queryId: string
+    league: string
+    remainingIds: string[]
+  }> => ipcRenderer.invoke('map-regex-trade', params),
+  waystoneRegexTrade: (params: {
+    tier: number
+    avoidTexts: string[]
+    wantTexts: string[]
+    wantMode: 'any' | 'all'
+    wantValues: Record<number, number>
+    avoidValues: Record<number, number>
+    qualifiers: {
+      corrupted: boolean
+      uncorrupted: boolean
+      delirious: boolean
+      anyPack: boolean
+    }
+    quantities: {
+      packSize: number | null
+      monsterEffectiveness: number | null
+      monsterRarity: number | null
+      itemRarity: number | null
+      dropChance: number | null
+    }
+  }): Promise<{
+    total: number
+    listings: Array<{
+      id: string
+      price: { amount: number; currency: string } | null
+      account: string
+      characterName?: string
+      online: boolean
+      instantBuyout: boolean
+      icon?: string
+      indexed?: string
+      itemData?: {
+        name?: string
+        baseType?: string
+        rarity?: string
+        explicitMods?: string[]
+        implicitMods?: string[]
+        ilvl?: number
+        mapProperties?: Array<{ name: string; value: string }>
+      }
+    }>
+    queryId: string
+    league: string
+    remainingIds: string[]
+  }> => ipcRenderer.invoke('waystone-regex-trade', params),
+  tabletRegexTrade: (params: {
+    wantTexts: string[]
+    wantMode: 'any' | 'all'
+    wantValues: Record<number, number>
+    rarity: { normal: boolean; magic: boolean }
+    typeFlags: Record<string, boolean>
+    uses: { enabled: boolean; value: number }
+  }): Promise<{
+    total: number
+    listings: Array<{
+      id: string
+      price: { amount: number; currency: string } | null
+      account: string
+      characterName?: string
+      online: boolean
+      instantBuyout: boolean
+      icon?: string
+      indexed?: string
+      itemData?: {
+        name?: string
+        baseType?: string
+        rarity?: string
+        explicitMods?: string[]
+        implicitMods?: string[]
+        ilvl?: number
+        mapProperties?: Array<{ name: string; value: string }>
+      }
+    }>
+    queryId: string
+    league: string
+    remainingIds: string[]
+  }> => ipcRenderer.invoke('tablet-regex-trade', params),
+  fetchMoreListings: (
+    queryId: string,
+    ids: string[],
+  ): Promise<{
+    listings: Array<{
+      id: string
+      price: { amount: number; currency: string } | null
+      account: string
+      characterName?: string
+      online: boolean
+      instantBuyout: boolean
+      icon?: string
+      indexed?: string
+      itemData?: {
+        name?: string
+        baseType?: string
+        rarity?: string
+        explicitMods?: string[]
+        implicitMods?: string[]
+        ilvl?: number
+        mapProperties?: Array<{ name: string; value: string }>
+      }
+    }>
+    remainingIds: string[]
+  }> => ipcRenderer.invoke('fetch-more-listings', queryId, ids),
+  visitHideout: (queryId: string, listingId: string, league: string): Promise<void> =>
+    ipcRenderer.invoke('visit-hideout', queryId, listingId, league),
+  whisperSeller: (queryId: string, listingId: string, league: string): Promise<void> =>
+    ipcRenderer.invoke('whisper-seller', queryId, listingId, league),
+  poeLogin: (): Promise<void> => ipcRenderer.invoke('poe-login'),
+  poeCheckAuth: (): Promise<AuthResult> => ipcRenderer.invoke('poe-check-auth'),
+  poeLogout: (): Promise<void> => ipcRenderer.invoke('poe-logout'),
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url),
+  onGameBounds: (
+    cb: (bounds: { gameWidth: number; gameHeight: number; sidebarWidth: number }) => void,
+  ): (() => void) => {
+    const handler = (
+      _: Electron.IpcRendererEvent,
+      bounds: { gameWidth: number; gameHeight: number; sidebarWidth: number },
+    ): void => cb(bounds)
+    ipcRenderer.on('game-bounds', handler)
+    return () => ipcRenderer.removeListener('game-bounds', handler)
+  },
+
+  onElevationHint: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('elevation-hint', handler)
+    return () => ipcRenderer.removeListener('elevation-hint', handler)
+  },
+
+  onRateLimit: (
+    cb: (state: { tiers: Array<{ used: number; max: number; window: number; penalty: number }> }) => void,
+  ): (() => void) => {
+    const handler = (
+      _: Electron.IpcRendererEvent,
+      state: { tiers: Array<{ used: number; max: number; window: number; penalty: number }> },
+    ): void => cb(state)
+    ipcRenderer.on('rate-limit', handler)
+    return () => ipcRenderer.removeListener('rate-limit', handler)
+  },
+
+  /** Fired when the trade API returns 429 with a retry-after. Payload is the
+   *  absolute epoch ms when the penalty ends, so the renderer doesn't have to
+   *  track request-time skew. Used by the Greg banner to count down. */
+  onTradePenalty: (cb: (until: number) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, until: number): void => cb(until)
+    ipcRenderer.on('trade-penalty', handler)
+    return () => ipcRenderer.removeListener('trade-penalty', handler)
+  },
+
+  // Online filter sync
+  checkForOnlineUpdate: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('check-online-update'),
+  getOnlineSyncStatus: (): Promise<{ hasOnlineSource: boolean }> => ipcRenderer.invoke('online-sync-status'),
+  getFilterResetAvailability: (): Promise<{ canReset: boolean }> => ipcRenderer.invoke('filter-reset-availability'),
+  resetFilterToOnline: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('reset-filter-to-online'),
+  getFilterChanges: (): Promise<FilterChange[]> => ipcRenderer.invoke('get-filter-changes'),
+  quickUpdateFilter: (): Promise<{
+    ok: boolean
+    error?: string
+    stats?: {
+      unchanged: number
+      upstreamOnly: number
+      userOnly: number
+      bothChanged: number
+      added: number
+      removed: number
+    }
+    conflicts?: Array<{ description: string; actionType: string }>
+  }> => ipcRenderer.invoke('quick-update-filter'),
+  mergeOnlineFilter: (
+    onlineFilterName: string,
+    onlinePath: string,
+    localPath: string,
+  ): Promise<{
+    ok: boolean
+    error?: string
+    conflicts?: Array<{ description: string; actionType: string }>
+    stats?: {
+      unchanged: number
+      upstreamOnly: number
+      userOnly: number
+      bothChanged: number
+      added: number
+      removed: number
+    }
+  }> => ipcRenderer.invoke('merge-online-filter', onlineFilterName, onlinePath, localPath),
+  onOnlineFilterChanged: (cb: (changed: { path: string; name: string }[]) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, changed: { path: string; name: string }[]): void => cb(changed)
+    ipcRenderer.on('online-filter-changed', handler)
+    return () => ipcRenderer.removeListener('online-filter-changed', handler)
+  },
+  onFilterChanged: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('filter-changed', handler)
+    return () => ipcRenderer.removeListener('filter-changed', handler)
+  },
+
+  // Auto-update
+  downloadUpdate: (): Promise<void> => ipcRenderer.invoke('download-update'),
+  installUpdate: (): Promise<{ ok: true } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('install-update'),
+  getUpdateState: (): Promise<{
+    updateVersion: string | null
+    updateReady: boolean
+    brickedRelease: { version: string; message: string | null } | null
+  }> => ipcRenderer.invoke('get-update-state'),
+  saveOverlayState: (state: Record<string, unknown>): void => ipcRenderer.send('save-overlay-state', state),
+  onUpdateAvailable: (cb: (version: string) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, version: string): void => cb(version)
+    ipcRenderer.on('update-available', handler)
+    return () => ipcRenderer.removeListener('update-available', handler)
+  },
+  onUpdateDownloadProgress: (cb: (percent: number) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, percent: number): void => cb(percent)
+    ipcRenderer.on('update-download-progress', handler)
+    return () => ipcRenderer.removeListener('update-download-progress', handler)
+  },
+  onUpdateDownloaded: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('update-downloaded', handler)
+    return () => ipcRenderer.removeListener('update-downloaded', handler)
+  },
+  /** Dev-only: inject a fake "update available" banner so you can test the
+   *  channel-switch rescind flow without a real GitHub release. No-op in production.
+   *  Pass a version to override the default sentinel from the main-process handler. */
+  devFakeUpdate: (version?: string): Promise<void> => ipcRenderer.invoke('dev-fake-update', version),
+  onUpdateRescinded: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('update-rescinded', handler)
+    return () => ipcRenderer.removeListener('update-rescinded', handler)
+  },
+  onUpdateApplied: (cb: (version: string, state: Record<string, unknown> | null) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, version: string, state: Record<string, unknown> | null): void =>
+      cb(version, state)
+    ipcRenderer.on('update-applied', handler)
+    return () => ipcRenderer.removeListener('update-applied', handler)
+  },
+  onBrickedRelease: (cb: (info: { version: string; message: string | null }) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, info: { version: string; message: string | null }): void => cb(info)
+    ipcRenderer.on('bricked-release', handler)
+    return () => ipcRenderer.removeListener('bricked-release', handler)
+  },
+
+  // Clipboard (system, not whiteboard-specific). Image reads go through main
+  // because `navigator.clipboard.read()` in the renderer needs a permission
+  // grant Scalpel doesn't issue.
+  clipboardReadImage: (): Promise<{ src: string } | null> => ipcRenderer.invoke('clipboard:read-image'),
+
+  // Whiteboard
+  whiteboard: {
+    requestClose: (): void => ipcRenderer.send('whiteboard:request-close'),
+    setMode: (mode: 'edit' | 'play'): void => ipcRenderer.send('whiteboard:set-mode', mode),
+    reportToolbarRects: (rects: Array<{ left: number; top: number; width: number; height: number }>): void =>
+      ipcRenderer.send('report-panel-rect', rects),
+    clearToolbarRect: (): void => ipcRenderer.send('clear-panel-rect'),
+    load: (version: 1 | 2, gameSize: { w: number; h: number }): Promise<BoardLibrary> =>
+      ipcRenderer.invoke('whiteboard:load', version, gameSize),
+    saveActive: (version: 1 | 2, state: BoardState): void => ipcRenderer.send('whiteboard:save-active', version, state),
+    saveAsSnapshot: (version: 1 | 2, name: string, state: BoardState): Promise<{ id: string }> =>
+      ipcRenderer.invoke('whiteboard:save-as-snapshot', version, { name, state }),
+    deleteSnapshot: (version: 1 | 2, id: string): Promise<BoardSnapshot[]> =>
+      ipcRenderer.invoke('whiteboard:delete-snapshot', version, { id }),
+    renameSnapshot: (version: 1 | 2, id: string, name: string): Promise<BoardSnapshot[]> =>
+      ipcRenderer.invoke('whiteboard:rename-snapshot', version, { id, name }),
+    onPleaseFlush: (cb: () => void): (() => void) => {
+      const handler = (): void => cb()
+      ipcRenderer.on('whiteboard:please-flush', handler)
+      return () => ipcRenderer.removeListener('whiteboard:please-flush', handler)
+    },
+    onShown: (cb: () => void): (() => void) => {
+      const handler = (): void => cb()
+      ipcRenderer.on('whiteboard:shown', handler)
+      return () => ipcRenderer.removeListener('whiteboard:shown', handler)
+    },
+    onHidden: (cb: () => void): (() => void) => {
+      const handler = (): void => cb()
+      ipcRenderer.on('whiteboard:hidden', handler)
+      return () => ipcRenderer.removeListener('whiteboard:hidden', handler)
+    },
+    /** Ask main to re-fire `whiteboard:shown` if the window is currently
+     *  visible. Lets a late-mounting renderer (e.g. the Toolbar, which only
+     *  mounts after an async version probe) pull the show event when it
+     *  missed the original push. */
+    requestShownState: (): void => ipcRenderer.send('whiteboard:request-shown-state'),
+  },
+  // Plugins
+  listInstalledPlugins: (): Promise<
+    Array<{
+      manifest: import('../plugin-sdk/src/types').PluginManifest
+      entryUrl: string
+    }>
+  > => ipcRenderer.invoke('plugins:list-installed'),
+  listUnpackedPlugins: (): Promise<
+    Array<{
+      manifest: import('../plugin-sdk/src/types').PluginManifest
+      entryUrl: string
+    }>
+  > => ipcRenderer.invoke('plugins:list-unpacked'),
+  getInstalledPlugin: (
+    pluginId: string,
+  ): Promise<{ manifest: import('../plugin-sdk/src/types').PluginManifest; entryUrl: string } | null> =>
+    ipcRenderer.invoke('plugins:get-installed', pluginId),
+  pluginStorageGet: (pluginId: string, key: string): Promise<unknown> =>
+    ipcRenderer.invoke('plugins:storage-get', pluginId, key),
+  pluginStorageSet: (pluginId: string, key: string, value: unknown): Promise<void> =>
+    ipcRenderer.invoke('plugins:storage-set', pluginId, key, value),
+  pluginStorageDelete: (pluginId: string, key: string): Promise<void> =>
+    ipcRenderer.invoke('plugins:storage-delete', pluginId, key),
+  pluginStorageKeys: (pluginId: string): Promise<string[]> => ipcRenderer.invoke('plugins:storage-keys', pluginId),
+  pluginRegisterHotkey: (pluginId: string, label: string): Promise<void> =>
+    ipcRenderer.invoke('plugins:register-hotkey', pluginId, label),
+  pluginListRegisteredHotkeys: (): Promise<Array<{ action: string; pluginId: string; label: string }>> =>
+    ipcRenderer.invoke('plugins:list-registered-hotkeys'),
+  pluginRegisterTab: (pluginId: string, label: string, icon: string): Promise<void> =>
+    ipcRenderer.invoke('plugins:register-tab', pluginId, label, icon),
+  pluginUnregisterTab: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugins:unregister-tab', pluginId),
+  pluginListRegisteredTabs: (): Promise<Array<{ pluginId: string; label: string; icon: string }>> =>
+    ipcRenderer.invoke('plugins:list-registered-tabs'),
+  pluginInstallUnpacked: (): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('plugins:install-unpacked'),
+  pluginFetchRegistry: (): Promise<
+    { ok: true; snapshot: import('@shared/plugin-registry-types').RegistrySnapshot } | { ok: false; error: string }
+  > => ipcRenderer.invoke('plugins:fetch-registry'),
+  pluginInstallFromRegistry: (
+    entry: import('@shared/plugin-registry-types').RegistryEntry,
+  ): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('plugins:install-from-registry', entry),
+  pluginUpdateFromRegistry: (
+    entry: import('@shared/plugin-registry-types').RegistryEntry,
+  ): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('plugins:update-from-registry', entry),
+  pluginUninstall: (pluginId: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('plugins:uninstall', pluginId),
+  pluginUnregisterHotkey: (pluginId: string): Promise<void> =>
+    ipcRenderer.invoke('plugins:unregister-hotkey', pluginId),
+  onPluginMacro: (handler: (action: string) => void): (() => void) => {
+    const listener = (_: Electron.IpcRendererEvent, action: string): void => handler(action)
+    ipcRenderer.on('plugin-macro', listener)
+    return () => ipcRenderer.removeListener('plugin-macro', listener)
+  },
+  onPluginInstalled: (
+    handler: (entry: { manifest: import('../plugin-sdk/src/types').PluginManifest; entryUrl: string }) => void,
+  ): (() => void) => {
+    const listener = (
+      _: Electron.IpcRendererEvent,
+      entry: { manifest: import('../plugin-sdk/src/types').PluginManifest; entryUrl: string },
+    ): void => handler(entry)
+    ipcRenderer.on('plugin-installed', listener)
+    return () => ipcRenderer.off('plugin-installed', listener)
+  },
+  onPluginUpdated: (
+    handler: (entry: { manifest: import('../plugin-sdk/src/types').PluginManifest; entryUrl: string }) => void,
+  ): (() => void) => {
+    const listener = (
+      _: Electron.IpcRendererEvent,
+      entry: { manifest: import('../plugin-sdk/src/types').PluginManifest; entryUrl: string },
+    ): void => handler(entry)
+    ipcRenderer.on('plugin-updated', listener)
+    return () => ipcRenderer.off('plugin-updated', listener)
+  },
+  onPluginUninstalled: (handler: (pluginId: string) => void): (() => void) => {
+    const listener = (_: Electron.IpcRendererEvent, pluginId: string): void => handler(pluginId)
+    ipcRenderer.on('plugin-uninstalled', listener)
+    return () => ipcRenderer.off('plugin-uninstalled', listener)
+  },
+  onPluginHotkeysChanged: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('plugin-hotkeys-changed', handler)
+    return () => ipcRenderer.removeListener('plugin-hotkeys-changed', handler)
+  },
+  onPluginTabsChanged: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('plugin-tabs-changed', handler)
+    return () => ipcRenderer.removeListener('plugin-tabs-changed', handler)
+  },
+  onRegexPresetsChanged: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('regex-presets-changed', handler)
+    return () => ipcRenderer.removeListener('regex-presets-changed', handler)
+  },
+  onPluginOverlayInit: (cb: (pluginId: string) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string): void => cb(id)
+    ipcRenderer.on('plugin-overlay:init', handler)
+    return () => ipcRenderer.removeListener('plugin-overlay:init', handler)
+  },
+  pluginTriggerMainHotkey: (): Promise<import('@shared/types').PoeItem | null> =>
+    ipcRenderer.invoke('plugins:trigger-main-hotkey'),
+  pluginShowOverlay: (): Promise<void> => ipcRenderer.invoke('plugins:show-overlay'),
+  pluginRegisterOverlay: (
+    pluginId: string,
+    opts: {
+      title: string
+      hotkeyLabel?: string
+      defaultSize?: { width: number; height: number }
+      mode?: 'window' | 'annotation'
+    },
+  ): Promise<void> => ipcRenderer.invoke('plugins:register-overlay', pluginId, opts),
+  pluginOpenOverlay: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugins:open-overlay', pluginId),
+  pluginCloseOverlay: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugins:close-overlay', pluginId),
+  pluginWebPanelOpen: (
+    pluginId: string,
+    opts: { url: string; title?: string; width?: number; height?: number },
+  ): Promise<void> => ipcRenderer.invoke('plugins:web-panel-open', pluginId, opts),
+  pluginWebPanelNavigate: (pluginId: string, url: string): Promise<void> =>
+    ipcRenderer.invoke('plugins:web-panel-navigate', pluginId, url),
+  pluginWebPanelClose: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugins:web-panel-close', pluginId),
+  pluginReadClipboardText: (): Promise<string> => ipcRenderer.invoke('plugins:read-clipboard-text'),
+  craftListActions: (
+    pluginId: string,
+    item: import('@shared/types').PoeItem,
+    opts?: import('@shared/crafting/types').CraftResolveOpts,
+  ) => ipcRenderer.invoke('plugins:craft-list-actions', pluginId, item, opts),
+  craftSimulate: (
+    pluginId: string,
+    item: import('@shared/types').PoeItem,
+    actionId: string,
+    opts?: import('@shared/crafting/types').CraftResolveOpts,
+  ) => ipcRenderer.invoke('plugins:craft-simulate', pluginId, item, actionId, opts),
+  craftApply: (
+    pluginId: string,
+    state: import('@shared/crafting/types').CraftItemState,
+    actionId: string,
+    seed?: number,
+    opts?: import('@shared/crafting/types').CraftApplyOptions,
+  ) => ipcRenderer.invoke('plugins:craft-apply', pluginId, state, actionId, seed, opts),
+  craftFreshState: (
+    pluginId: string,
+    baseType: string,
+    itemLevel: number,
+    opts?: import('@shared/crafting/types').CraftResolveOpts,
+  ) => ipcRenderer.invoke('plugins:craft-fresh-state', pluginId, baseType, itemLevel, opts),
+  craftTargetHit: (
+    pluginId: string,
+    opts: {
+      state: import('@shared/crafting/types').CraftItemState
+      actionId: string
+      targetQuery: string
+      kind?: 'all' | 'p' | 's'
+      samples?: number
+      omens?: string[]
+    },
+  ) => ipcRenderer.invoke('plugins:craft-target-hit', pluginId, opts),
+  craftPath: (
+    pluginId: string,
+    opts: {
+      state: import('@shared/crafting/types').CraftItemState
+      steps: Array<{ actionId: string; omens?: string[]; repeatUntilHit?: boolean }>
+      targetQuery: string
+      kind?: 'all' | 'p' | 's'
+      maxTrials?: number
+      samples?: number
+    },
+  ) => ipcRenderer.invoke('plugins:craft-path', pluginId, opts),
+  craftModPool: (
+    pluginId: string,
+    opts: {
+      baseType: string
+      itemLevel: number
+      kind?: 'all' | 'p' | 's'
+      item?: import('@shared/types').PoeItem | null
+      context?: 'fresh' | 'item'
+      poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
+      marksmanEnabled?: boolean
+    },
+  ) => ipcRenderer.invoke('plugins:craft-mod-pool', pluginId, opts),
+  craftSearchBases: (
+    pluginId: string,
+    query: string,
+    limit?: number,
+    itemClass?: string,
+  ) => ipcRenderer.invoke('plugins:craft-search-bases', pluginId, query, limit, itemClass),
+  craftListItemClasses: (pluginId: string) => ipcRenderer.invoke('plugins:craft-list-item-classes', pluginId),
+  craftSearchMods: (
+    pluginId: string,
+    opts: {
+      query: string
+      itemLevel?: number
+      poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
+      itemClass?: string
+      kind?: 'all' | 'p' | 's'
+      limit?: number
+    },
+  ) => ipcRenderer.invoke('plugins:craft-search-mods', pluginId, opts),
+  pluginCaptureGameWindow: (
+    region?: import('../plugin-sdk/src/types').GameRect,
+  ): Promise<import('../plugin-sdk/src/types').GameCapture | null> =>
+    ipcRenderer.invoke('plugins:capture-game-window', region),
+}
+
+contextBridge.exposeInMainWorld('api', api)
+
+// Forward SCALPEL_DEBUG_LOG to the renderer as a boolean global so plugin
+// ctx.log() and other renderer-side gated logging can read it without IPC.
+contextBridge.exposeInMainWorld('__SCALPEL_DEBUG_LOG', Boolean(process.env.SCALPEL_DEBUG_LOG))
+
+export type Api = typeof api

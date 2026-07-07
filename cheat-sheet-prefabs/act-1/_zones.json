@@ -1,0 +1,18 @@
+{
+  "01-clearfell-1.png": ["G1_2"],
+  "01-clearfell-2.png": ["G1_2"],
+  "02-grelwood.png": ["G1_4"],
+  "03-red-vale.png": ["G1_5"],
+  "04-grim-tangle.png": ["G1_6"],
+  "05-cemetery.png": ["G1_7"],
+  "06-praetor.png": ["G1_8"],
+  "07-consort.png": ["G1_9"],
+  "08-hunting-grounds.png": ["G1_11"],
+  "09-freythorn.png": ["G1_12"],
+  "10-ogham-farmlands.png": ["G1_13_1"],
+  "11-ogham-village.png": ["G1_13_2"],
+  "12-manor-ramparts.png": ["G1_14"],
+  "13-ogham-manor-1.png": ["G1_15"],
+  "13-ogham-manor-2.png": ["G1_15"],
+  "13-ogham-manor-3.png": ["G1_15"]
+}
