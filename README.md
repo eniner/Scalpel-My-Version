@@ -13,7 +13,7 @@ A fork of [Scalpel](https://github.com/scalpelpoe/scalpel) with custom PoE 2 plu
 | **Runeshape Checker** | Runeshape tab | OCR hotkey that reads Runeshape Combinations rewards and shows poe.ninja prices |
 | **Scalpel OCR** (`well-tiers`) | — | OCR hotkey for Well of Souls affix tiers and Runeshape reward pricing |
 | **Build Shopping List** | Shopping list tab | Parse build guides into a shopping list |
-| **Craft engine** | (host) | CoE-style per-base mod weights baked into the patched app |
+| **Expedition cheat sheet** | Settings → Sheets | PoE 2 rumor / unique map / boss / saga tier list (from community spreadsheet) |
 
 Upstream Scalpel features (filter, price check, regex, etc.) are unchanged.
 
@@ -95,6 +95,28 @@ Launch **Scalpel** from the Start menu (not a separate dev exe). You should see 
 6. Click **Refresh prices** to pull the latest poe.ninja data.
 
 Categories mirror the poe.ninja PoE 2 economy pages (currency, fragments, abyssal bones, essences, runes, omens, expedition, liquid emotions, unique weapons/armours/accessories/jewels/flasks, etc.).
+
+---
+
+## Using the Expedition cheat sheet
+
+`install:local` installs the community **Expedition** tier list (rumors, unique maps, bosses, sagas) into your PoE 2 Sheets.
+
+1. Open Scalpel → **Settings → Sheets**
+2. You should see an **Expedition** category with **Expedition Tier List**
+3. Bind a hotkey on that category (or set the global Sheets hotkey)
+4. In game, press the hotkey to open the Sheets overlay and view the tier list
+
+Source spreadsheet: [Expedition Cheatsheet](https://docs.google.com/spreadsheets/d/16YU8mSS7TdLPdmOunVjiPn_NrKVGfcnMkuMQDy8jgZA/edit?gid=0#gid=0)
+
+To regenerate the image after editing the sheet data:
+
+```powershell
+python scripts\render-expedition-cheatsheet.py
+npm run sync-prefabs
+```
+
+Then re-run `npm run install:local` (or copy the PNG into Settings → Sheets).
 
 ---
 

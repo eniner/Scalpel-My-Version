@@ -28,290 +28,423 @@ export interface PrefabPack {
 
 export const PREFAB_PACKS: PrefabPack[] = [
   {
-    slug: 'act-1',
-    name: 'Act 1',
-    images: [
+    "slug": "act-1",
+    "name": "Act 1",
+    "images": [
       {
-        path: 'act-1/01-clearfell-1.png',
-        areaCodes: ['G1_2'],
+        "path": "act-1/01-clearfell-1.png",
+        "areaCodes": [
+          "G1_2"
+        ]
       },
       {
-        path: 'act-1/01-clearfell-2.png',
-        areaCodes: ['G1_2'],
+        "path": "act-1/01-clearfell-2.png",
+        "areaCodes": [
+          "G1_2"
+        ]
       },
       {
-        path: 'act-1/02-grelwood.png',
-        areaCodes: ['G1_4'],
+        "path": "act-1/02-grelwood.png",
+        "areaCodes": [
+          "G1_4"
+        ]
       },
       {
-        path: 'act-1/03-red-vale.png',
-        areaCodes: ['G1_5'],
+        "path": "act-1/03-red-vale.png",
+        "areaCodes": [
+          "G1_5"
+        ]
       },
       {
-        path: 'act-1/04-grim-tangle.png',
-        areaCodes: ['G1_6'],
+        "path": "act-1/04-grim-tangle.png",
+        "areaCodes": [
+          "G1_6"
+        ]
       },
       {
-        path: 'act-1/05-cemetery.png',
-        areaCodes: ['G1_7'],
+        "path": "act-1/05-cemetery.png",
+        "areaCodes": [
+          "G1_7"
+        ]
       },
       {
-        path: 'act-1/06-praetor.png',
-        areaCodes: ['G1_8'],
+        "path": "act-1/06-praetor.png",
+        "areaCodes": [
+          "G1_8"
+        ]
       },
       {
-        path: 'act-1/07-consort.png',
-        areaCodes: ['G1_9'],
+        "path": "act-1/07-consort.png",
+        "areaCodes": [
+          "G1_9"
+        ]
       },
       {
-        path: 'act-1/08-hunting-grounds.png',
-        areaCodes: ['G1_11'],
+        "path": "act-1/08-hunting-grounds.png",
+        "areaCodes": [
+          "G1_11"
+        ]
       },
       {
-        path: 'act-1/09-freythorn.png',
-        areaCodes: ['G1_12'],
+        "path": "act-1/09-freythorn.png",
+        "areaCodes": [
+          "G1_12"
+        ]
       },
       {
-        path: 'act-1/10-ogham-farmlands.png',
-        areaCodes: ['G1_13_1'],
+        "path": "act-1/10-ogham-farmlands.png",
+        "areaCodes": [
+          "G1_13_1"
+        ]
       },
       {
-        path: 'act-1/11-ogham-village.png',
-        areaCodes: ['G1_13_2'],
+        "path": "act-1/11-ogham-village.png",
+        "areaCodes": [
+          "G1_13_2"
+        ]
       },
       {
-        path: 'act-1/12-manor-ramparts.png',
-        areaCodes: ['G1_14'],
+        "path": "act-1/12-manor-ramparts.png",
+        "areaCodes": [
+          "G1_14"
+        ]
       },
       {
-        path: 'act-1/13-ogham-manor-1.png',
-        areaCodes: ['G1_15'],
+        "path": "act-1/13-ogham-manor-1.png",
+        "areaCodes": [
+          "G1_15"
+        ]
       },
       {
-        path: 'act-1/13-ogham-manor-2.png',
-        areaCodes: ['G1_15'],
+        "path": "act-1/13-ogham-manor-2.png",
+        "areaCodes": [
+          "G1_15"
+        ]
       },
       {
-        path: 'act-1/13-ogham-manor-3.png',
-        areaCodes: ['G1_15'],
-      },
+        "path": "act-1/13-ogham-manor-3.png",
+        "areaCodes": [
+          "G1_15"
+        ]
+      }
     ],
-    poeVersion: 2,
+    "poeVersion": 2
   },
   {
-    slug: 'act-2',
-    name: 'Act 2',
-    images: [
+    "slug": "act-2",
+    "name": "Act 2",
+    "images": [
       {
-        path: 'act-2/01-vastiri-outskirts.png',
-        areaCodes: ['G2_1'],
+        "path": "act-2/01-vastiri-outskirts.png",
+        "areaCodes": [
+          "G2_1"
+        ]
       },
       {
-        path: 'act-2/02-mawdun-quarry.png',
-        areaCodes: ['G2_10_1'],
+        "path": "act-2/02-mawdun-quarry.png",
+        "areaCodes": [
+          "G2_10_1"
+        ]
       },
       {
-        path: 'act-2/03-mawdun-mine.png',
-        areaCodes: ['G2_10_2'],
+        "path": "act-2/03-mawdun-mine.png",
+        "areaCodes": [
+          "G2_10_2"
+        ]
       },
       {
-        path: 'act-2/04-traitors-passage-1.png',
-        areaCodes: ['G2_2'],
+        "path": "act-2/04-traitors-passage-1.png",
+        "areaCodes": [
+          "G2_2"
+        ]
       },
       {
-        path: 'act-2/04-traitors-passage-2.png',
-        areaCodes: ['G2_2'],
+        "path": "act-2/04-traitors-passage-2.png",
+        "areaCodes": [
+          "G2_2"
+        ]
       },
       {
-        path: 'act-2/05-halani-gates.png',
-        areaCodes: ['G2_3', 'G2_3a'],
+        "path": "act-2/05-halani-gates.png",
+        "areaCodes": [
+          "G2_3",
+          "G2_3a"
+        ]
       },
       {
-        path: 'act-2/06-keth.png',
-        areaCodes: ['G2_4_1'],
+        "path": "act-2/06-keth.png",
+        "areaCodes": [
+          "G2_4_1"
+        ]
       },
       {
-        path: 'act-2/07-lost-city.png',
-        areaCodes: ['G2_4_2'],
+        "path": "act-2/07-lost-city.png",
+        "areaCodes": [
+          "G2_4_2"
+        ]
       },
       {
-        path: 'act-2/08-buried-shrines.png',
-        areaCodes: ['G2_4_3'],
+        "path": "act-2/08-buried-shrines.png",
+        "areaCodes": [
+          "G2_4_3"
+        ]
       },
       {
-        path: 'act-2/09-valley-of-the-titans.png',
-        areaCodes: ['G2_6'],
+        "path": "act-2/09-valley-of-the-titans.png",
+        "areaCodes": [
+          "G2_6"
+        ]
       },
       {
-        path: 'act-2/10-titan-grotto.png',
-        areaCodes: ['G2_7'],
+        "path": "act-2/10-titan-grotto.png",
+        "areaCodes": [
+          "G2_7"
+        ]
       },
       {
-        path: 'act-2/11-deshar.png',
-        areaCodes: ['G2_8'],
+        "path": "act-2/11-deshar.png",
+        "areaCodes": [
+          "G2_8"
+        ]
       },
       {
-        path: 'act-2/12-path-of-mourning.png',
-        areaCodes: ['G2_9_1'],
+        "path": "act-2/12-path-of-mourning.png",
+        "areaCodes": [
+          "G2_9_1"
+        ]
       },
       {
-        path: 'act-2/13-mastodon-badlands.png',
-        areaCodes: ['G2_5_1'],
+        "path": "act-2/13-mastodon-badlands.png",
+        "areaCodes": [
+          "G2_5_1"
+        ]
       },
       {
-        path: 'act-2/14-bone-pits.png',
-        areaCodes: ['G2_5_2'],
+        "path": "act-2/14-bone-pits.png",
+        "areaCodes": [
+          "G2_5_2"
+        ]
       },
       {
-        path: 'act-2/15-spires-of-deshar.png',
-        areaCodes: ['G2_9_2'],
+        "path": "act-2/15-spires-of-deshar.png",
+        "areaCodes": [
+          "G2_9_2"
+        ]
       },
       {
-        path: 'act-2/16-dreadnought.png',
-        areaCodes: ['G2_12_1', 'G2_12_2'],
-      },
+        "path": "act-2/16-dreadnought.png",
+        "areaCodes": [
+          "G2_12_1",
+          "G2_12_2"
+        ]
+      }
     ],
-    poeVersion: 2,
+    "poeVersion": 2
   },
   {
-    slug: 'act-3',
-    name: 'Act 3',
-    images: [
+    "slug": "act-3",
+    "name": "Act 3",
+    "images": [
       {
-        path: 'act-3/01-sandswept-marsh.png',
-        areaCodes: ['G3_1'],
+        "path": "act-3/01-sandswept-marsh.png",
+        "areaCodes": [
+          "G3_1"
+        ]
       },
       {
-        path: 'act-3/02-jungle-ruins-2.png',
-        areaCodes: ['G3_3'],
+        "path": "act-3/02-jungle-ruins-2.png",
+        "areaCodes": [
+          "G3_3"
+        ]
       },
       {
-        path: 'act-3/03-infested-barrens.png',
-        areaCodes: ['G3_2_1'],
+        "path": "act-3/03-infested-barrens.png",
+        "areaCodes": [
+          "G3_2_1"
+        ]
       },
       {
-        path: 'act-3/04-chimeral-wetlands.png',
-        areaCodes: ['G3_5'],
+        "path": "act-3/04-chimeral-wetlands.png",
+        "areaCodes": [
+          "G3_5"
+        ]
       },
       {
-        path: 'act-3/05-jinquanis-machinarium.png',
-        areaCodes: ['G3_6_1'],
+        "path": "act-3/05-jinquanis-machinarium.png",
+        "areaCodes": [
+          "G3_6_1"
+        ]
       },
       {
-        path: 'act-3/06-jinquanis-sanctum.png',
-        areaCodes: ['G3_6_2'],
+        "path": "act-3/06-jinquanis-sanctum.png",
+        "areaCodes": [
+          "G3_6_2"
+        ]
       },
       {
-        path: 'act-3/07-matlan-waterways.png',
-        areaCodes: ['G3_2_2'],
+        "path": "act-3/07-matlan-waterways.png",
+        "areaCodes": [
+          "G3_2_2"
+        ]
       },
       {
-        path: 'act-3/08-apex-of-filth.png',
-        areaCodes: ['G3_11'],
+        "path": "act-3/08-apex-of-filth.png",
+        "areaCodes": [
+          "G3_11"
+        ]
       },
       {
-        path: 'act-3/09-temple-of-kopec.png',
-        areaCodes: ['G3_12'],
+        "path": "act-3/09-temple-of-kopec.png",
+        "areaCodes": [
+          "G3_12"
+        ]
       },
       {
-        path: 'act-3/10-aggorat.png',
-        areaCodes: ['G3_16'],
+        "path": "act-3/10-aggorat.png",
+        "areaCodes": [
+          "G3_16"
+        ]
       },
       {
-        path: 'act-3/11-black-chambers.png',
-        areaCodes: ['G3_17'],
+        "path": "act-3/11-black-chambers.png",
+        "areaCodes": [
+          "G3_17"
+        ]
       },
       {
-        path: 'act-3/12-azak-bog.png',
-        areaCodes: ['G3_7'],
-      },
+        "path": "act-3/12-azak-bog.png",
+        "areaCodes": [
+          "G3_7"
+        ]
+      }
     ],
-    poeVersion: 2,
+    "poeVersion": 2
   },
   {
-    slug: 'act-4',
-    name: 'Act 4',
-    images: [
+    "slug": "act-4",
+    "name": "Act 4",
+    "images": [
       {
-        path: 'act-4/01-isle-of-kin.png',
-        areaCodes: ['G4_1_1'],
+        "path": "act-4/01-isle-of-kin.png",
+        "areaCodes": [
+          "G4_1_1"
+        ]
       },
       {
-        path: 'act-4/02-volcanic-warrens.png',
-        areaCodes: ['G4_1_2'],
+        "path": "act-4/02-volcanic-warrens.png",
+        "areaCodes": [
+          "G4_1_2"
+        ]
       },
       {
-        path: 'act-4/03-kedge-bay.png',
-        areaCodes: ['G4_2_1'],
+        "path": "act-4/03-kedge-bay.png",
+        "areaCodes": [
+          "G4_2_1"
+        ]
       },
       {
-        path: 'act-4/04-journeys-end.png',
-        areaCodes: ['G4_2_2'],
+        "path": "act-4/04-journeys-end.png",
+        "areaCodes": [
+          "G4_2_2"
+        ]
       },
       {
-        path: 'act-4/05-shrike-island.png',
-        areaCodes: ['G4_7'],
+        "path": "act-4/05-shrike-island.png",
+        "areaCodes": [
+          "G4_7"
+        ]
       },
       {
-        path: 'act-4/06-whakapanu-island.png',
-        areaCodes: ['G4_3_1'],
+        "path": "act-4/06-whakapanu-island.png",
+        "areaCodes": [
+          "G4_3_1"
+        ]
       },
       {
-        path: 'act-4/07-singing-caverns.png',
-        areaCodes: ['G4_3_2'],
+        "path": "act-4/07-singing-caverns.png",
+        "areaCodes": [
+          "G4_3_2"
+        ]
       },
       {
-        path: 'act-4/08-solitary-confinement.png',
-        areaCodes: ['G4_5_2'],
+        "path": "act-4/08-solitary-confinement.png",
+        "areaCodes": [
+          "G4_5_2"
+        ]
       },
       {
-        path: 'act-4/09-eye-of-hinekora.png',
-        areaCodes: ['G4_4_1'],
+        "path": "act-4/09-eye-of-hinekora.png",
+        "areaCodes": [
+          "G4_4_1"
+        ]
       },
       {
-        path: 'act-4/10-halls-of-the-dead.png',
-        areaCodes: ['G4_4_2'],
+        "path": "act-4/10-halls-of-the-dead.png",
+        "areaCodes": [
+          "G4_4_2"
+        ]
       },
       {
-        path: 'act-4/11-arastas.png',
-        areaCodes: ['G4_8a', 'G4_8b'],
+        "path": "act-4/11-arastas.png",
+        "areaCodes": [
+          "G4_8a",
+          "G4_8b"
+        ]
       },
       {
-        path: 'act-4/12-excavation.png',
-        areaCodes: ['G4_10'],
+        "path": "act-4/12-excavation.png",
+        "areaCodes": [
+          "G4_10"
+        ]
       },
       {
-        path: 'act-4/13-ngakanu.png',
-        areaCodes: ['G4_11_1a', 'G4_11_1b'],
+        "path": "act-4/13-ngakanu.png",
+        "areaCodes": [
+          "G4_11_1a",
+          "G4_11_1b"
+        ]
       },
       {
-        path: 'act-4/14-heart-of-the-tribe.png',
-        areaCodes: ['G4_11_2'],
-      },
+        "path": "act-4/14-heart-of-the-tribe.png",
+        "areaCodes": [
+          "G4_11_2"
+        ]
+      }
     ],
-    poeVersion: 2,
+    "poeVersion": 2
   },
   {
-    slug: 'leagues',
-    name: 'Leagues',
-    images: [
+    "slug": "expedition",
+    "name": "Expedition",
+    "images": [
       {
-        path: 'leagues/Shipments.png',
-        areaCodes: [],
-      },
-      {
-        path: 'leagues/Syndicate-328-2552.webp',
-        areaCodes: [],
-      },
-      {
-        path: 'leagues/Syndicate-328.webp',
-        areaCodes: [],
-      },
-      {
-        path: 'leagues/sanctum.png',
-        areaCodes: [],
-      },
+        "path": "expedition/expedition-tier-list.png",
+        "areaCodes": []
+      }
     ],
-    poeVersion: 1,
+    "poeVersion": 2
   },
+  {
+    "slug": "leagues",
+    "name": "Leagues",
+    "images": [
+      {
+        "path": "leagues/Shipments.png",
+        "areaCodes": []
+      },
+      {
+        "path": "leagues/Syndicate-328-2552.webp",
+        "areaCodes": []
+      },
+      {
+        "path": "leagues/Syndicate-328.webp",
+        "areaCodes": []
+      },
+      {
+        "path": "leagues/sanctum.png",
+        "areaCodes": []
+      }
+    ],
+    "poeVersion": 1
+  }
 ]

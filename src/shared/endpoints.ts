@@ -79,7 +79,7 @@ export const KOFI_URL = 'https://ko-fi.com/scalpelpoe'
  *  installer; they're fetched on demand when the user clicks "+ <Pack>" in
  *  Settings -> Sheets. */
 export const CHEAT_SHEET_PREFAB_BASE_URL =
-  'https://raw.githubusercontent.com/scalpelpoe/scalpel/main/cheat-sheet-prefabs/'
+  'https://raw.githubusercontent.com/eniner/Scalpel-My-Version/main/cheat-sheet-prefabs/'
 
 /** Runtime-fetched manifest of values that may change between releases (e.g.
  *  ninja league slugs). Fetched on app start; bundled copy in the repo root

@@ -87,6 +87,53 @@ function verifyAsar(asarPath) {
   }
 }
 
+/** Install bundled Expedition cheat sheet into the active PoE2 profile. */
+function installExpeditionCheatSheet() {
+  const sheetSrc = join(root, 'cheat-sheet-prefabs', 'expedition', 'expedition-tier-list.png')
+  if (!existsSync(sheetSrc)) {
+    console.warn('Expedition cheat sheet PNG missing — skip Sheets install')
+    return
+  }
+  const profilesDir = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Scalpel', 'profiles')
+  if (!existsSync(profilesDir)) return
+  const categoryId = 'cat-expedition'
+  const sheetId = 'expedition-tier-list'
+  const sheetsRoot = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Scalpel', 'cheat-sheets')
+  const destDir = join(sheetsRoot, categoryId)
+  mkdirSync(destDir, { recursive: true })
+  copyFileSync(sheetSrc, join(destDir, `${sheetId}.png`))
+  const thumb = join(destDir, `${sheetId}.thumb.jpg`)
+  if (existsSync(thumb)) rmSync(thumb, { force: true })
+
+  for (const name of readdirSync(profilesDir)) {
+    if (!name.endsWith('.json')) continue
+    const path = join(profilesDir, name)
+    let profile
+    try {
+      profile = JSON.parse(readFileSync(path, 'utf8'))
+    } catch {
+      continue
+    }
+    if (profile.gameVariant !== 2) continue
+    if (!profile.cheatSheets || typeof profile.cheatSheets !== 'object') {
+      profile.cheatSheets = { globalHotkey: '', categories: [], pinned: false }
+    }
+    const cats = Array.isArray(profile.cheatSheets.categories) ? profile.cheatSheets.categories : []
+    const existing = cats.find((c) => c.id === categoryId || c.prefabSlug === 'expedition')
+    const category = {
+      id: categoryId,
+      name: 'Expedition',
+      hotkey: existing?.hotkey ?? '',
+      prefabSlug: 'expedition',
+      sheets: [{ id: sheetId, label: 'Expedition Tier List', ext: 'png' }],
+    }
+    profile.cheatSheets.categories = [...cats.filter((c) => c.id !== categoryId && c.prefabSlug !== 'expedition'), category]
+    profile.updatedAt = new Date().toISOString()
+    writeFileSync(path, `${JSON.stringify(profile, null, 2)}\n`)
+    console.log(`Installed Expedition cheat sheet into profile ${profile.name || name}`)
+  }
+}
+
 function patchInstalledAsar(version) {
   const srcAsar = join(root, 'dist', `v${version}`, 'app.asar')
   const srcUnpacked = `${srcAsar}.unpacked`
@@ -140,6 +187,7 @@ async function main() {
   patchInstalledAsar(version)
   ensureInstalledJson()
   for (const pluginId of PLUGIN_IDS) installPlugin(pluginId)
+  installExpeditionCheatSheet()
 
   console.log('\nDone. Launching normal Scalpel…')
   const exe = join(installedRoot, 'Scalpel.exe')
