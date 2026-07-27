@@ -32,8 +32,10 @@ export interface TabletBuildArgs {
   customText?: string
 }
 
-/** Faithful port of poe2.re's generateTabletRegex (src/pages/tablet/TabletResult.ts).
- *  Mirrors output bug-for-bug; see tablet-engine.test.ts for the parity check. */
+/** Port of poe2.re's generateTabletRegex (src/pages/tablet/TabletResult.ts).
+ *  Valued affixes intentionally diverge when the unique token sits before the
+ *  roll on the mod line (e.g. Ritual Favours / Omens: `l fa` then `##%`) —
+ *  upstream always emits NUMBER.*token, which never matches those items. */
 export function buildTabletRegex(args: TabletBuildArgs): string {
   const result = [
     rarityRegex(args.rarity),
@@ -46,11 +48,27 @@ export function buildTabletRegex(args: TabletBuildArgs): string {
   return result.join(' ').trim()
 }
 
-/** Mirrors poe2.re selectedOptionRegex: a chosen magnitude prefixes the mod token.
- *  A falsy value yields the bare regex (matches their `if (option.value)`). */
+/** True when the mod's unique token can only match before the `#` roll placeholder.
+ *  Those mods need token.*NUMBER; NUMBER.*token never hits real item text. */
+export function tabletTokenBeforeValue(mod: TabletMod): boolean {
+  if (mod.regex.startsWith('^')) return true
+  const hashIdx = mod.text.indexOf('#')
+  if (hashIdx < 0) return false
+  const before = mod.text.slice(0, hashIdx)
+  try {
+    return new RegExp(mod.regex, 'i').test(before)
+  } catch {
+    return before.toLowerCase().includes(mod.regex.toLowerCase())
+  }
+}
+
+/** Mirrors poe2.re selectedOptionRegex for number-first mods; flips order when
+ *  the abbreviation precedes the roll (see tabletTokenBeforeValue). */
 function affixToken(mod: TabletMod, value: number | undefined, round10: boolean): string {
   if (!value) return mod.regex
-  return `${generateNumberRegex(String(value), round10, false)}.*${mod.regex}`
+  const num = generateNumberRegex(String(value), round10, false)
+  if (tabletTokenBeforeValue(mod)) return `${mod.regex}.*${num}`
+  return `${num}.*${mod.regex}`
 }
 
 function modifierRegex(mods: TabletMod[], selections: TabletSelections, round10: boolean): string[] {

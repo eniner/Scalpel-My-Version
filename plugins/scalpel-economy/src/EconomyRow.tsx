@@ -8,7 +8,7 @@ interface EconomyRowProps {
 }
 
 export function EconomyRow({ entry, zebra }: EconomyRowProps): JSX.Element {
-  const iconUrl = iconForEntry(entry.name)
+  const iconUrl = iconForEntry(entry)
 
   return (
     <div className={`flex items-center gap-2 px-2.5 py-1.5 ${zebra ? 'bg-white/[0.02]' : ''}`}>

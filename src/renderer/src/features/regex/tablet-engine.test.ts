@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { buildTabletRegex, type TabletBuildArgs } from './tablet-engine'
+import { buildTabletRegex, tabletTokenBeforeValue, type TabletBuildArgs } from './tablet-engine'
 import { generateTabletRegex } from './__fixtures__/poe2re/TabletResult'
 import type { Settings } from './__fixtures__/poe2re/Settings'
 import type { SelectOption } from './__fixtures__/poe2re/SelectOption'
 import { TABLET_MODS } from '@shared/data/regex/tablet-mods'
+import { generateNumberRegex } from './waystone-number-regex'
 
 function emptyArgs(): TabletBuildArgs {
   return {
@@ -182,6 +183,25 @@ describe('buildTabletRegex specifics', () => {
     a.uses.enabled = true
     a.uses.value = 14
     expect(buildTabletRegex(a)).toBe('"(1[4-8]) us"')
+  })
+
+  it('puts token before number when the abbreviation precedes the roll (Omens)', () => {
+    const mod = TABLET_MODS.find((m) => m.regex === 'l fa')
+    if (!mod) throw new Error('expected Ritual Favours / Omens mod')
+    expect(tabletTokenBeforeValue(mod)).toBe(true)
+
+    const a = emptyArgs()
+    a.selections.want = new Set([mod.id])
+    a.selections.wantValues = { [mod.id]: 35 }
+    const out = buildTabletRegex(a)
+    const num = generateNumberRegex('35', false, false)
+    expect(out).toBe(`"${mod.regex}.*${num}"`)
+
+    // Real stash line: token before the rolled %, so NUMBER.*l fa never matches.
+    const line = 'Ritual Favours in Map have 54(35-70)% increased chance to be Omens'
+    const body = out.slice(1, -1) // strip PoE AND-quotes
+    expect(new RegExp(body, 'i').test(line)).toBe(true)
+    expect(new RegExp(`${num}.*${mod.regex}`, 'i').test(line)).toBe(false)
   })
 })
 

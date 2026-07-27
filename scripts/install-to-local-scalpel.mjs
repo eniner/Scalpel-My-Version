@@ -87,23 +87,28 @@ function verifyAsar(asarPath) {
   }
 }
 
-/** Install bundled Expedition cheat sheet into the active PoE2 profile. */
-function installExpeditionCheatSheet() {
-  const sheetSrc = join(root, 'cheat-sheet-prefabs', 'expedition', 'expedition-tier-list.png')
-  if (!existsSync(sheetSrc)) {
-    console.warn('Expedition cheat sheet PNG missing — skip Sheets install')
-    return
-  }
+/** Install a bundled cheat-sheet prefab into every PoE2 profile. */
+function installPrefabCheatSheet(opts) {
+  const { slug, categoryId, categoryName, sheets } = opts
   const profilesDir = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Scalpel', 'profiles')
   if (!existsSync(profilesDir)) return
-  const categoryId = 'cat-expedition'
-  const sheetId = 'expedition-tier-list'
   const sheetsRoot = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Scalpel', 'cheat-sheets')
   const destDir = join(sheetsRoot, categoryId)
   mkdirSync(destDir, { recursive: true })
-  copyFileSync(sheetSrc, join(destDir, `${sheetId}.png`))
-  const thumb = join(destDir, `${sheetId}.thumb.jpg`)
-  if (existsSync(thumb)) rmSync(thumb, { force: true })
+
+  const installedSheets = []
+  for (const sheet of sheets) {
+    const sheetSrc = join(root, 'cheat-sheet-prefabs', sheet.src)
+    if (!existsSync(sheetSrc)) {
+      console.warn(`${categoryName} cheat sheet missing (${sheet.src}) — skip`)
+      continue
+    }
+    copyFileSync(sheetSrc, join(destDir, `${sheet.id}.png`))
+    const thumb = join(destDir, `${sheet.id}.thumb.jpg`)
+    if (existsSync(thumb)) rmSync(thumb, { force: true })
+    installedSheets.push({ id: sheet.id, label: sheet.label, ext: 'png' })
+  }
+  if (installedSheets.length === 0) return
 
   for (const name of readdirSync(profilesDir)) {
     if (!name.endsWith('.json')) continue
@@ -119,19 +124,43 @@ function installExpeditionCheatSheet() {
       profile.cheatSheets = { globalHotkey: '', categories: [], pinned: false }
     }
     const cats = Array.isArray(profile.cheatSheets.categories) ? profile.cheatSheets.categories : []
-    const existing = cats.find((c) => c.id === categoryId || c.prefabSlug === 'expedition')
+    const existing = cats.find((c) => c.id === categoryId || c.prefabSlug === slug)
     const category = {
       id: categoryId,
-      name: 'Expedition',
+      name: categoryName,
       hotkey: existing?.hotkey ?? '',
-      prefabSlug: 'expedition',
-      sheets: [{ id: sheetId, label: 'Expedition Tier List', ext: 'png' }],
+      prefabSlug: slug,
+      sheets: installedSheets,
     }
-    profile.cheatSheets.categories = [...cats.filter((c) => c.id !== categoryId && c.prefabSlug !== 'expedition'), category]
+    profile.cheatSheets.categories = [
+      ...cats.filter((c) => c.id !== categoryId && c.prefabSlug !== slug),
+      category,
+    ]
     profile.updatedAt = new Date().toISOString()
     writeFileSync(path, `${JSON.stringify(profile, null, 2)}\n`)
-    console.log(`Installed Expedition cheat sheet into profile ${profile.name || name}`)
+    console.log(`Installed ${categoryName} cheat sheet into profile ${profile.name || name}`)
   }
+}
+
+function installExpeditionCheatSheet() {
+  installPrefabCheatSheet({
+    slug: 'expedition',
+    categoryId: 'cat-expedition',
+    categoryName: 'Expedition',
+    sheets: [{ id: 'expedition-tier-list', label: 'Expedition Tier List', src: 'expedition/expedition-tier-list.png' }],
+  })
+}
+
+function installRegexCheatSheet() {
+  installPrefabCheatSheet({
+    slug: 'regex',
+    categoryId: 'cat-regex',
+    categoryName: 'Regex',
+    sheets: [
+      { id: '01-operators', label: 'Operators', src: 'regex/01-operators.png' },
+      { id: '02-numbers-gotchas', label: 'Numbers & Gotchas', src: 'regex/02-numbers-gotchas.png' },
+    ],
+  })
 }
 
 function patchInstalledAsar(version) {
@@ -188,6 +217,7 @@ async function main() {
   ensureInstalledJson()
   for (const pluginId of PLUGIN_IDS) installPlugin(pluginId)
   installExpeditionCheatSheet()
+  installRegexCheatSheet()
 
   console.log('\nDone. Launching normal Scalpel…')
   const exe = join(installedRoot, 'Scalpel.exe')

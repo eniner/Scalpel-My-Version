@@ -15,7 +15,7 @@ export function App({ ctx }: AppProps): JSX.Element {
       <div>
         <h2 className="text-[15px] font-semibold text-text m-0">Scalpel Economy</h2>
         <p className="text-[12px] text-text-dim mt-1.5 mb-0 leading-relaxed">
-          In-game poe.ninja browser for Runes of Aldur. Pop out the overlay to keep prices beside PoE while you play.
+          Live economy prices for Runes of Aldur. Pop out the overlay to keep prices beside PoE while you play.
         </p>
       </div>
 
@@ -37,7 +37,7 @@ export function App({ ctx }: AppProps): JSX.Element {
         <ul className="mt-1.5 mb-0 pl-4 space-y-1">
           <li>Bind <span className="font-mono">Toggle Scalpel Economy</span> in Settings → Macros.</li>
           <li>Use the category dropdown for currency, runes, uniques, omens, and more.</li>
-          <li>Each row shows the item icon and name beside its poe.ninja price.</li>
+          <li>Each row shows the item icon and name beside its current price.</li>
         </ul>
       </div>
     </div>

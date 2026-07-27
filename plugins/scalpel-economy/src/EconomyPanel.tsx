@@ -31,7 +31,11 @@ export function EconomyPanel({ ctx, compact = false }: EconomyPanelProps): JSX.E
       style={{ fontFamily: 'system-ui, sans-serif' }}
     >
       <div className="px-3 pt-3 pb-2 border-b border-white/10 shrink-0">
-        <div className="font-bold text-[12px] text-[#c8a96e] mb-2">poe.ninja · Runes of Aldur</div>
+        <div className="font-bold text-[12px] text-[#c8a96e] mb-2">Runes of Aldur</div>
+        <style>{`
+          .scalpel-economy-filter::placeholder { color: #6b7280; opacity: 1; }
+          .scalpel-economy-filter::-webkit-input-placeholder { color: #6b7280; opacity: 1; }
+        `}</style>
         <div className="flex flex-col gap-2">
           <select
             value={selectedSlug}
@@ -48,11 +52,18 @@ export function EconomyPanel({ ctx, compact = false }: EconomyPanelProps): JSX.E
             })}
           </select>
           <input
-            type="search"
+            type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter items…"
-            className="w-full bg-[#12131a] text-[#e2e8f0] border border-white/12 rounded-lg px-2 py-1.5 text-[11px] placeholder:text-[#6b7280]"
+            className="scalpel-economy-filter w-full rounded-lg px-2 py-1.5 text-[11px] border border-white/12"
+            style={{
+              backgroundColor: '#12131a',
+              color: '#e2e8f0',
+              colorScheme: 'dark',
+              WebkitAppearance: 'none',
+              appearance: 'none',
+            }}
           />
         </div>
       </div>
@@ -82,7 +93,7 @@ export function EconomyPanel({ ctx, compact = false }: EconomyPanelProps): JSX.E
           <div className="px-3 py-4 text-[11px] text-[#9e9480]">
             {queryNorm
               ? 'No items match your filter in this category.'
-              : 'No prices in this category yet — try Refresh or open Scalpel settings to update poe.ninja data.'}
+              : 'No prices in this category yet — try Refresh to update economy data.'}
           </div>
         ) : (
           rows.map((entry, i) => (

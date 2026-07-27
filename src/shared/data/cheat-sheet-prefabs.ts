@@ -446,5 +446,20 @@ export const PREFAB_PACKS: PrefabPack[] = [
       }
     ],
     "poeVersion": 1
+  },
+  {
+    "slug": "regex",
+    "name": "Regex",
+    "images": [
+      {
+        "path": "regex/01-operators.png",
+        "areaCodes": []
+      },
+      {
+        "path": "regex/02-numbers-gotchas.png",
+        "areaCodes": []
+      }
+    ],
+    "poeVersion": 2
   }
 ]

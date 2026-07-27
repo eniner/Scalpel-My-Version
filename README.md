@@ -14,6 +14,7 @@ A fork of [Scalpel](https://github.com/scalpelpoe/scalpel) with custom PoE 2 plu
 | **Scalpel OCR** (`well-tiers`) | — | OCR hotkey for Well of Souls affix tiers and Runeshape reward pricing |
 | **Build Shopping List** | Shopping list tab | Parse build guides into a shopping list |
 | **Expedition cheat sheet** | Settings → Sheets | PoE 2 rumor / unique map / boss / saga tier list (from community spreadsheet) |
+| **Regex cheat sheet** | Settings → Sheets | PoE 2 stash-search operators, number mins, tablet gotchas (Omens etc.) |
 
 Upstream Scalpel features (filter, price check, regex, etc.) are unchanged.
 
@@ -117,6 +118,27 @@ npm run sync-prefabs
 ```
 
 Then re-run `npm run install:local` (or copy the PNG into Settings → Sheets).
+
+---
+
+## Using the Regex cheat sheet
+
+`install:local` also installs a two-page **Regex** pack (operators + numbers/gotchas) into PoE 2 Sheets.
+
+1. Open Scalpel → **Settings → Sheets**
+2. Find the **Regex** category (Operators · Numbers & Gotchas)
+3. Bind a category hotkey (or use the global Sheets hotkey) and flip pages in the overlay
+
+Covers stash AND/OR/exclude quotes, Want Any vs All, abbreviations, the ~250-char limit, min-value patterns, and the tablet “token before number” gotcha (e.g. Omens).
+
+Regenerate:
+
+```powershell
+python scripts\render-regex-cheatsheet.py
+npm run sync-prefabs
+```
+
+Then re-run `npm run install:local`.
 
 ---
 
