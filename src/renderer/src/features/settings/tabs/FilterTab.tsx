@@ -1,6 +1,8 @@
 import type { AppSettings, ProfileSettingValue, PoeItem, RuntimeSettings } from '@shared/types'
 import { getGameFeatures } from '@shared/game-features'
 import { FilterPicker } from '@renderer/components/FilterPicker'
+import { FilterSectionEditor } from '@renderer/components/FilterSectionEditor'
+import { LootSimulator } from '@renderer/components/LootSimulator'
 import { HistoryPanel } from '@renderer/components/HistoryPanel'
 import { HotkeyField } from '@renderer/components/primitives/HotkeyField'
 import { SettingToggleBox } from '@renderer/components/primitives/SettingToggleBox'
@@ -32,10 +34,6 @@ export function FilterTab({
   const features = getGameFeatures(settings.poeVersion)
   const filterPath = settings.activeProfile?.filterPath
 
-  // Overlay filter tab with no configured filter: show only a mandatory setup
-  // panel. No filter hotkey, reload-on-save, or history panel are available
-  // until a filter file is selected. Price check and other non-filter overlay
-  // views should continue to work without a filter.
   if (isOverlay && !filterPath) {
     return (
       <>
@@ -63,7 +61,20 @@ export function FilterTab({
     <>
       <div className="settings-section-title mt-3">{m.settings_filter_heading()}</div>
 
-      {/* Filter folder & picker */}
+      <section>
+        <label>Edit filter sections</label>
+        <div className="mt-[6px]">
+          <FilterSectionEditor filterPath={filterPath} />
+        </div>
+      </section>
+
+      <section>
+        <label>Loot simulator</label>
+        <div className="mt-[6px]">
+          <LootSimulator filterPath={filterPath} />
+        </div>
+      </section>
+
       <section>
         <label>{m.settings_filter_folder()}</label>
         <div className="mt-[6px]">
@@ -73,6 +84,7 @@ export function FilterTab({
             autoSwitchInGame={isOverlay || undefined}
             onOnlineFilterUpdated={onOnlineFilterUpdated}
             onOnlineImport={onOnlineImport}
+            maxListHeight={140}
           />
         </div>
         {isOverlay && !filterPath && (
@@ -82,7 +94,6 @@ export function FilterTab({
         )}
       </section>
 
-      {/* Filter hotkey */}
       <section>
         <label>{m.settings_filter_hotkey()}</label>
         <div className="mt-[6px]">
@@ -96,7 +107,6 @@ export function FilterTab({
         </div>
       </section>
 
-      {/* Reload on save */}
       <SettingToggleBox
         label={m.settings_reload_on_save()}
         checked={settings.reloadOnSave}

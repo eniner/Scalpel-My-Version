@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 import type Store from 'electron-store'
 import type { AppSettings } from '@shared/types'
 import { getBaselineByLocalPath, saveBaseline } from '../baselines'
@@ -13,6 +13,9 @@ import { switchFilterInGame } from '../overlay'
 import { saveVersion } from '../update/versions'
 import { checkOnlineSyncNow } from '../online-sync'
 import { getProfileBackedSetting } from '../profiles/profile-settings'
+import { filterBladeUrl, resolveFilterBladeLink } from '../filterblade-bridge'
+import { getPoeVersion } from '../game-state'
+import { resolveFilterFolder } from '../detect-active-filter'
 
 /** Look up the online filter name and path for the currently active local filter */
 function findOnlineFilter(
@@ -271,6 +274,98 @@ export function register(store: Store<AppSettings>): void {
         if (currentPath === localPath) loadFilter(localPath, 'Online Filter Merged')
 
         return { ok: true, stats: { ...result.stats, skippedForValidity: fallbackBlocks.length } }
+      } catch (err) {
+        return { ok: false, error: String(err) }
+      }
+    },
+  )
+
+  ipcMain.handle('filterblade-url', (): string => filterBladeUrl(getPoeVersion() === 2 ? 2 : 1))
+
+  ipcMain.handle(
+    'filterblade-scan',
+    (
+      _event,
+      filterDir?: string,
+    ): {
+      filterDir: string
+      candidates: Array<{ name: string; path: string; score: number }>
+      needsSync: boolean
+    } => {
+      const dir =
+        (filterDir && filterDir.trim()) ||
+        (getProfileBackedSetting(store, 'filterDir') as string) ||
+        resolveFilterFolder(getPoeVersion() === 2 ? 2 : 1, app.getPath('documents'))
+      const resolved = resolveFilterBladeLink(dir)
+      return {
+        filterDir: dir,
+        candidates: resolved.candidates ?? [],
+        needsSync: Boolean(resolved.needsSync),
+      }
+    },
+  )
+
+  ipcMain.handle(
+    'filterblade-link',
+    (
+      _event,
+      opts?: { filterDir?: string; preferName?: string; force?: boolean },
+    ): {
+      ok: boolean
+      error?: string
+      needsSync?: boolean
+      conflict?: boolean
+      filterDir?: string
+      path?: string
+      onlineName?: string
+      localName?: string
+      alreadyLinked?: boolean
+      candidates?: Array<{ name: string; path: string; score: number }>
+    } => {
+      try {
+        const dir =
+          (opts?.filterDir && opts.filterDir.trim()) ||
+          (getProfileBackedSetting(store, 'filterDir') as string) ||
+          resolveFilterFolder(getPoeVersion() === 2 ? 2 : 1, app.getPath('documents'))
+        const resolved = resolveFilterBladeLink(dir, opts?.preferName)
+        if (!resolved.ok || !resolved.linked) {
+          return {
+            ok: false,
+            needsSync: resolved.needsSync,
+            error: resolved.error,
+            filterDir: dir,
+            candidates: resolved.candidates,
+          }
+        }
+
+        const { onlineName, onlinePath, localPath, localName, alreadyLinked } = resolved.linked
+        if (alreadyLinked && !opts?.force) {
+          return {
+            ok: true,
+            filterDir: dir,
+            path: localPath,
+            onlineName,
+            localName,
+            alreadyLinked: true,
+            candidates: resolved.candidates,
+          }
+        }
+
+        // Inline the same import path as import-online-filter
+        const originalContent = readFileSync(onlinePath, 'utf-8')
+        saveBaseline(onlineName, originalContent, onlinePath, localPath)
+        const content = applyLocalNameHeader(originalContent, localName)
+        writeFileSync(localPath, content, 'utf-8')
+        clearIntents()
+        return {
+          ok: true,
+          filterDir: dir,
+          path: localPath,
+          onlineName,
+          localName,
+          alreadyLinked: false,
+          candidates: resolved.candidates,
+        }
       } catch (err) {
         return { ok: false, error: String(err) }
       }

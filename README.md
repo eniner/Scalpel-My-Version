@@ -142,6 +142,19 @@ Then re-run `npm run install:local`.
 
 ---
 
+## FilterBlade / NeverSink bridge
+
+Scalpel does not talk to FilterBlade’s servers (no public API). The bridge is:
+
+1. **Open FilterBlade** from Settings → Filter (or the overlay filter setup panel)
+2. On FilterBlade: customize → **Export → Sync** to your PoE account
+3. In-game: select that filter once so it downloads into `OnlineFilters`
+4. In Scalpel: **Scan & Link** — creates a `Name-local.filter` Scalpel can edit
+5. In-game: switch to the `*-local` filter
+6. Later: **Check FilterBlade updates** after you re-Sync on the site
+
+---
+
 ## Using Scalpel Lab
 
 1. Set Scalpel to **PoE 2** and your league in settings.
