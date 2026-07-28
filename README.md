@@ -29,71 +29,71 @@ Upstream Scalpel core (price check, regex builder, macros, sheets, etc.) stays i
 
 Browse NeverSink sections on your active `*-local` filter. Toggle Show/Hide per tier, drag BaseTypes between tiers, edit style with the brush, and **Add rule** for a new BaseType.
 
-![Filter section editor — Currency tiers with Fontin previews](docs/screenshots/01-filter-section-editor.png)
+![Filter section editor — Currency tiers with Fontin previews](screenshots/01-filter-section-editor.png)
 
 ### Loot simulator
 
 Pick a section pool (e.g. Currency), simulate a pack of drops, and preview Fontin labels + alert sounds against your active filter before you map.
 
-![Loot simulator — currency pack drop preview](docs/screenshots/02-loot-simulator.png)
+![Loot simulator — currency pack drop preview](screenshots/02-loot-simulator.png)
 
 ### FilterBlade / OnlineFilters bridge
 
 Link shared PoE / FilterBlade filters without hand-copying files: open the PoE item-filter page or FilterBlade, then **Scan & Link** to create a Scalpel-editable `Name-local.filter`.
 
-![Online / shared filters — Scan & Link for 9lives](docs/screenshots/03-filterblade-bridge.png)
+![Online / shared filters — Scan & Link for 9lives](screenshots/03-filterblade-bridge.png)
 
 Filter checkpoints and session history stay available under the same Filter tab:
 
-![Filter versions — App Launch checkpoints for 9lives-local](docs/screenshots/04-filter-versions.png)
+![Filter versions — App Launch checkpoints for 9lives-local](screenshots/04-filter-versions.png)
 
 ### Scalpel Economy
 
 Live poe.ninja prices in the Economy tab, plus **Open in-game panel** for a pop-out overlay beside PoE while you play.
 
-![Scalpel Economy — Abyssal Bones prices + in-game overlay](docs/screenshots/05-economy-overlay.png)
+![Scalpel Economy — Abyssal Bones prices + in-game overlay](screenshots/05-economy-overlay.png)
 
 ### Build Shopping List
 
 Paste a MaxRoll / Mobalytics URL (or import a `.build` file), then track acquired gear slots with priority stats and Trade / DB links.
 
-![Build Shopping List — Mid Endgame gear checklist](docs/screenshots/06-build-shopping-list.png)
+![Build Shopping List — Mid Endgame gear checklist](screenshots/06-build-shopping-list.png)
 
 ### Scalpel Lab — Craft odds
 
 Per-base prefix/suffix weights for the selected item (iLvl, pool tags, Craft / Marksman / Desecrated).
 
-![Scalpel Lab Craft odds — Abyssal Cuirass prefixes & suffixes](docs/screenshots/07-lab-craft-odds.png)
+![Scalpel Lab Craft odds — Abyssal Cuirass prefixes & suffixes](screenshots/07-lab-craft-odds.png)
 
 ### Scalpel Lab — Emulator
 
 Step-through crafting on a virtual item: omens (Dextral/Sinistral, Whittling, …) plus currencies, essences, and more.
 
-![Scalpel Lab Emulator — Gold Ring with omen & currency buttons](docs/screenshots/08-lab-emulator.png)
+![Scalpel Lab Emulator — Gold Ring with omen & currency buttons](screenshots/08-lab-emulator.png)
 
 ### Scalpel Lab — Target odds
 
 Search a target mod and craft method to see chance to hit (prefix / suffix / any).
 
-![Scalpel Lab Target odds — mod search + recalculate](docs/screenshots/09-lab-target-odds.png)
+![Scalpel Lab Target odds — mod search + recalculate](screenshots/09-lab-target-odds.png)
 
 ### Scalpel Lab — Craft path
 
 Multi-step recipes (e.g. Alt → Regal) using the Emulator item state when available.
 
-![Scalpel Lab Craft path — Alt to Regal recipe](docs/screenshots/10-lab-craft-path.png)
+![Scalpel Lab Craft path — Alt to Regal recipe](screenshots/10-lab-craft-path.png)
 
 ### Expedition cheat sheet
 
 Sheets overlay: rumor / unique map / boss / saga ratings for PoE 2 Expedition.
 
-![Expedition cheat sheet overlay in hideout](docs/screenshots/11-expedition-cheatsheet.png)
+![Expedition cheat sheet overlay in hideout](screenshots/11-expedition-cheatsheet.png)
 
 ### Regex cheat sheet
 
 Sheets overlay for stash/vendor search: AND/OR/exclude quotes, Want Any vs All, abbreviations, and the ~250-char limit.
 
-![Regex cheat sheet overlay — operators and Want Any vs All](docs/screenshots/12-regex-cheatsheet.png)
+![Regex cheat sheet overlay — operators and Want Any vs All](screenshots/12-regex-cheatsheet.png)
 
 ---
 
@@ -351,7 +351,7 @@ plugins/scalpel-economy/      poe.ninja economy browser
 plugins/runeshape-checker/     Runeshape OCR pricing
 plugins/well-tiers/            Well of Souls + Runeshape OCR
 plugins/build-shopping-list/   Build guide shopping list
-docs/screenshots/              Feature screenshots used in this README
+screenshots/              Feature screenshots used in this README
 src/shared/crafting/           Craft engine (host)
 src/main/handlers/             Craft IPC handlers
 scripts/install-to-local-scalpel.mjs   Patch normal Scalpel install
