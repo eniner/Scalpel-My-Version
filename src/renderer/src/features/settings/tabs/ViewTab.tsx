@@ -88,6 +88,30 @@ export function ViewTab({ settings, update, updateMany }: Props): JSX.Element {
       show: features.divCards,
     },
     {
+      key: 'scarabs',
+      icon: (
+        <img
+          src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvU2NhcmFicy9MZXNzZXJTY2FyYWJBYnlzcyIsInNjYWxlIjoxfV0/05f3ac3c5c/LesserScarabAbyss.png"
+          alt=""
+          className="w-[18px] h-[18px] object-contain"
+        />
+      ),
+      title: m.feature_scarab_atlas(),
+      show: features.scarabAtlas,
+    },
+    {
+      key: 'timeless',
+      icon: <span className="text-[10px] font-bold">TJ</span>,
+      title: m.feature_timeless_jewels(),
+      show: features.timelessJewels,
+    },
+    {
+      key: 'warrants',
+      icon: <span className="text-[9px] font-bold">SW</span>,
+      title: m.feature_scalpel_warrants(),
+      show: features.scalpelWarrants,
+    },
+    {
       key: 'regex',
       icon: <img src={poereIcon} alt="" className="w-[18px] h-[18px] object-contain" />,
       title: m.feature_regex_tool(),

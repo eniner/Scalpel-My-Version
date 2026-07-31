@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "scalpel-harvest",
+  "version": "1.0.0",
+  "name": "Scalpel Harvest",
+  "description": "Harvest conversion profitability for essences, fossils, catalysts, oils, delirium orbs, breachstones, and timeless emblems (PoE1)",
+  "author": "E9",
+  "scalpelMinVersion": ">=0.9.16-rc1",
+  "poeVersions": [1]
+}

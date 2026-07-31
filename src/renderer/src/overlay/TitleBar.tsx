@@ -151,6 +151,48 @@ export function TitleBar({
             <img src={DIV_CARD_ICON_URL} alt="" className="w-[18px] h-[18px] object-contain" />
           </button>
         )}
+        {features.scarabAtlas && !hiddenTabs.has('scarabs') && (
+          <button
+            onClick={() => onSetView('scarabs')}
+            title={m.feature_scarab_atlas()}
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5"
+            style={{
+              background: view === 'scarabs' ? 'var(--accent)' : undefined,
+            }}
+          >
+            <img
+              src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvU2NhcmFicy9MZXNzZXJTY2FyYWJBYnlzcyIsInNjYWxlIjoxfV0/05f3ac3c5c/LesserScarabAbyss.png"
+              alt=""
+              className="w-[18px] h-[18px] object-contain"
+            />
+          </button>
+        )}
+        {features.timelessJewels && !hiddenTabs.has('timeless') && (
+          <button
+            onClick={() => onSetView('timeless')}
+            title={m.feature_timeless_jewels()}
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 text-[11px] font-bold"
+            style={{
+              background: view === 'timeless' ? 'var(--accent)' : undefined,
+              color: view === 'timeless' ? '#171821' : undefined,
+            }}
+          >
+            TJ
+          </button>
+        )}
+        {features.scalpelWarrants && !hiddenTabs.has('warrants') && (
+          <button
+            onClick={() => onSetView('warrants')}
+            title={m.feature_scalpel_warrants()}
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 text-[10px] font-bold"
+            style={{
+              background: view === 'warrants' ? 'var(--accent)' : undefined,
+              color: view === 'warrants' ? '#171821' : undefined,
+            }}
+          >
+            SW
+          </button>
+        )}
         {features.regexTool && !hiddenTabs.has('regex') && (
           <button
             onClick={() => onSetView('regex')}

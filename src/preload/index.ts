@@ -301,6 +301,21 @@ export const api = {
   closeRegexRemote: (): void => ipcRenderer.send('regex-remote:close'),
   regexRemoteHandFocus: (): void => ipcRenderer.send('regex-remote:hand-focus'),
   regexRemoteMountState: (): Promise<boolean> => ipcRenderer.invoke('regex-remote:mount-state'),
+
+  timelessTree: {
+    show: (state?: import('@shared/timeless-tree-state').TimelessTreeState): void =>
+      ipcRenderer.send('timeless-tree:show', state),
+    requestClose: (): void => ipcRenderer.send('timeless-tree:request-close'),
+    setState: (state: import('@shared/timeless-tree-state').TimelessTreeState): void =>
+      ipcRenderer.send('timeless-tree:set-state', state),
+    requestState: (): void => ipcRenderer.send('timeless-tree:request-state'),
+    onState: (cb: (state: import('@shared/timeless-tree-state').TimelessTreeState) => void): (() => void) => {
+      const handler = (_: Electron.IpcRendererEvent, next: import('@shared/timeless-tree-state').TimelessTreeState): void =>
+        cb(next)
+      ipcRenderer.on('timeless-tree:state', handler)
+      return () => ipcRenderer.removeListener('timeless-tree:state', handler)
+    },
+  },
   onRegexRemoteMountChanged: (cb: (flush: boolean) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, flush: boolean): void => cb(flush)
     ipcRenderer.on('regex-remote:mount-changed', handler)
@@ -584,6 +599,11 @@ export const api = {
     }>
     queryId: string
   }> => ipcRenderer.invoke('bulk-exchange', itemName, baseType, haveId),
+  warrantsScan: (opts?: {
+    limit?: number
+    onlineOnly?: boolean
+    pricedOnly?: boolean
+  }): Promise<import('@shared/warrants').WarrantScanResult> => ipcRenderer.invoke('warrants-scan', opts),
   checkBulkItem: (itemName: string, baseType: string, itemClass: string, rarity?: string): Promise<boolean> =>
     ipcRenderer.invoke('check-bulk-item', itemName, baseType, itemClass, rarity),
   mapRegexTrade: (params: {

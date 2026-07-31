@@ -14,6 +14,8 @@ const PLUGIN_IDS = [
   'build-shopping-list',
   'scalpel-lab',
   'scalpel-economy',
+  'scalpel-harvest',
+  'scalpel-advisor',
   'runeshape-checker',
   'well-tiers',
 ]

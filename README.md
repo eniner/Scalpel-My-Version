@@ -18,6 +18,11 @@ A fork of [Scalpel](https://github.com/scalpelpoe/scalpel) with custom PoE 2 plu
 | **Build Shopping List** | Shopping list tab | Import MaxRoll / Mobalytics builds into a gear checklist with Trade links |
 | **Expedition cheat sheet** | Settings → Sheets | PoE 2 rumor / unique map / boss / saga tier list (from community spreadsheet) |
 | **Regex cheat sheet** | Settings → Sheets | PoE 2 stash-search operators, number mins, tablet gotchas (Omens etc.) |
+| **Scarab Atlas** | Scarabs tab (PoE1) | Block / boost / invest scarab EV optimizer + vendor guide |
+| **Timeless Jewels** | Timeless tab + tree overlay (PoE1) | Timeless jewel calculator with skill-tree secondary overlay |
+| **Scalpel Warrants** | Warrants tab (PoE1) | Mercenary Warrant market scanner |
+| **Scalpel Harvest** | Overlay hotkey (PoE1) | Harvest lifeforce conversion profitability (plugin, E9) |
+| **Scalpel Advisor** | Overlay hotkey (PoE1) | Farming EV hub — gems, beasts, scarabs, essences, harvest, bosses, betrayal, scrying (plugin, E9) |
 
 Upstream Scalpel core (price check, regex builder, macros, sheets, etc.) stays intact — this fork layers the addons above on top.
 
@@ -348,14 +353,20 @@ The install script also updates the pending update staging folder so restarts ar
 ```
 plugins/scalpel-lab/          Scalpel Lab (crafting UI)
 plugins/scalpel-economy/      poe.ninja economy browser
+plugins/scalpel-harvest/      PoE1 Harvest conversion profitability (E9)
+plugins/scalpel-advisor/      PoE1 farming EV tools hub (E9)
 plugins/runeshape-checker/     Runeshape OCR pricing
 plugins/well-tiers/            Well of Souls + Runeshape OCR
 plugins/build-shopping-list/   Build guide shopping list
+src/renderer/.../scarab-atlas/ Scarab Atlas tab (PoE1)
+src/renderer/.../timeless-*/   Timeless Jewels + tree overlay (PoE1)
+src/renderer/.../scalpel-warrants/  Mercenary Warrants tab (PoE1)
 screenshots/              Feature screenshots used in this README
 src/shared/crafting/           Craft engine (host)
 src/main/handlers/             Craft IPC handlers
 scripts/install-to-local-scalpel.mjs   Patch normal Scalpel install
 ```
+
 
 ---
 
