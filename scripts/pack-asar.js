@@ -26,13 +26,21 @@ if (!fs.existsSync(outDir)) {
   process.exit(1)
 }
 
-// Use npm to resolve the full production dependency tree (including nested deps)
+// Use npm to resolve the full production dependency tree (including nested deps).
+// `npm ls` often exits 1 for peer/optional issues even when stdout is usable.
 const { execSync } = require('node:child_process')
-const npmOutput = execSync('npm ls --prod --all --parseable', {
-  cwd: projectRoot,
-  encoding: 'utf8',
-  stdio: ['pipe', 'pipe', 'ignore'],
-})
+let npmOutput = ''
+try {
+  npmOutput = execSync('npm ls --prod --all --parseable', {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'ignore'],
+  })
+} catch (err) {
+  npmOutput = typeof err?.stdout === 'string' ? err.stdout : ''
+  if (!npmOutput.trim()) throw err
+  console.warn('npm ls exited non-zero; continuing with partial production tree')
+}
 const prodPaths = npmOutput
   .trim()
   .split('\n')
