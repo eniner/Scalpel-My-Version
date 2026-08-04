@@ -135,6 +135,15 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
             return u
           },
         },
+        buildPlanner: {
+          getPath: () => window.api.buildPlannerGetPath(),
+          list: () => window.api.buildPlannerList(),
+          read: (filename) => window.api.buildPlannerRead(filename),
+          openFolder: () => window.api.buildPlannerOpenFolder(),
+        },
+        trade: {
+          openSearch: (item) => window.api.tradeOpenSearch(item),
+        },
         prices: {
           getPrices: (opts) => window.api.pricesGet(opts),
           refresh: () => window.api.pricesRefresh(),
@@ -143,6 +152,24 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
             disposers.push(u)
             return u
           },
+        },
+        webPanel: {
+          open: (opts) => window.api.pluginWebPanelOpen(m.id, opts),
+          navigate: (url) => window.api.pluginWebPanelNavigate(m.id, url),
+          close: () => window.api.pluginWebPanelClose(m.id),
+        },
+        readClipboardText: () => window.api.pluginReadClipboardText(),
+        craft: {
+          listActions: (item, opts) => window.api.craftListActions(m.id, item, opts),
+          simulate: (item, actionId, opts) => window.api.craftSimulate(m.id, item, actionId, opts),
+          apply: (state, actionId, seed, opts) => window.api.craftApply(m.id, state, actionId, seed, opts),
+          freshState: (baseType, itemLevel, opts) => window.api.craftFreshState(m.id, baseType, itemLevel, opts),
+          targetHit: (opts) => window.api.craftTargetHit(m.id, opts),
+          craftPath: (opts) => window.api.craftPath(m.id, opts),
+          modPool: (opts) => window.api.craftModPool(m.id, opts),
+          searchBases: (query, limit, itemClass) => window.api.craftSearchBases(m.id, query, limit, itemClass),
+          listItemClasses: () => window.api.craftListItemClasses(m.id),
+          searchMods: (opts) => window.api.craftSearchMods(m.id, opts),
         },
         registerTab: (pluginId, opts) => {
           setTabs((prev) => {

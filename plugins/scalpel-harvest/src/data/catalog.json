@@ -1,0 +1,828 @@
+{
+  "source": "Gains of Exile (gains-of-exile.vercel.app) item weights",
+  "lifeforceNames": {
+    "primal": "Primal Crystallised Lifeforce",
+    "vivid": "Vivid Crystallised Lifeforce",
+    "wild": "Wild Crystallised Lifeforce"
+  },
+  "pools": [
+    {
+      "id": "essences",
+      "name": "Essences",
+      "lfType": "primal",
+      "lfCost": 30,
+      "tiers": [
+        7
+      ],
+      "items": [
+        {
+          "id": "Deafening Essence of Dread",
+          "shortName": "Dread",
+          "type": 20,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Misery",
+          "shortName": "Misery",
+          "type": 19,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Envy",
+          "shortName": "Envy",
+          "type": 18,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Scorn",
+          "shortName": "Scorn",
+          "type": 17,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Spite",
+          "shortName": "Spite",
+          "type": 16,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Anguish",
+          "shortName": "Anguish",
+          "type": 15,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Zeal",
+          "shortName": "Zeal",
+          "type": 14,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Loathing",
+          "shortName": "Loathing",
+          "type": 13,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Doubt",
+          "shortName": "Doubt",
+          "type": 12,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Wrath",
+          "shortName": "Wrath",
+          "type": 11,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Suffering",
+          "shortName": "Suffering",
+          "type": 10,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Rage",
+          "shortName": "Rage",
+          "type": 9,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Sorrow",
+          "shortName": "Sorrow",
+          "type": 8,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Torment",
+          "shortName": "Torment",
+          "type": 7,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Anger",
+          "shortName": "Anger",
+          "type": 6,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Fear",
+          "shortName": "Fear",
+          "type": 5,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Woe",
+          "shortName": "Woe",
+          "type": 4,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Hatred",
+          "shortName": "Hatred",
+          "type": 3,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Contempt",
+          "shortName": "Contempt",
+          "type": 2,
+          "tier": 7,
+          "weight": 1
+        },
+        {
+          "id": "Deafening Essence of Greed",
+          "shortName": "Greed",
+          "type": 1,
+          "tier": 7,
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "high-essences",
+      "name": "High Essences",
+      "lfType": "primal",
+      "lfCost": 30,
+      "tiers": [
+        8
+      ],
+      "items": [
+        {
+          "id": "Essence of Hysteria",
+          "shortName": "Hysteria",
+          "type": 24,
+          "tier": 8,
+          "weight": 1
+        },
+        {
+          "id": "Essence of Delirium",
+          "shortName": "Delirium",
+          "type": 23,
+          "tier": 8,
+          "weight": 1
+        },
+        {
+          "id": "Essence of Horror",
+          "shortName": "Horror",
+          "type": 22,
+          "tier": 8,
+          "weight": 1
+        },
+        {
+          "id": "Essence of Insanity",
+          "shortName": "Insanity",
+          "type": 21,
+          "tier": 8,
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "fossils",
+      "name": "Fossils",
+      "lfType": "wild",
+      "lfCost": 30,
+      "tiers": [
+        1
+      ],
+      "items": [
+        {
+          "id": "Jagged Fossil",
+          "shortName": "Jagged",
+          "type": 1,
+          "tier": 1,
+          "weight": 10.97
+        },
+        {
+          "id": "Dense Fossil",
+          "shortName": "Dense",
+          "type": 2,
+          "tier": 1,
+          "weight": 10.97
+        },
+        {
+          "id": "Frigid Fossil",
+          "shortName": "Frigid",
+          "type": 3,
+          "tier": 1,
+          "weight": 10.97
+        },
+        {
+          "id": "Aberrant Fossil",
+          "shortName": "Aberrant",
+          "type": 4,
+          "tier": 1,
+          "weight": 10.97
+        },
+        {
+          "id": "Scorched Fossil",
+          "shortName": "Scorched",
+          "type": 5,
+          "tier": 1,
+          "weight": 10.97
+        },
+        {
+          "id": "Metallic Fossil",
+          "shortName": "Metallic",
+          "type": 6,
+          "tier": 1,
+          "weight": 10.97
+        },
+        {
+          "id": "Pristine Fossil",
+          "shortName": "Pristine",
+          "type": 7,
+          "tier": 1,
+          "weight": 10.97
+        },
+        {
+          "id": "Bound Fossil",
+          "shortName": "Bound",
+          "type": 8,
+          "tier": 1,
+          "weight": 2.18
+        },
+        {
+          "id": "Corroded Fossil",
+          "shortName": "Corroded",
+          "type": 9,
+          "tier": 1,
+          "weight": 2.25
+        },
+        {
+          "id": "Opulent Fossil",
+          "shortName": "Opulent",
+          "type": 10,
+          "tier": 1,
+          "weight": 2.19
+        },
+        {
+          "id": "Prismatic Fossil",
+          "shortName": "Prismatic",
+          "type": 11,
+          "tier": 1,
+          "weight": 2.19
+        },
+        {
+          "id": "Deft Fossil",
+          "shortName": "Deft",
+          "type": 12,
+          "tier": 1,
+          "weight": 2.19
+        },
+        {
+          "id": "Faceted Fossil",
+          "shortName": "Faceted",
+          "type": 13,
+          "tier": 1,
+          "weight": 0.04
+        },
+        {
+          "id": "Lucent Fossil",
+          "shortName": "Lucent",
+          "type": 14,
+          "tier": 1,
+          "weight": 2.19
+        },
+        {
+          "id": "Serrated Fossil",
+          "shortName": "Serrated",
+          "type": 15,
+          "tier": 1,
+          "weight": 2.63
+        },
+        {
+          "id": "Shuddering Fossil",
+          "shortName": "Shuddering",
+          "type": 16,
+          "tier": 1,
+          "weight": 2.31
+        },
+        {
+          "id": "Tangled Fossil",
+          "shortName": "Tangled",
+          "type": 17,
+          "tier": 1,
+          "weight": 0.11
+        },
+        {
+          "id": "Bloodstained Fossil",
+          "shortName": "Bloodstained",
+          "type": 18,
+          "tier": 1,
+          "weight": 0.01
+        },
+        {
+          "id": "Gilded Fossil",
+          "shortName": "Gilded",
+          "type": 19,
+          "tier": 1,
+          "weight": 0.15
+        },
+        {
+          "id": "Fundamental Fossil",
+          "shortName": "Fundamental",
+          "type": 20,
+          "tier": 1,
+          "weight": 2.38
+        },
+        {
+          "id": "Sanctified Fossil",
+          "shortName": "Sanctified",
+          "type": 21,
+          "tier": 1,
+          "weight": 0.17
+        },
+        {
+          "id": "Hollow Fossil",
+          "shortName": "Hollow",
+          "type": 22,
+          "tier": 1,
+          "weight": 0.03
+        },
+        {
+          "id": "Fractured Fossil",
+          "shortName": "Fractured",
+          "type": 23,
+          "tier": 1,
+          "weight": 0.02
+        },
+        {
+          "id": "Glyphic Fossil",
+          "shortName": "Glyphic",
+          "type": 24,
+          "tier": 1,
+          "weight": 0.01
+        },
+        {
+          "id": "Aetheric Fossil",
+          "shortName": "Aetheric",
+          "type": 26,
+          "tier": 1,
+          "weight": 2.19
+        }
+      ]
+    },
+    {
+      "id": "catalysts",
+      "name": "Catalysts",
+      "lfType": "vivid",
+      "lfCost": 30,
+      "tiers": [
+        1
+      ],
+      "items": [
+        {
+          "id": "Unstable Catalyst",
+          "shortName": "Unstable",
+          "type": 1,
+          "tier": 1,
+          "weight": 1.6
+        },
+        {
+          "id": "Turbulent Catalyst",
+          "shortName": "Turbulent",
+          "type": 2,
+          "tier": 1,
+          "weight": 15.23
+        },
+        {
+          "id": "Imbued Catalyst",
+          "shortName": "Imbued",
+          "type": 3,
+          "tier": 1,
+          "weight": 15.23
+        },
+        {
+          "id": "Abrasive Catalyst",
+          "shortName": "Abrasive",
+          "type": 4,
+          "tier": 1,
+          "weight": 14.12
+        },
+        {
+          "id": "Tempering Catalyst",
+          "shortName": "Tempering",
+          "type": 5,
+          "tier": 1,
+          "weight": 4
+        },
+        {
+          "id": "Fertile Catalyst",
+          "shortName": "Fertile",
+          "type": 6,
+          "tier": 1,
+          "weight": 4
+        },
+        {
+          "id": "Accelerating Catalyst",
+          "shortName": "Accelerating",
+          "type": 7,
+          "tier": 1,
+          "weight": 1.6
+        },
+        {
+          "id": "Prismatic Catalyst",
+          "shortName": "Prismatic",
+          "type": 8,
+          "tier": 1,
+          "weight": 4
+        },
+        {
+          "id": "Intrinsic Catalyst",
+          "shortName": "Intrinsic",
+          "type": 9,
+          "tier": 1,
+          "weight": 25
+        },
+        {
+          "id": "Noxious Catalyst",
+          "shortName": "Noxious",
+          "type": 10,
+          "tier": 1,
+          "weight": 15.22
+        }
+      ]
+    },
+    {
+      "id": "oils",
+      "name": "Oils",
+      "lfType": "vivid",
+      "lfCost": 30,
+      "tiers": [
+        1
+      ],
+      "items": [
+        {
+          "id": "Clear Oil",
+          "shortName": "Clear",
+          "type": 1,
+          "tier": 1,
+          "weight": 33.11
+        },
+        {
+          "id": "Sepia Oil",
+          "shortName": "Sepia",
+          "type": 2,
+          "tier": 1,
+          "weight": 23.18
+        },
+        {
+          "id": "Amber Oil",
+          "shortName": "Amber",
+          "type": 3,
+          "tier": 1,
+          "weight": 16.56
+        },
+        {
+          "id": "Verdant Oil",
+          "shortName": "Verdant",
+          "type": 4,
+          "tier": 1,
+          "weight": 9.93
+        },
+        {
+          "id": "Teal Oil",
+          "shortName": "Teal",
+          "type": 5,
+          "tier": 1,
+          "weight": 4.97
+        },
+        {
+          "id": "Azure Oil",
+          "shortName": "Azure",
+          "type": 6,
+          "tier": 1,
+          "weight": 3.31
+        },
+        {
+          "id": "Indigo Oil",
+          "shortName": "Indigo",
+          "type": 7,
+          "tier": 1,
+          "weight": 3.31
+        },
+        {
+          "id": "Violet Oil",
+          "shortName": "Violet",
+          "type": 8,
+          "tier": 1,
+          "weight": 2.65
+        },
+        {
+          "id": "Crimson Oil",
+          "shortName": "Crimson",
+          "type": 9,
+          "tier": 1,
+          "weight": 1
+        },
+        {
+          "id": "Black Oil",
+          "shortName": "Black",
+          "type": 10,
+          "tier": 1,
+          "weight": 0.66
+        },
+        {
+          "id": "Opalescent Oil",
+          "shortName": "Opalescent",
+          "type": 11,
+          "tier": 1,
+          "weight": 0.66
+        },
+        {
+          "id": "Silver Oil",
+          "shortName": "Silver",
+          "type": 12,
+          "tier": 1,
+          "weight": 0.33
+        },
+        {
+          "id": "Golden Oil",
+          "shortName": "Golden",
+          "type": 13,
+          "tier": 1,
+          "weight": 0.33
+        }
+      ]
+    },
+    {
+      "id": "delirium-orbs",
+      "name": "Delirium Orbs",
+      "lfType": "primal",
+      "lfCost": 30,
+      "tiers": [
+        1
+      ],
+      "items": [
+        {
+          "id": "Fine Delirium Orb",
+          "shortName": "Fine",
+          "type": 1,
+          "tier": 1,
+          "weight": 12.08
+        },
+        {
+          "id": "Singular Delirium Orb",
+          "shortName": "Singular",
+          "type": 2,
+          "tier": 1,
+          "weight": 2.51
+        },
+        {
+          "id": "Cartographer's Delirium Orb",
+          "shortName": "Cartographer's",
+          "type": 3,
+          "tier": 1,
+          "weight": 3.99
+        },
+        {
+          "id": "Thaumaturge's Delirium Orb",
+          "shortName": "Thaumaturge's",
+          "type": 4,
+          "tier": 1,
+          "weight": 3.99
+        },
+        {
+          "id": "Jeweller's Delirium Orb",
+          "shortName": "Jeweller's",
+          "type": 5,
+          "tier": 1,
+          "weight": 13.22
+        },
+        {
+          "id": "Foreboding Delirium Orb",
+          "shortName": "Foreboding",
+          "type": 6,
+          "tier": 1,
+          "weight": 6.07
+        },
+        {
+          "id": "Blacksmith's Delirium Orb",
+          "shortName": "Blacksmith's",
+          "type": 7,
+          "tier": 1,
+          "weight": 10.82
+        },
+        {
+          "id": "Abyssal Delirium Orb",
+          "shortName": "Abyssal",
+          "type": 8,
+          "tier": 1,
+          "weight": 3.22
+        },
+        {
+          "id": "Obscured Delirium Orb",
+          "shortName": "Obscured",
+          "type": 9,
+          "tier": 1,
+          "weight": 2.13
+        },
+        {
+          "id": "Armoursmith's Delirium Orb",
+          "shortName": "Armoursmith's",
+          "type": 10,
+          "tier": 1,
+          "weight": 12.24
+        },
+        {
+          "id": "Skittering Delirium Orb",
+          "shortName": "Skittering",
+          "type": 11,
+          "tier": 1,
+          "weight": 3.55
+        },
+        {
+          "id": "Whispering Delirium Orb",
+          "shortName": "Whispering",
+          "type": 12,
+          "tier": 1,
+          "weight": 6.01
+        },
+        {
+          "id": "Fossilised Delirium Orb",
+          "shortName": "Fossilised",
+          "type": 13,
+          "tier": 1,
+          "weight": 3.44
+        },
+        {
+          "id": "Timeless Delirium Orb",
+          "shortName": "Timeless",
+          "type": 14,
+          "tier": 1,
+          "weight": 3.77
+        },
+        {
+          "id": "Fragmented Delirium Orb",
+          "shortName": "Fragmented",
+          "type": 15,
+          "tier": 1,
+          "weight": 4.26
+        },
+        {
+          "id": "Diviner's Delirium Orb",
+          "shortName": "Diviner's",
+          "type": 16,
+          "tier": 1,
+          "weight": 5.19
+        },
+        {
+          "id": "Blighted Delirium Orb",
+          "shortName": "Blighted",
+          "type": 17,
+          "tier": 1,
+          "weight": 3.5
+        }
+      ]
+    },
+    {
+      "id": "breachstones",
+      "name": "Breachstones",
+      "lfType": "wild",
+      "lfCost": 400,
+      "tiers": [
+        2,
+        3
+      ],
+      "items": [
+        {
+          "id": "Xoph's Breachstone",
+          "shortName": "Xoph's",
+          "type": 1,
+          "tier": 2,
+          "weight": 28
+        },
+        {
+          "id": "Tul's Breachstone",
+          "shortName": "Tul's",
+          "type": 2,
+          "tier": 2,
+          "weight": 28
+        },
+        {
+          "id": "Esh's Breachstone",
+          "shortName": "Esh's",
+          "type": 3,
+          "tier": 2,
+          "weight": 28
+        },
+        {
+          "id": "Uul-Netol's Breachstone",
+          "shortName": "Uul-Netol's",
+          "type": 4,
+          "tier": 2,
+          "weight": 11
+        },
+        {
+          "id": "Chayula's Breachstone",
+          "shortName": "Chayula's",
+          "type": 5,
+          "tier": 2,
+          "weight": 5
+        },
+        {
+          "id": "Xoph's Flawless Breachstone",
+          "shortName": "Xoph's Fl.",
+          "type": 1,
+          "tier": 3,
+          "weight": 28
+        },
+        {
+          "id": "Tul's Flawless Breachstone",
+          "shortName": "Tul's Fl.",
+          "type": 2,
+          "tier": 3,
+          "weight": 28
+        },
+        {
+          "id": "Esh's Flawless Breachstone",
+          "shortName": "Esh's Fl.",
+          "type": 3,
+          "tier": 3,
+          "weight": 28
+        },
+        {
+          "id": "Uul-Netol's Flawless Breachstone",
+          "shortName": "Uul-Netol's Fl.",
+          "type": 4,
+          "tier": 3,
+          "weight": 11
+        },
+        {
+          "id": "Chayula's Flawless Breachstone",
+          "shortName": "Chayula's Fl.",
+          "type": 5,
+          "tier": 3,
+          "weight": 5
+        }
+      ]
+    },
+    {
+      "id": "timeless-emblems",
+      "name": "Timeless Emblems",
+      "lfType": "primal",
+      "lfCost": 400,
+      "tiers": [
+        2
+      ],
+      "notice": "Unrelenting Timeless Emblems cannot be Harvest-converted, so they are excluded.",
+      "items": [
+        {
+          "id": "Timeless Eternal Emblem",
+          "shortName": "Eternal",
+          "type": 1,
+          "tier": 2,
+          "weight": 27.6
+        },
+        {
+          "id": "Timeless Karui Emblem",
+          "shortName": "Karui",
+          "type": 2,
+          "tier": 2,
+          "weight": 28.7
+        },
+        {
+          "id": "Timeless Vaal Emblem",
+          "shortName": "Vaal",
+          "type": 3,
+          "tier": 2,
+          "weight": 22
+        },
+        {
+          "id": "Timeless Templar Emblem",
+          "shortName": "Templar",
+          "type": 4,
+          "tier": 2,
+          "weight": 13.5
+        },
+        {
+          "id": "Timeless Maraketh Emblem",
+          "shortName": "Maraketh",
+          "type": 5,
+          "tier": 2,
+          "weight": 8.2
+        }
+      ]
+    }
+  ]
+}

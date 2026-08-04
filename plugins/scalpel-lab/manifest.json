@@ -1,0 +1,11 @@
+{
+  "manifestVersion": 1,
+  "id": "scalpel-lab",
+  "version": "0.1.0",
+  "name": "Scalpel Lab",
+  "description": "PoE 2 crafting lab: odds, emulator, target hits, craft paths, and mod weight cheat sheet.",
+  "author": "E9ine_AC",
+  "homepage": "https://github.com/eniner/Scalpel-My-Version",
+  "scalpelMinVersion": ">=0.9.8",
+  "poeVersions": [2]
+}

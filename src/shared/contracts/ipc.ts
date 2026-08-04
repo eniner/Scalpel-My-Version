@@ -35,6 +35,12 @@ export const IPC_CHANNELS = {
     SWITCH_INGAME: 'switch-ingame-filter',
     GET_COLOR_FREQUENCIES: 'get-color-frequencies',
     SAVE_BLOCK_EDIT: 'save-block-edit',
+    GET_FILTER_SECTIONS: 'get-filter-sections',
+    SET_SECTION_TIER_VISIBILITY: 'set-section-tier-visibility',
+    GET_FILTER_BLOCK: 'get-filter-block',
+    ADD_BASETYPE_TO_TIER: 'add-basetype-to-tier',
+    INSERT_SECTION_RULE: 'insert-section-rule',
+    SIMULATE_LOOT_DROPS: 'simulate-loot-drops',
     RELOAD: 'reload-filter',
     GET_UNIQUE_VISIBILITY: 'get-unique-visibility',
     MOVE_ITEM_TIER: 'move-item-tier',
@@ -60,6 +66,9 @@ export const IPC_CHANNELS = {
     QUICK_UPDATE: 'quick-update-filter',
     MERGE: 'merge-online-filter',
     ONLINE_FILTER_CHANGED_EVENT: 'online-filter-changed',
+    FILTERBLADE_URL: 'filterblade-url',
+    FILTERBLADE_SCAN: 'filterblade-scan',
+    FILTERBLADE_LINK: 'filterblade-link',
   },
 
   PRICES: {
@@ -127,7 +136,6 @@ export const IPC_CHANNELS = {
     OPEN_VIEW_EVENT: 'open-view',
     OPEN_LINK_PENDING_EVENT: 'open-link-pending',
     OVERLAY_HIDE_EVENT: 'overlay-hide',
-    OVERLAY_SHOW_EVENT: 'overlay-show',
     GAME_BOUNDS_EVENT: 'game-bounds',
     OVERLAY_DETACH_EVENT: 'overlay-detach',
     OVERLAY_REATTACH_EVENT: 'overlay-reattach',
@@ -175,6 +183,14 @@ export const IPC_CHANNELS = {
     HIDDEN_EVENT: 'whiteboard:hidden',
     REQUEST_SHOWN_STATE: 'whiteboard:request-shown-state',
     SNAP_GHOST_EVENT: 'secondary-overlay-canvas:snap-ghost',
+  },
+
+  TIMELESS_TREE: {
+    SHOW: 'timeless-tree:show',
+    REQUEST_CLOSE: 'timeless-tree:request-close',
+    SET_STATE: 'timeless-tree:set-state',
+    REQUEST_STATE: 'timeless-tree:request-state',
+    STATE_EVENT: 'timeless-tree:state',
   },
 
   APP_WINDOW: {
@@ -235,6 +251,11 @@ export const IPC_CHANNELS = {
     GAME_CONFIG_WATCH: 'plugins:game-config-watch',
     GAME_CONFIG_UNWATCH: 'plugins:game-config-unwatch',
     GAME_CONFIG_CHANGED_EVENT: 'plugins:game-config-changed',
+    BUILD_PLANNER_PATH: 'plugins:build-planner-path',
+    BUILD_PLANNER_LIST: 'plugins:build-planner-list',
+    BUILD_PLANNER_READ: 'plugins:build-planner-read',
+    BUILD_PLANNER_OPEN_FOLDER: 'plugins:build-planner-open-folder',
+    TRADE_OPEN_SEARCH: 'plugins:trade-open-search',
     PRICES_GET: 'plugins:prices-get',
     PRICES_REFRESH: 'plugins:prices-refresh',
     PRICES_WATCH: 'plugins:prices-watch',
@@ -245,6 +266,17 @@ export const IPC_CHANNELS = {
     REGISTER_OVERLAY: 'plugins:register-overlay',
     OPEN_OVERLAY: 'plugins:open-overlay',
     CLOSE_OVERLAY: 'plugins:close-overlay',
+    WEB_PANEL_OPEN: 'plugins:web-panel-open',
+    WEB_PANEL_NAVIGATE: 'plugins:web-panel-navigate',
+    WEB_PANEL_CLOSE: 'plugins:web-panel-close',
+    READ_CLIPBOARD_TEXT: 'plugins:read-clipboard-text',
+    CRAFT_LIST_ACTIONS: 'plugins:craft-list-actions',
+    CRAFT_SIMULATE: 'plugins:craft-simulate',
+    CRAFT_APPLY: 'plugins:craft-apply',
+    CRAFT_FRESH_STATE: 'plugins:craft-fresh-state',
+    CRAFT_TARGET_HIT: 'plugins:craft-target-hit',
+    CRAFT_MOD_POOL: 'plugins:craft-mod-pool',
+    CRAFT_SEARCH_BASES: 'plugins:craft-search-bases',
     MACRO_EVENT: 'plugin-macro',
     INSTALLED_EVENT: 'plugin-installed',
     UNINSTALLED_EVENT: 'plugin-uninstalled',
@@ -275,12 +307,6 @@ export const IPC_CHANNELS = {
     READ_IMAGE: 'clipboard:read-image',
     OPEN_EXTERNAL: 'open-external',
     ELEVATION_HINT_EVENT: 'elevation-hint',
-  },
-
-  SCREEN: {
-    GET_GAME_WINDOW_SOURCE: 'screen:get-game-window-source',
-    SOURCE_INVALIDATED_EVENT: 'screen:source-invalidated',
-    SOURCE_MAYBE_STALE_EVENT: 'screen:source-maybe-stale',
   },
 } as const
 

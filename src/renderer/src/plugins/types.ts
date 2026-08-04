@@ -25,6 +25,63 @@ export type PluginContextFactoryDeps = {
     write: (content: string) => Promise<{ backupPath: string | null }>
     onChange: (handler: () => void) => () => void
   }
+  buildPlanner: {
+    getPath: () => Promise<{ path: string }>
+    list: () => Promise<{ path: string; files: { filename: string; name: string }[] }>
+    read: (filename: string) => Promise<{ path: string; content: string }>
+    openFolder: () => Promise<{ path: string }>
+  }
+  trade: {
+    openSearch: (item: {
+      name: string
+      baseType: string
+      itemClass?: string
+      rarity: string
+      notes?: string
+      statPriority?: string[]
+    }) => Promise<{ url: string; queryId: string; total: number; matchedStats?: number }>
+  }
+  webPanel: {
+    open: (opts: { url: string; title?: string; width?: number; height?: number }) => Promise<void>
+    navigate: (url: string) => Promise<void>
+    close: () => Promise<void>
+  }
+  readClipboardText: () => Promise<string>
+  craft: {
+    listActions: (item: import('@shared/types').PoeItem) => Promise<
+      Array<{ id: string; label: string; description: string; applies: boolean; reason?: string }>
+    >
+    simulate: (
+      item: import('@shared/types').PoeItem,
+      actionId: string,
+    ) => Promise<{
+      actionId: string
+      label: string
+      samples: number
+      modCountChances?: Array<{ count: number; probability: number }>
+      outcomes: Array<{ text: string; group: string; kind: 'p' | 's'; probability: number; weight?: number; ilvl?: number }>
+      note?: string
+    }>
+    modPool: (opts: {
+      baseType: string
+      itemLevel: number
+      kind?: 'all' | 'p' | 's'
+      item?: import('@shared/types').PoeItem | null
+      context?: 'fresh' | 'item'
+      poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
+      marksmanEnabled?: boolean
+    }) => Promise<{
+      baseType: string
+      itemLevel: number
+      kind: 'all' | 'p' | 's'
+      context: 'fresh' | 'item'
+      modCount: number
+      totalWeight: number
+      outcomes: Array<{ text: string; group: string; kind: 'p' | 's'; probability: number; weight?: number; ilvl?: number }>
+      note: string
+    }>
+    searchBases: (query: string, limit?: number) => Promise<string[]>
+  }
   prices: {
     getPrices: (opts?: {
       category?: string

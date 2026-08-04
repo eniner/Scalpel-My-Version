@@ -253,5 +253,13 @@
   "overlay_no_filter_body": "Select your .filter file to get started.",
   "overlay_open_filter_settings": "Open Filter Settings",
   "overlay_no_item_title": "No item in clipboard",
-  "overlay_no_item_body": "Hover an item in PoE and press {hotkey}."
+  "overlay_no_item_body": "Hover an item in PoE and press {hotkey}.",
+  "feature_scarab_atlas": "Scarab Atlas",
+  "feature_timeless_jewels": "Timeless Jewels",
+  "feature_scalpel_warrants": "Scalpel Warrants",
+  "settings_beta_version": "Beta {version}",
+  "settings_pc_exclude_own": "Exclude my listings from price check results",
+  "price_check_exclude_own": "Exclude Mine",
+  "price_check_exclude_own_login": "Log in to exclude your listings",
+  "price_check_no_other_sellers": "No other sellers found"
 }

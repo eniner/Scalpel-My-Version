@@ -16,6 +16,12 @@ export interface GameFeatures {
   socketRecolor: boolean
   /** Regex generator tab in the overlay's tool tray. */
   regexTool: boolean
+  /** Scarab Atlas calculator tab (block / boost / invest EV optimizer). */
+  scarabAtlas: boolean
+  /** Timeless Jewel calculator + skill-tree secondary overlay (PoE1). */
+  timelessJewels: boolean
+  /** Scalpel Warrants — Mercenary Warrant market scanner (PoE1). */
+  scalpelWarrants: boolean
   /** Baseline currency for the bulk-exchange "pay with" choice when the item
    *  isn't priced in divines. PoE1's PriceInfo.chaosValue is denominated in
    *  chaos; PoE2 reuses the same field for exalted, so the currency we offer
@@ -39,6 +45,9 @@ const FEATURES_BY_VERSION: Record<GameVariant, GameFeatures> = {
     divCards: true,
     socketRecolor: true,
     regexTool: true,
+    scarabAtlas: true,
+    timelessJewels: true,
+    scalpelWarrants: true,
     bulkBaselineCurrency: 'chaos',
     bulkExchangeBanner: 'faustus',
     leagues: ['Mirage', 'Hardcore Mirage', 'Standard', 'Hardcore'],
@@ -49,6 +58,9 @@ const FEATURES_BY_VERSION: Record<GameVariant, GameFeatures> = {
     divCards: false,
     socketRecolor: false,
     regexTool: true,
+    scarabAtlas: false,
+    timelessJewels: false,
+    scalpelWarrants: false,
     bulkBaselineCurrency: 'exalted',
     bulkExchangeBanner: 'ange',
     leagues: ['Runes of Aldur', 'HC Runes of Aldur', 'Standard', 'Hardcore'],

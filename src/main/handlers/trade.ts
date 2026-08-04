@@ -5,6 +5,8 @@ import type { AppSettings, AuthResult } from '@shared/types'
 import { getPoeVersion } from '../game-state'
 import { getProfileBackedSetting } from '../profiles/profile-settings'
 import type { BulkExchangeResult, StatFilter, TradeResult } from '../trade/trade'
+import { scanMercenaryWarrants } from '../trade/warrants'
+import type { WarrantScanResult } from '@shared/warrants'
 import {
   searchNeedsLogin,
   fetchMoreListings,
@@ -466,4 +468,15 @@ export function register(store: Store<AppSettings>): void {
   ipcMain.handle('fetch-more-listings', async (_event, queryId: string, ids: string[]) => {
     return fetchMoreListings(queryId, ids)
   })
+
+  ipcMain.handle(
+    'warrants-scan',
+    async (
+      _event,
+      opts?: { limit?: number; onlineOnly?: boolean; pricedOnly?: boolean },
+    ): Promise<WarrantScanResult> => {
+      const league = getProfileBackedSetting(store, 'league')
+      return scanMercenaryWarrants(league, opts)
+    },
+  )
 }

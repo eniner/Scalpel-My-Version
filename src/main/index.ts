@@ -75,6 +75,7 @@ import {
   getCheatSheetsOverlay,
 } from './cheat-sheets'
 import { registerWhiteboardOverlay, toggleWhiteboard } from './whiteboard'
+import { registerTimelessTreeOverlay } from './timeless-tree'
 import { togglePluginOverlay } from './plugin-overlay'
 import { registerPinnedZoneOverlay, applyPinnedZoneEnabled } from './pinned-zone'
 import { getOverlayAnchor, setMainOverlayGetter, setOnLeaveScalpel, subscribeToPoeMoves } from './windowing'
@@ -146,6 +147,7 @@ const store = new Store<AppSettings>({
     updateChannel: 'stable',
     tradeStatus: 'available',
     tradeCollapseListings: true,
+    tradeExcludeOwnListings: false,
     previewVolume: 0.25,
     priceCheckDefaultPercent: 90,
     adaptiveDefaultsMode: 'eager',
@@ -315,6 +317,9 @@ app.whenReady().then(() => {
     openSettings: 'setup',
     openDust: 'dust',
     openDivCards: 'divcards',
+    openScarabs: 'scarabs',
+    openTimeless: 'timeless',
+    openWarrants: 'warrants',
     openRegex: 'regex',
   }
   const pasteRegexToSearch = (regex: string): void => {
@@ -445,6 +450,7 @@ app.whenReady().then(() => {
   setCheatSheetsBeforeShow(() => hideOverlay())
   applyCheatSheetHotkeys(getProfileBackedSetting(store, 'cheatSheets'))
   registerWhiteboardOverlay()
+  registerTimelessTreeOverlay()
   registerRegexRemoteOverlay({
     onAnchorChanged: (anchor) => {
       getRegexRemoteOverlay()?.send('regex-remote:mount-changed', regexRemoteFlushLeft(anchor))

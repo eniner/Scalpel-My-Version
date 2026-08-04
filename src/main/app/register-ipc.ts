@@ -30,6 +30,10 @@ import { registerClientLogHandlers } from '../handlers/client-log'
 import { registerGameConfigHandlers } from '../handlers/game-config'
 import { registerPluginPriceHandlers } from '../handlers/plugin-prices'
 import { registerPluginCaptureHandlers } from '../handlers/plugin-capture'
+import { registerBuildPlannerHandlers } from '../handlers/build-planner'
+import { registerPluginTradeHandlers } from '../handlers/plugin-trade'
+import { registerPluginWebPanelHandlers } from '../handlers/plugin-web-panel'
+import { registerPluginCraftHandlers } from '../handlers/plugin-craft'
 
 export interface IpcRegistrationDeps {
   store: Store<AppSettings>
@@ -63,6 +67,10 @@ export function registerAllIpc(deps: IpcRegistrationDeps): void {
   registerGameConfigHandlers()
   registerPluginPriceHandlers(store)
   registerPluginCaptureHandlers()
+  registerBuildPlannerHandlers()
+  registerPluginTradeHandlers(store)
+  registerPluginWebPanelHandlers()
+  registerPluginCraftHandlers()
   registerDiagnostics({ store, getAppWindow, showAppWindow })
 
   // ── Simple inline handlers ────────────────────────────────────────────────

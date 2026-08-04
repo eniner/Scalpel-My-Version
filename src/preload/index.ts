@@ -57,15 +57,29 @@ export const api = {
     | { ok: false; requiresRestart: true; targetGame: GameVariant }
     | { ok: false; error: string }
   > => ipcRenderer.invoke('set-active-profile', id, restartIfNeeded),
-  refreshLeagues: (
-    force = false,
-  ): Promise<{
+  refreshLeagues: (): Promise<{
     leaguesPoe1: string[]
     leaguesPoe2: string[]
-  }> => ipcRenderer.invoke('refresh-leagues', force),
+  }> => ipcRenderer.invoke('refresh-leagues'),
   pickFilterFile: (): Promise<string | null> => ipcRenderer.invoke('pick-filter-file'),
   pickFilterDir: (): Promise<string | null> => ipcRenderer.invoke('pick-filter-dir'),
   scanFilterDir: (dir: string): Promise<FilterListEntry[]> => ipcRenderer.invoke('scan-filter-dir', dir),
+  detectActiveGameFilter: (
+    filterDirOverride?: string,
+  ): Promise<
+    | {
+        ok: true
+        detected: {
+          filterDir: string
+          filterPath: string
+          name: string
+          online: boolean
+          filterId: string
+          localCopyPath: string | null
+        }
+      }
+    | { ok: false; error: string }
+  > => ipcRenderer.invoke('detect-active-game-filter', filterDirOverride),
   scanSoundFiles: (dir: string): Promise<string[]> => ipcRenderer.invoke('scan-sound-files', dir),
   getSoundDataUrl: (dir: string, filename: string): Promise<string | null> =>
     ipcRenderer.invoke('get-sound-data-url', dir, filename),
@@ -76,6 +90,30 @@ export const api = {
     force = false,
   ): Promise<{ ok: boolean; path?: string; error?: string; conflict?: boolean }> =>
     ipcRenderer.invoke('import-online-filter', sourcePath, filterName, targetDir, force),
+  filterBladeUrl: (): Promise<string> => ipcRenderer.invoke('filterblade-url'),
+  filterBladeScan: (
+    filterDir?: string,
+  ): Promise<{
+    filterDir: string
+    candidates: Array<{ name: string; path: string; score: number }>
+    needsSync: boolean
+  }> => ipcRenderer.invoke('filterblade-scan', filterDir),
+  filterBladeLink: (opts?: {
+    filterDir?: string
+    preferName?: string
+    force?: boolean
+  }): Promise<{
+    ok: boolean
+    error?: string
+    needsSync?: boolean
+    conflict?: boolean
+    filterDir?: string
+    path?: string
+    onlineName?: string
+    localName?: string
+    alreadyLinked?: boolean
+    candidates?: Array<{ name: string; path: string; score: number }>
+  }> => ipcRenderer.invoke('filterblade-link', opts),
   switchIngameFilter: (filterName: string, currentFilter?: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('switch-ingame-filter', filterName, currentFilter),
 
@@ -90,6 +128,35 @@ export const api = {
     block: FilterBlock,
     itemJson?: string,
   ): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('save-block-edit', blockIndex, block, itemJson),
+  getFilterSections: (): Promise<{
+    ok: boolean
+    error?: string
+    path?: string
+    sections: import('@shared/types').FilterSection[]
+  }> => ipcRenderer.invoke('get-filter-sections'),
+  setSectionTierVisibility: (
+    blockIndex: number,
+    visibility: 'Show' | 'Hide' | 'Minimal',
+  ): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('set-section-tier-visibility', blockIndex, visibility),
+  getFilterBlock: (
+    blockIndex: number,
+  ): Promise<{ ok: boolean; error?: string; block?: import('@shared/types').FilterBlock; blockIndex?: number }> =>
+    ipcRenderer.invoke('get-filter-block', blockIndex),
+  addBaseTypeToTier: (blockIndex: number, baseType: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('add-basetype-to-tier', blockIndex, baseType),
+  insertSectionRule: (opts: {
+    typePath: string
+    tier: string
+    baseType: string
+    beforeBlockIndex: number
+    visibility?: 'Show' | 'Hide' | 'Minimal'
+    copyStyleFromIndex?: number
+  }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('insert-section-rule', opts),
+  simulateLootDrops: (
+    req: import('@shared/types').LootSimRequest,
+  ): Promise<{ ok: boolean; error?: string } & import('@shared/types').LootSimResult> =>
+    ipcRenderer.invoke('simulate-loot-drops', req),
   reloadFilter: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('reload-filter'),
   getUniqueVisibility: (): Promise<Record<string, 'Show' | 'Hide'>> => ipcRenderer.invoke('get-unique-visibility'),
   lookupBaseType: (
@@ -221,10 +288,6 @@ export const api = {
     ipcRenderer.send('record-pref-observation', sessionId, chips),
   resetLearning: (scope: 'all' | { rarity: string; itemClass: string }): Promise<void> =>
     ipcRenderer.invoke('reset-learning', scope),
-  setLearnedPreference: (sessionId: number, chipId: string, enabled: boolean): void =>
-    ipcRenderer.send('set-learned-preference', sessionId, chipId, enabled),
-  unsetLearnedPreference: (sessionId: number, chipId: string): void =>
-    ipcRenderer.send('unset-learned-preference', sessionId, chipId),
 
   // Regex presets
   getRegexPresets: (): Promise<import('@shared/types').RegexPreset[]> => ipcRenderer.invoke('get-regex-presets'),
@@ -238,6 +301,21 @@ export const api = {
   closeRegexRemote: (): void => ipcRenderer.send('regex-remote:close'),
   regexRemoteHandFocus: (): void => ipcRenderer.send('regex-remote:hand-focus'),
   regexRemoteMountState: (): Promise<boolean> => ipcRenderer.invoke('regex-remote:mount-state'),
+
+  timelessTree: {
+    show: (state?: import('@shared/timeless-tree-state').TimelessTreeState): void =>
+      ipcRenderer.send('timeless-tree:show', state),
+    requestClose: (): void => ipcRenderer.send('timeless-tree:request-close'),
+    setState: (state: import('@shared/timeless-tree-state').TimelessTreeState): void =>
+      ipcRenderer.send('timeless-tree:set-state', state),
+    requestState: (): void => ipcRenderer.send('timeless-tree:request-state'),
+    onState: (cb: (state: import('@shared/timeless-tree-state').TimelessTreeState) => void): (() => void) => {
+      const handler = (_: Electron.IpcRendererEvent, next: import('@shared/timeless-tree-state').TimelessTreeState): void =>
+        cb(next)
+      ipcRenderer.on('timeless-tree:state', handler)
+      return () => ipcRenderer.removeListener('timeless-tree:state', handler)
+    },
+  },
   onRegexRemoteMountChanged: (cb: (flush: boolean) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, flush: boolean): void => cb(flush)
     ipcRenderer.on('regex-remote:mount-changed', handler)
@@ -253,15 +331,8 @@ export const api = {
     ipcRenderer.invoke('cheat-sheet:remove', categoryId, sheetId, ext),
   removeCheatSheetCategory: (categoryId: string): Promise<void> =>
     ipcRenderer.invoke('cheat-sheet:remove-category', categoryId),
-  listCheatSheetPrefabs: (): Promise<
-    Array<{
-      slug: string
-      name: string
-      imageCount: number
-      poeVersion?: 1 | 2
-      group?: 'leveling-complete' | 'leveling-simple'
-    }>
-  > => ipcRenderer.invoke('cheat-sheet:list-prefabs'),
+  listCheatSheetPrefabs: (): Promise<Array<{ slug: string; name: string; imageCount: number; poeVersion?: 1 | 2 }>> =>
+    ipcRenderer.invoke('cheat-sheet:list-prefabs'),
   importCheatSheetPrefab: (
     slug: string,
   ): Promise<{ categoryId: string; sheets: Array<{ id: string; ext: string; areaCodes?: string[] }> }> =>
@@ -289,9 +360,6 @@ export const api = {
     ipcRenderer.on('secondary-overlay-canvas:snap-ghost', handler)
     return () => ipcRenderer.removeListener('secondary-overlay-canvas:snap-ghost', handler)
   },
-  // Secondary-overlay pin (Esc exemption). Sender-resolved in main.
-  getOverlayPinned: (): Promise<boolean> => ipcRenderer.invoke('secondary-overlay:get-pinned'),
-  setOverlayPinned: (pinned: boolean): void => ipcRenderer.send('secondary-overlay:set-pinned', pinned),
   onCheatSheetPreview: (cb: (state: { src: string | null }) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, state: { src: string | null }): void => cb(state)
     ipcRenderer.on('cheat-sheet-preview:render', handler)
@@ -338,11 +406,6 @@ export const api = {
     const handler = (): void => cb()
     ipcRenderer.on('overlay-hide', handler)
     return () => ipcRenderer.removeListener('overlay-hide', handler)
-  },
-  onOverlayShow: (cb: () => void): (() => void) => {
-    const handler = (): void => cb()
-    ipcRenderer.on('overlay-show', handler)
-    return () => ipcRenderer.removeListener('overlay-show', handler)
   },
   onSettingUpdated: (cb: (key: string, value: unknown) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, key: string, value: unknown): void => cb(key, value)
@@ -391,6 +454,24 @@ export const api = {
       ipcRenderer.send('plugins:game-config-unwatch')
     }
   },
+  buildPlannerGetPath: (): Promise<{ path: string }> => ipcRenderer.invoke('plugins:build-planner-path'),
+  buildPlannerList: (): Promise<{ path: string; files: { filename: string; name: string }[] }> =>
+    ipcRenderer.invoke('plugins:build-planner-list'),
+  buildPlannerRead: (filename: string): Promise<{ path: string; content: string }> =>
+    ipcRenderer.invoke('plugins:build-planner-read', filename),
+  buildPlannerOpenFolder: (): Promise<{ path: string }> => ipcRenderer.invoke('plugins:build-planner-open-folder'),
+  tradeOpenSearch: (
+    item: {
+      name: string
+      baseType: string
+      itemClass?: string
+      rarity: string
+      notes?: string
+      statPriority?: string[]
+      similarItems?: boolean
+    },
+  ): Promise<{ url: string; queryId: string; total: number; matchedStats?: number }> =>
+    ipcRenderer.invoke('plugins:trade-open-search', item),
   pricesGet: (opts?: {
     category?: string
   }): Promise<{ prices: import('@shared/types').PriceEntry[]; updatedAt: number | null }> =>
@@ -518,6 +599,11 @@ export const api = {
     }>
     queryId: string
   }> => ipcRenderer.invoke('bulk-exchange', itemName, baseType, haveId),
+  warrantsScan: (opts?: {
+    limit?: number
+    onlineOnly?: boolean
+    pricedOnly?: boolean
+  }): Promise<import('@shared/warrants').WarrantScanResult> => ipcRenderer.invoke('warrants-scan', opts),
   checkBulkItem: (itemName: string, baseType: string, itemClass: string, rarity?: string): Promise<boolean> =>
     ipcRenderer.invoke('check-bulk-item', itemName, baseType, itemClass, rarity),
   mapRegexTrade: (params: {
@@ -603,7 +689,7 @@ export const api = {
     wantTexts: string[]
     wantMode: 'any' | 'all'
     wantValues: Record<number, number>
-    rarity: { normal: boolean; magic: boolean; rare: boolean }
+    rarity: { normal: boolean; magic: boolean }
     typeFlags: Record<string, boolean>
     uses: { enabled: boolean; value: number }
   }): Promise<{
@@ -742,6 +828,28 @@ export const api = {
     ipcRenderer.on('online-filter-changed', handler)
     return () => ipcRenderer.removeListener('online-filter-changed', handler)
   },
+  onActiveFilterSynced: (
+    cb: (info: {
+      filterId: string
+      name: string
+      filterPath: string
+      filterDir: string
+      source: 'game' | 'app'
+    }) => void,
+  ): (() => void) => {
+    const handler = (
+      _: Electron.IpcRendererEvent,
+      info: {
+        filterId: string
+        name: string
+        filterPath: string
+        filterDir: string
+        source: 'game' | 'app'
+      },
+    ): void => cb(info)
+    ipcRenderer.on('active-filter-synced', handler)
+    return () => ipcRenderer.removeListener('active-filter-synced', handler)
+  },
   onFilterChanged: (cb: () => void): (() => void) => {
     const handler = (): void => cb()
     ipcRenderer.on('filter-changed', handler)
@@ -750,7 +858,8 @@ export const api = {
 
   // Auto-update
   downloadUpdate: (): Promise<void> => ipcRenderer.invoke('download-update'),
-  installUpdate: (): Promise<void> => ipcRenderer.invoke('install-update'),
+  installUpdate: (): Promise<{ ok: true } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('install-update'),
   getUpdateState: (): Promise<{
     updateVersion: string | null
     updateReady: boolean
@@ -834,20 +943,6 @@ export const api = {
      *  mounts after an async version probe) pull the show event when it
      *  missed the original push. */
     requestShownState: (): void => ipcRenderer.send('whiteboard:request-shown-state'),
-  },
-  // Screen capture source resolution for the whiteboard live-mirror feature
-  screen: {
-    getGameWindowSource: (): Promise<{ sourceId: string; gameSize: { w: number; h: number } } | null> =>
-      ipcRenderer.invoke(IPC_CHANNELS.SCREEN.GET_GAME_WINDOW_SOURCE),
-    onSourceInvalidated: (cb: () => void): (() => void) => {
-      const handler = (): void => cb()
-      ipcRenderer.on(IPC_CHANNELS.SCREEN.SOURCE_INVALIDATED_EVENT, handler)
-      return () => ipcRenderer.removeListener(IPC_CHANNELS.SCREEN.SOURCE_INVALIDATED_EVENT, handler)
-    },
-    onSourceMaybeStale: (handler: () => void): (() => void) => {
-      ipcRenderer.on(IPC_CHANNELS.SCREEN.SOURCE_MAYBE_STALE_EVENT, handler)
-      return () => ipcRenderer.removeListener(IPC_CHANNELS.SCREEN.SOURCE_MAYBE_STALE_EVENT, handler)
-    },
   },
   // Plugins
   listInstalledPlugins: (): Promise<
@@ -964,6 +1059,90 @@ export const api = {
   pluginOpenOverlay: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugins:open-overlay', pluginId),
   pluginCloseOverlay: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugins:close-overlay', pluginId),
   pluginOverlayVisible: (pluginId: string): Promise<boolean> => ipcRenderer.invoke('plugins:overlay-visible', pluginId),
+  pluginWebPanelOpen: (
+    pluginId: string,
+    opts: { url: string; title?: string; width?: number; height?: number },
+  ): Promise<void> => ipcRenderer.invoke('plugins:web-panel-open', pluginId, opts),
+  pluginWebPanelNavigate: (pluginId: string, url: string): Promise<void> =>
+    ipcRenderer.invoke('plugins:web-panel-navigate', pluginId, url),
+  pluginWebPanelClose: (pluginId: string): Promise<void> => ipcRenderer.invoke('plugins:web-panel-close', pluginId),
+  pluginReadClipboardText: (): Promise<string> => ipcRenderer.invoke('plugins:read-clipboard-text'),
+  craftListActions: (
+    pluginId: string,
+    item: import('@shared/types').PoeItem,
+    opts?: import('@shared/crafting/types').CraftResolveOpts,
+  ) => ipcRenderer.invoke('plugins:craft-list-actions', pluginId, item, opts),
+  craftSimulate: (
+    pluginId: string,
+    item: import('@shared/types').PoeItem,
+    actionId: string,
+    opts?: import('@shared/crafting/types').CraftResolveOpts,
+  ) => ipcRenderer.invoke('plugins:craft-simulate', pluginId, item, actionId, opts),
+  craftApply: (
+    pluginId: string,
+    state: import('@shared/crafting/types').CraftItemState,
+    actionId: string,
+    seed?: number,
+    opts?: import('@shared/crafting/types').CraftApplyOptions,
+  ) => ipcRenderer.invoke('plugins:craft-apply', pluginId, state, actionId, seed, opts),
+  craftFreshState: (
+    pluginId: string,
+    baseType: string,
+    itemLevel: number,
+    opts?: import('@shared/crafting/types').CraftResolveOpts,
+  ) => ipcRenderer.invoke('plugins:craft-fresh-state', pluginId, baseType, itemLevel, opts),
+  craftTargetHit: (
+    pluginId: string,
+    opts: {
+      state: import('@shared/crafting/types').CraftItemState
+      actionId: string
+      targetQuery: string
+      kind?: 'all' | 'p' | 's'
+      samples?: number
+      omens?: string[]
+    },
+  ) => ipcRenderer.invoke('plugins:craft-target-hit', pluginId, opts),
+  craftPath: (
+    pluginId: string,
+    opts: {
+      state: import('@shared/crafting/types').CraftItemState
+      steps: Array<{ actionId: string; omens?: string[]; repeatUntilHit?: boolean }>
+      targetQuery: string
+      kind?: 'all' | 'p' | 's'
+      maxTrials?: number
+      samples?: number
+    },
+  ) => ipcRenderer.invoke('plugins:craft-path', pluginId, opts),
+  craftModPool: (
+    pluginId: string,
+    opts: {
+      baseType: string
+      itemLevel: number
+      kind?: 'all' | 'p' | 's'
+      item?: import('@shared/types').PoeItem | null
+      context?: 'fresh' | 'item'
+      poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
+      marksmanEnabled?: boolean
+    },
+  ) => ipcRenderer.invoke('plugins:craft-mod-pool', pluginId, opts),
+  craftSearchBases: (
+    pluginId: string,
+    query: string,
+    limit?: number,
+    itemClass?: string,
+  ) => ipcRenderer.invoke('plugins:craft-search-bases', pluginId, query, limit, itemClass),
+  craftListItemClasses: (pluginId: string) => ipcRenderer.invoke('plugins:craft-list-item-classes', pluginId),
+  craftSearchMods: (
+    pluginId: string,
+    opts: {
+      query: string
+      itemLevel?: number
+      poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
+      itemClass?: string
+      kind?: 'all' | 'p' | 's'
+      limit?: number
+    },
+  ) => ipcRenderer.invoke('plugins:craft-search-mods', pluginId, opts),
   pluginCaptureGameWindow: (
     region?: import('../plugin-sdk/src/types').GameRect,
   ): Promise<import('../plugin-sdk/src/types').GameCapture | null> =>

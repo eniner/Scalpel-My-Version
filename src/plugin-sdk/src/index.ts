@@ -11,10 +11,12 @@ export type {
   PluginActivate,
   PluginManifest,
   PluginStorage,
+  PluginTradeSearchItem,
   PriceEntry,
   PricesApi,
   RegisterHotkeyOptions,
   RegisterOverlayOptions,
   RegisterTabOptions,
   ScalpelPluginContext,
+  TradeApi,
 } from './types'

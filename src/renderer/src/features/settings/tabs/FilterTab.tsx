@@ -1,6 +1,8 @@
 import type { AppSettings, ProfileSettingValue, PoeItem, RuntimeSettings } from '@shared/types'
 import { getGameFeatures } from '@shared/game-features'
 import { FilterPicker } from '@renderer/components/FilterPicker'
+import { FilterSectionEditor } from '@renderer/components/FilterSectionEditor'
+import { LootSimulator } from '@renderer/components/LootSimulator'
 import { HistoryPanel } from '@renderer/components/HistoryPanel'
 import { HotkeyField } from '@renderer/components/primitives/HotkeyField'
 import { SettingToggleBox } from '@renderer/components/primitives/SettingToggleBox'
@@ -63,7 +65,20 @@ export function FilterTab({
     <>
       <div className="settings-section-title mt-3">{m.settings_filter_heading()}</div>
 
-      {/* Filter folder & picker */}
+      <section>
+        <label>Edit filter sections</label>
+        <div className="mt-[6px]">
+          <FilterSectionEditor filterPath={filterPath} />
+        </div>
+      </section>
+
+      <section>
+        <label>Loot simulator</label>
+        <div className="mt-[6px]">
+          <LootSimulator filterPath={filterPath} />
+        </div>
+      </section>
+
       <section>
         <label>{m.settings_filter_folder()}</label>
         <div className="mt-[6px]">

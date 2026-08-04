@@ -68,16 +68,6 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
         closeOverlay: () => {
           void window.api.pluginCloseOverlay(pluginId)
         },
-        setInteractiveRegion: (rect) => {
-          // Report the rect (in this window's CSS px) as an interactive panel so
-          // the main-process uiohook hit-test flips THIS overlay window clickable
-          // while the cursor is inside it. Empty array clears (stays click-through).
-          if (rect && rect.width > 0 && rect.height > 0) {
-            window.api.reportPanelRect([{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }])
-          } else {
-            window.api.reportPanelRect([])
-          }
-        },
         openTab: () => {},
         copyAndEvaluateItem: () => window.api.pluginTriggerMainHotkey(),
         captureGameWindow: (region) => window.api.pluginCaptureGameWindow(region),
@@ -94,10 +84,37 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
           write: (content: string) => window.api.gameConfigWrite(content),
           onChange: (handler: () => void) => window.api.onGameConfigChange(handler),
         },
+        buildPlanner: {
+          getPath: () => window.api.buildPlannerGetPath(),
+          list: () => window.api.buildPlannerList(),
+          read: (filename: string) => window.api.buildPlannerRead(filename),
+          openFolder: () => window.api.buildPlannerOpenFolder(),
+        },
+        trade: {
+          openSearch: (item) => window.api.tradeOpenSearch(item),
+        },
         prices: {
           getPrices: (opts) => window.api.pricesGet(opts),
           refresh: () => window.api.pricesRefresh(),
           onChange: (handler) => window.api.onPricesChange(handler),
+        },
+        webPanel: {
+          open: (opts) => window.api.pluginWebPanelOpen(pluginId, opts),
+          navigate: (url) => window.api.pluginWebPanelNavigate(pluginId, url),
+          close: () => window.api.pluginWebPanelClose(pluginId),
+        },
+        readClipboardText: () => window.api.pluginReadClipboardText(),
+        craft: {
+          listActions: (item, opts) => window.api.craftListActions(pluginId, item, opts),
+          simulate: (item, actionId, opts) => window.api.craftSimulate(pluginId, item, actionId, opts),
+          apply: (state, actionId, seed, opts) => window.api.craftApply(pluginId, state, actionId, seed, opts),
+          freshState: (baseType, itemLevel, opts) => window.api.craftFreshState(pluginId, baseType, itemLevel, opts),
+          targetHit: (opts) => window.api.craftTargetHit(pluginId, opts),
+          craftPath: (opts) => window.api.craftPath(pluginId, opts),
+          modPool: (opts) => window.api.craftModPool(pluginId, opts),
+          searchBases: (query, limit, itemClass) => window.api.craftSearchBases(pluginId, query, limit, itemClass),
+          listItemClasses: () => window.api.craftListItemClasses(pluginId),
+          searchMods: (opts) => window.api.craftSearchMods(pluginId, opts),
         },
         openExternal: (url) => window.api.openExternal(url),
         log: (...args: unknown[]) => {

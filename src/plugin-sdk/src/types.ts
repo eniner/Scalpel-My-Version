@@ -120,6 +120,293 @@ export interface GameCapture {
   scale: number
 }
 
+export interface BuildPlannerFileEntry {
+  filename: string
+  name: string
+}
+
+export interface BuildPlannerApi {
+  /** Absolute path to the detected game's BuildPlanner folder. */
+  getPath(): Promise<{ path: string }>
+  /** List `.build` exports in that folder (empty when missing). */
+  list(): Promise<{ path: string; files: BuildPlannerFileEntry[] }>
+  /** Read a `.build` file by basename (not a full path). */
+  read(filename: string): Promise<{ path: string; content: string }>
+  /** Open the BuildPlanner folder in the system file manager. */
+  openFolder(): Promise<{ path: string }>
+}
+
+export interface PluginTradeSearchItem {
+  name: string
+  baseType: string
+  itemClass?: string
+  rarity: string
+  /** Raw guide notes with numbered stat priority lines. */
+  notes?: string
+  statPriority?: string[]
+  /** When true, search by slot + stats instead of the guide's exact base type. */
+  similarItems?: boolean
+}
+
+export interface WebPanelApi {
+  /**
+   * Open or focus an always-on-top sidecar window loading an external https URL.
+   * Currently limited to craftofexile.com hosts.
+   */
+  open(opts: { url: string; title?: string; width?: number; height?: number }): Promise<void>
+  /** Navigate the sidecar if open; otherwise opens it. */
+  navigate(url: string): Promise<void>
+  close(): Promise<void>
+}
+
+export interface CraftActionResult {
+  id: string
+  label: string
+  description: string
+  applies: boolean
+  reason?: string
+  category?: string
+  simKey?: string
+}
+
+export interface CraftItemModResult {
+  group: string
+  kind: 'p' | 's'
+  text: string
+  name?: string
+  bindGroups?: string[]
+  desecrated?: boolean
+  veiled?: boolean
+  fractured?: boolean
+  pool?: 'marksman'
+}
+
+export interface DesecrationRevealChoiceResult {
+  mods: CraftItemModResult[]
+  rerollsLeft: number
+  veiledKind: 'p' | 's'
+}
+
+export interface CraftItemStateResult {
+  baseType: string
+  itemLevel: number
+  rarity: 'Normal' | 'Magic' | 'Rare' | 'Unique'
+  tags: string[]
+  itemClass: string
+  corrupted: boolean
+  mods: CraftItemModResult[]
+  activeOmens?: string[]
+  revealChoices?: DesecrationRevealChoiceResult
+  /** Simulate wearing a belt/quiver with "Can roll Marksman modifiers". */
+  marksmanEnabled?: boolean
+}
+
+export interface CraftApplyOptionsResult {
+  omens?: string[]
+  pickIndex?: number
+  rerollReveal?: boolean
+}
+
+export interface CraftApplyResult {
+  ok: boolean
+  state: CraftItemStateResult
+  actionId: string
+  label: string
+  message: string
+  added?: CraftItemModResult[]
+  removed?: CraftItemModResult[]
+  error?: string
+  revealChoices?: DesecrationRevealChoiceResult
+  consumedOmens?: string[]
+}
+
+export interface CraftPathStepResult {
+  actionId: string
+  omens?: string[]
+  repeatUntilHit?: boolean
+}
+
+export interface CraftPathResult {
+  targetQuery: string
+  hitRate: number
+  expectedAttempts: number | null
+  attemptsTable: Array<{ attempts: number; probability: number }>
+  steps: CraftPathStepResult[]
+  samples: number
+  note: string
+}
+
+export interface CraftOutcomeResult {
+  id?: string
+  tierName?: string
+  text: string
+  group: string
+  kind: 'p' | 's'
+  probability: number
+  weight?: number
+  groupWeight?: number
+  ilvl?: number
+  groupChance?: number
+  tierChance?: number
+  pool?: 'craft' | 'marksman' | 'desecrated'
+}
+
+export interface ModTierReportResult {
+  id: string
+  name: string
+  text: string
+  ilvl: number
+  spawnWeight: number
+  tierChance: number
+  overallChance: number
+  pool?: 'craft' | 'marksman' | 'desecrated'
+}
+
+export interface ModSearchHitResult {
+  baseType: string
+  itemClass: string
+  modId: string
+  group: string
+  kind: 'p' | 's'
+  tierName: string
+  text: string
+  ilvl: number
+  spawnWeight: number
+  pool: 'craft' | 'marksman' | 'desecrated'
+}
+
+export interface ModGroupReportResult {
+  group: string
+  kind: 'p' | 's'
+  displayName: string
+  tags: string[]
+  groupWeight: number
+  groupChance: number
+  tierCount: number
+  bestTierText: string
+  bestTierIlvl: number
+  tiers: ModTierReportResult[]
+}
+
+export interface ModPoolSectionResult {
+  kind: 'p' | 's'
+  label: string
+  groupCount: number
+  modCount: number
+  totalWeight: number
+  groups: ModGroupReportResult[]
+}
+
+export interface ModPoolReportResult {
+  baseType: string
+  itemLevel: number
+  kind: 'all' | 'p' | 's'
+  context: 'fresh' | 'item'
+  poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
+  modCount: number
+  groupCount: number
+  totalWeight: number
+  outcomes: CraftOutcomeResult[]
+  groups: ModGroupReportResult[]
+  sections: ModPoolSectionResult[]
+  note: string
+}
+
+export interface TargetCraftResult {
+  actionId: string
+  label: string
+  targetQuery: string
+  hitPerAttempt: number
+  expectedAttempts: number | null
+  attemptsTable: Array<{ attempts: number; probability: number }>
+  matchingOutcomes: CraftOutcomeResult[]
+  samples: number
+  note: string
+}
+
+export interface CraftSimulationResult {
+  actionId: string
+  label: string
+  samples: number
+  modCountChances?: Array<{ count: number; probability: number }>
+  outcomes: CraftOutcomeResult[]
+  note?: string
+}
+
+export interface CraftResolveOptsResult {
+  marksmanEnabled?: boolean
+}
+
+export interface CraftApi {
+  /** List currencies/methods that apply to this item (PoE 2). */
+  listActions(item: PoeItem, opts?: CraftResolveOptsResult): Promise<CraftActionResult[]>
+  /** Monte-Carlo or exact odds for one action on this item. */
+  simulate(item: PoeItem, actionId: string, opts?: CraftResolveOptsResult): Promise<CraftSimulationResult>
+  /** Apply one crafting action to virtual item state (emulator). */
+  apply(
+    state: CraftItemStateResult,
+    actionId: string,
+    seed?: number,
+    opts?: CraftApplyOptionsResult,
+  ): Promise<CraftApplyResult>
+  /** Fresh normal item on a base for emulator start. */
+  freshState(baseType: string, itemLevel: number, opts?: CraftResolveOptsResult): Promise<CraftItemStateResult>
+  /** Chance to hit a target mod per craft attempt + cumulative odds. */
+  targetHit(opts: {
+    state: CraftItemStateResult
+    actionId: string
+    targetQuery: string
+    kind?: 'all' | 'p' | 's'
+    samples?: number
+    omens?: string[]
+  }): Promise<TargetCraftResult>
+  /** Multi-step craft path odds (alt until hit, etc.). */
+  craftPath(opts: {
+    state: CraftItemStateResult
+    steps: CraftPathStepResult[]
+    targetQuery: string
+    kind?: 'all' | 'p' | 's'
+    maxTrials?: number
+    samples?: number
+  }): Promise<CraftPathResult>
+  /** Full weighted mod pool for a base (cheat sheet lookup). */
+  modPool(opts: {
+    baseType: string
+    itemLevel: number
+    kind?: 'all' | 'p' | 's'
+    item?: PoeItem | null
+    context?: 'fresh' | 'item'
+    poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
+    marksmanEnabled?: boolean
+  }): Promise<ModPoolReportResult>
+  /** Autocomplete base types from CoE data. */
+  searchBases(query: string, limit?: number, itemClass?: string): Promise<string[]>
+  /** List item classes present in the crafting base catalog. */
+  listItemClasses(): Promise<string[]>
+  /** Search mod tiers across all bases (global cheat sheet lookup). */
+  searchMods(opts: {
+    query: string
+    itemLevel?: number
+    poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
+    itemClass?: string
+    kind?: 'all' | 'p' | 's'
+    limit?: number
+  }): Promise<ModSearchHitResult[]>
+}
+
+export interface TradeApi {
+  /**
+   * Run Scalpel's trade search for a synthetic item. When `notes` or
+   * `statPriority` are provided, numbered guide mods are matched and included.
+   */
+  openSearch(item: PluginTradeSearchItem): Promise<{
+    url: string
+    queryId: string
+    total: number
+    matchedStats?: number
+  }>
+}
+
 export interface PricesApi {
   /**
    * Read the current poe.ninja price snapshot for the detected game + league.
@@ -204,18 +491,6 @@ export interface ScalpelPluginContext {
   closeOverlay(): void
 
   /**
-   * Annotation overlays only. Declare the screen region (in overlay/game CSS px,
-   * measured from the overlay's top-left) that should receive mouse input. While
-   * the cursor is inside it, Scalpel flips the otherwise click-through overlay
-   * interactive so clicks land on your elements; everywhere else the overlay
-   * stays click-through and clicks pass to the game. Pass null to clear it. Call
-   * this from your overlay's render code (re-call when the region moves or
-   * resizes); it is a no-op for 'window'-mode overlays, which are already
-   * interactive.
-   */
-  setInteractiveRegion(rect: { x: number; y: number; width: number; height: number } | null): void
-
-  /**
    * Trigger the same flow Scalpel's main hotkey runs: send Ctrl+C to PoE,
    * read the clipboard, parse the item, fire onCurrentItem for everyone
    * (other plugins + Scalpel's filter/price-check views), and resolve to
@@ -249,11 +524,29 @@ export interface ScalpelPluginContext {
    */
   readonly gameConfig: GameConfigApi
   /**
+   * List and read GGG BuildPlanner `.build` exports from the standard
+   * Documents folder. Plugins cannot name arbitrary paths; only basenames from
+   * `list()` are accepted by `read()`.
+   */
+  readonly buildPlanner: BuildPlannerApi
+  /**
+   * Trade search helpers. Uses the same main-process search as Price Check;
+   * plugins cannot call the trade API directly from the renderer.
+   */
+  readonly trade: TradeApi
+  readonly craft: CraftApi
+  /**
    * Read the poe.ninja price data Scalpel already maintains (the same source
    * powering Price Check). Read-only; the host owns fetching, so plugins never
    * hit ninja directly (a renderer fetch would be CORS-blocked).
    */
   readonly prices: PricesApi
+  readonly webPanel: WebPanelApi
+  /**
+   * Read the OS clipboard as plain text. Useful after copyAndEvaluateItem()
+   * to pass PoE item text to external tools (e.g. Craft of Exile eimport).
+   */
+  readClipboardText(): Promise<string>
   openExternal(url: string): void
   log(...args: unknown[]): void
 }

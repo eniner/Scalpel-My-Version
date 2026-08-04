@@ -37,7 +37,13 @@
     "test:e2e:headed": "npm run build && playwright test -c playwright.electron.config.ts --headed",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:plugin": "node scripts/dev-with-plugin.mjs",
+    "launch": "node scripts/launch-built.mjs",
+    "install:local": "node scripts/install-to-local-scalpel.mjs",
+    "build-crafting-data": "node scripts/build-crafting-data.js",
+    "build-coe-crafting-data": "node scripts/build-coe-crafting-data.js",
+    "build-crafting-data:all": "node scripts/build-crafting-data.js && node scripts/build-coe-crafting-data.js"
   },
   "dependencies": {
     "active-win": "^9.0.0",
