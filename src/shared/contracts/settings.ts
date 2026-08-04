@@ -39,6 +39,8 @@ export interface AppSettings {
   updateChannel: 'stable' | 'beta' | 'experimental'
   tradeStatus: 'securable' | 'online' | 'available'
   tradeCollapseListings?: boolean
+  /** Hide the logged-in account's own trade listings in price-check results. */
+  tradeExcludeOwnListings?: boolean
   previewVolume?: number
   tradeDefaultListedTime?:
     | ''

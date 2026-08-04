@@ -439,7 +439,11 @@ function setTradeHeaders(request: Electron.ClientRequest): void {
 // user sees a short "timed out" after two misses instead of an endless spinner.
 const REQUEST_TIMEOUT_MS = 15000
 
-async function fetchJson(url: string, options?: { method?: string; body?: string }, retries = 2): Promise<unknown> {
+export async function fetchJson(
+  url: string,
+  options?: { method?: string; body?: string },
+  retries = 2,
+): Promise<unknown> {
   const category = categoryFor(url)
   // Proactive wait: block until every bucket the server has advertised for
   // this endpoint category has a free slot. This is what keeps 429s from
