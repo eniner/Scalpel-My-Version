@@ -5,6 +5,7 @@ import { uIOhook } from 'uiohook-napi'
 import { startClientLogWatcher } from './client-log'
 import { guardNativeListener, registerDiagnosticProvider } from './diagnostics'
 import { getPoeVersion, setPoeVersion } from './game-state'
+import { loadCraftData } from './crafting-data'
 import { loadTierData, refreshTierData } from './tier-data'
 import { loadPremiumMods, refreshPremiumMods } from './premium-mods'
 import { loadEndgameFilterSupport, refreshEndgameFilterSupport } from './trade/endgame-filter-support'
@@ -306,6 +307,7 @@ export function createOverlayWindow(version: 1 | 2 = 1, options?: CreateOverlayO
   loadTierData(version)
     .then(() => refreshTierData(version))
     .catch(() => {})
+  loadCraftData().catch(() => {})
   // Re-check for fresher tier data every 6 hours.
   setInterval(() => refreshTierData(version).catch(() => {}), 6 * 60 * 60 * 1000)
   loadPremiumMods()
