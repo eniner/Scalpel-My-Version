@@ -195,9 +195,9 @@ export function PriceCheck({
   const [statusOption, setStatusOption] = useState<StatusOption>('available')
   const [resultsView, setResultsView] = useState<ResultsView>('default')
 
-  const includeImplicits = shouldIncludeImplicitsInBase(item.rarity, item.corrupted)
+  const includeImplicits = shouldIncludeImplicitsInBase(item.rarity, item.corrupted, item.vestigial)
   const applyBaseMode = (): void => {
-    setFilters((prev) => applyBaseModeToFilters(prev, item.rarity, item.corrupted))
+    setFilters((prev) => applyBaseModeToFilters(prev, item.rarity, item.corrupted, { vestigial: item.vestigial }))
   }
 
   // Gear-only: maps/tablets/relics/flasks are isEquipment but their explicit "affixes" are
@@ -216,8 +216,8 @@ export function PriceCheck({
 
   // Check if this is a bulk exchange item on mount
   useEffect(() => {
-    window.api.checkBulkItem(item.name, item.baseType, item.itemClass, item.rarity).then(setIsBulk)
-  }, [item.name, item.baseType, item.itemClass])
+    window.api.checkBulkItem(item.name, item.baseType, item.itemClass, item.rarity, item.zanaMemory).then(setIsBulk)
+  }, [item.name, item.baseType, item.itemClass, item.zanaMemory])
 
   // Auto-apply Base mode:
   //   - Item classes in BASE_DEFAULT_ITEM_CLASSES: always (e.g. Blueprints, Contracts)
@@ -262,7 +262,8 @@ export function PriceCheck({
       setFilters((prev) => {
         let seeded = prev
         if (craftingReadyDefault) seeded = applyCraftingReadyToFilters(prev, item.rarity, item.corrupted)
-        else if (useBaseMode) seeded = applyBaseModeToFilters(prev, item.rarity, item.corrupted)
+        else if (useBaseMode)
+          seeded = applyBaseModeToFilters(prev, item.rarity, item.corrupted, { vestigial: item.vestigial })
         return applyLearnedDecisions(seeded, learnedDecisions)
       })
       baseModeApplied.current = true
@@ -294,7 +295,7 @@ export function PriceCheck({
       const payWith =
         swap ??
         (priceInfo?.divineValue != null && priceInfo.divineValue >= 1 ? 'divine' : features.bulkBaselineCurrency)
-      const result = await window.api.bulkExchange(item.name, item.baseType, payWith)
+      const result = await window.api.bulkExchange(item.name, item.baseType, payWith, item.zanaMemory)
       setBulkListings(result.listings)
       setTotal(result.total)
       setQueryId(result.queryId)

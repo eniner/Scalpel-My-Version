@@ -31,7 +31,27 @@ const POE1_RULES: BulkExchangeRules = {
     'Divination Cards',
     'Map Fragments',
   ]),
-  exceptions: new Set<string>(),
+  exceptions: new Set([
+    // Bound to a map area, so it has no fungible stack to exchange -- Faustus
+    // does not carry it and the banner would be a dead end (#513).
+    'Scrying Orb',
+    // Map Fragments by class, but each warrant sells one specific mercenary
+    // (build + level are the price), so there is no fungible stack for Faustus
+    // to exchange and the banner would be a dead end.
+    'Mercenary Warrant',
+    // Incursion vials are Stackable Currency, but GGG's exchange item list has
+    // no vial entry at all -- they never reached the Currency Exchange and are
+    // bought and sold on regular trade instead (#550).
+    'Vial of Awakening',
+    'Vial of Consequence',
+    'Vial of Dominance',
+    'Vial of Fate',
+    'Vial of Sacrifice',
+    'Vial of Summoning',
+    'Vial of Transcendence',
+    'Vial of the Ghost',
+    'Vial of the Ritual',
+  ]),
   baseTypes: new Set([
     // Delirium
     'Delirium Orb',

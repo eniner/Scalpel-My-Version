@@ -19,9 +19,9 @@ export function TradeListings({
   expandedListing,
   setExpandedListing,
   priceChipMinWidth,
-  loggedIn,
-  actionStatus,
-  setActionStatus,
+  loggedIn = false,
+  actionStatus = {},
+  setActionStatus = () => {},
   queryId,
   league,
   onLoadMore,
@@ -36,9 +36,11 @@ export function TradeListings({
   expandedListing: string | null
   setExpandedListing: (id: string | null) => void
   priceChipMinWidth: number
-  loggedIn: boolean
-  actionStatus: Record<string, 'pending' | 'success' | 'failed'>
-  setActionStatus: React.Dispatch<React.SetStateAction<Record<string, 'pending' | 'success' | 'failed'>>>
+  /** Trade actions (Travel to Hideout / Whisper) render only when the caller wires
+   *  these up. The regex tool deliberately omits them, so all three are optional. */
+  loggedIn?: boolean
+  actionStatus?: Record<string, 'pending' | 'success' | 'failed'>
+  setActionStatus?: React.Dispatch<React.SetStateAction<Record<string, 'pending' | 'success' | 'failed'>>>
   queryId: string | null
   league: string
   onLoadMore?: () => void
@@ -266,6 +268,13 @@ export function TradeListings({
                     style={{ minWidth: priceChipMinWidth }}
                   >
                     No price
+                  </span>
+                )}
+
+                {l.itemData?.memoryStrands != null && (
+                  <span className="shrink-0 rounded-full bg-black/30 px-[8px] py-[2px] text-[10px] font-semibold text-[#00e0be]">
+                    {l.itemData.memoryStrands}
+                    {compact ? '' : ' Strands'}
                   </span>
                 )}
 

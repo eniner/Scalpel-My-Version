@@ -362,6 +362,71 @@ describe('matchItemMods', () => {
       expect(abyssChip).toBeDefined()
       expect(abyssChip?.value).toBe(1)
     })
+
+    it('Stygian Vise: keeps Abyssal Sockets chip and does not emit Has 1 Socket', () => {
+      // Clipboard singular "Has 1 Abyssal Socket" must not resolve to trade
+      // "Has 1 Socket" (stat_4077843608) — that id is for other bases and zeros
+      // Stygian Vise searches. Socket producer owns the abyss chip.
+      _setStatEntriesForTests([
+        { id: 'implicit.stat_4077843608', text: 'Has 1 Socket', type: 'implicit' },
+        { id: 'implicit.stat_3527617737', text: 'Has # Abyssal Sockets', type: 'implicit' },
+      ])
+      const filters = matchItemMods([], ['Has 1 Abyssal Socket'], undefined, {
+        ...makeItemInfo({
+          sockets: 'A',
+          linkedSockets: 0,
+          itemClass: 'Belts',
+          baseType: 'Stygian Vise',
+          rarity: 'Rare',
+        }),
+      })
+      expect(filters.filter((f) => f.id === 'implicit.stat_4077843608')).toHaveLength(0)
+      const abyss = filters.filter((f) => f.id === 'implicit.stat_3527617737')
+      expect(abyss).toHaveLength(1)
+      expect(abyss[0]?.value).toBe(1)
+      expect(abyss[0]?.text).toBe('Abyssal Sockets')
+    })
+
+    it('suffix-granted abyssal socket ("of the Underground"): single explicit chip, no duplicate row (#549)', () => {
+      // Reported item: a rare Chiming Spirit Shield whose "Has 1 Abyssal Socket" line
+      // is the explicit suffix, not an implicit. The socket producer owns the chip;
+      // the explicit producer used to also match the line, emitting a second row on
+      // the same trade id so toggling either one did nothing.
+      const advancedMods: AdvancedMod[] = [
+        {
+          type: 'suffix',
+          name: 'of the Underground',
+          tier: 1,
+          tags: [],
+          lines: ['Has 1 Abyssal Socket'],
+          ranges: [],
+        },
+      ]
+      const filters = matchItemMods(
+        ['Has 1 Abyssal Socket'],
+        [],
+        undefined,
+        makeItemInfo({ sockets: 'W-BA', linkedSockets: 0, itemClass: 'Shields', rarity: 'Rare' }),
+        advancedMods,
+      )
+      const abyss = filters.filter((f) => f.id === 'explicit.stat_3527617737')
+      expect(abyss).toHaveLength(1)
+      expect(abyss[0]?.text).toBe('Abyssal Sockets')
+      expect(abyss[0]?.value).toBe(1)
+      expect(filters.find((f) => f.text === 'Has 1 Abyssal Socket')).toBeUndefined()
+    })
+
+    it('suffix-granted abyssal socket with no advancedMods (basic copy) still resolves to the explicit id', () => {
+      const filters = matchItemMods(
+        ['Has 1 Abyssal Socket'],
+        [],
+        undefined,
+        makeItemInfo({ sockets: 'W-BA', linkedSockets: 0, itemClass: 'Shields', rarity: 'Rare' }),
+      )
+      const abyss = filters.filter((f) => f.id === 'explicit.stat_3527617737')
+      expect(abyss).toHaveLength(1)
+      expect(filters.find((f) => f.id === 'implicit.stat_3527617737')).toBeUndefined()
+    })
   })
 
   describe('misc filters', () => {
@@ -399,6 +464,78 @@ describe('matchItemMods', () => {
       const mirroredChip = filters.find((f) => f.id === 'misc.mirrored')
       expect(mirroredChip).toBeDefined()
       expect(mirroredChip?.chipState).toBe('yes')
+    })
+
+    it('generates vestigial chip with chipState "yes" when item is vestigial', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ vestigial: true, rarity: 'Unique', itemClass: 'Body Armours', sockets: '' }),
+      )
+      const vestigialChip = filters.find((f) => f.id === 'misc.vestigial')
+      expect(vestigialChip).toBeDefined()
+      expect(vestigialChip?.chipState).toBe('yes')
+      expect(vestigialChip?.enabled).toBe(false)
+    })
+
+    it('does not generate vestigial chip when item is not vestigial', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ vestigial: false, rarity: 'Unique', itemClass: 'Body Armours', sockets: '' }),
+      )
+      const vestigialChip = filters.find((f) => f.id === 'misc.vestigial')
+      expect(vestigialChip).toBeUndefined()
+    })
+
+    it('generates foulborn chip with chipState "no" on a non-foulborn unique (#532)', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ foulborn: false, rarity: 'Unique', itemClass: 'Belts', sockets: '' }),
+      )
+      const foulbornChip = filters.find((f) => f.id === 'misc.foulborn')
+      expect(foulbornChip).toBeDefined()
+      expect(foulbornChip?.chipState).toBe('no')
+      expect(foulbornChip?.enabled).toBe(false)
+    })
+
+    it('generates foulborn chip with chipState "yes" on a foulborn unique (#532)', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ foulborn: true, rarity: 'Unique', itemClass: 'Belts', sockets: '' }),
+      )
+      const foulbornChip = filters.find((f) => f.id === 'misc.foulborn')
+      expect(foulbornChip).toBeDefined()
+      expect(foulbornChip?.chipState).toBe('yes')
+    })
+
+    it('leaves foulborn chipState undefined on an unidentified unique (#532)', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ foulborn: false, identified: false, rarity: 'Unique', itemClass: 'Belts', sockets: '' }),
+      )
+      const foulbornChip = filters.find((f) => f.id === 'misc.foulborn')
+      expect(foulbornChip).toBeDefined()
+      expect(foulbornChip?.chipState).toBeUndefined()
+    })
+
+    it('does not generate a foulborn chip on a Rare (#532)', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ foulborn: false, rarity: 'Rare', itemClass: 'Belts', sockets: '' }),
+      )
+      const foulbornChip = filters.find((f) => f.id === 'misc.foulborn')
+      expect(foulbornChip).toBeUndefined()
     })
 
     it('generates unidentified chip when item is not identified', () => {
@@ -1205,6 +1342,152 @@ describe('matchItemMods', () => {
     })
   })
 
+  describe('map property chips honour the default search percentage (#547)', () => {
+    const reportedMap = () =>
+      makeItemInfo({
+        itemClass: 'Maps',
+        rarity: 'Rare',
+        sockets: '',
+        mapQuantity: 55,
+        mapRarity: 78,
+        mapPackSize: 21,
+        mapMoreMaps: 35,
+      })
+
+    it('pins property chips to the exact roll at defaultPercent 100', () => {
+      const filters = matchItemMods([], [], undefined, reportedMap(), undefined, 100)
+
+      const quantityChip = filters.find((f) => f.id === 'map.map_iiq')!
+      const rarityChip = filters.find((f) => f.id === 'map.map_iir')!
+      const packSizeChip = filters.find((f) => f.id === 'map.map_packsize')!
+      const moreMapsChip = filters.find((f) => f.id === 'pseudo.pseudo_map_more_map_drops')!
+
+      expect(quantityChip.min).toBe(quantityChip.value)
+      expect(rarityChip.min).toBe(rarityChip.value)
+      expect(packSizeChip.min).toBe(packSizeChip.value)
+      expect(moreMapsChip.min).toBe(moreMapsChip.value)
+    })
+
+    it('applies the configured floor at defaultPercent 90', () => {
+      const filters = matchItemMods([], [], undefined, reportedMap(), undefined, 90)
+
+      expect(filters.find((f) => f.id === 'map.map_iiq')?.min).toBe(49)
+      expect(filters.find((f) => f.id === 'map.map_iir')?.min).toBe(70)
+      expect(filters.find((f) => f.id === 'map.map_packsize')?.min).toBe(18)
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_map_more_map_drops')?.min).toBe(31)
+    })
+
+    it('leaves pseudo.pseudo_number_of_affix_mods pinned to the actual affix count at defaultPercent 100', () => {
+      const advancedMods: AdvancedMod[] = [
+        ...Array.from({ length: 4 }, (_, i) => ({
+          type: 'prefix' as const,
+          name: `P${i}`,
+          tier: 1,
+          tags: [],
+          lines: [`prefix ${i}`],
+          ranges: [],
+        })),
+        ...Array.from({ length: 4 }, (_, i) => ({
+          type: 'suffix' as const,
+          name: `S${i}`,
+          tier: 1,
+          tags: [],
+          lines: [`suffix ${i}`],
+          ranges: [],
+        })),
+      ]
+      const filters = matchItemMods([], [], undefined, reportedMap(), advancedMods, 100)
+
+      const chip = filters.find((f) => f.id === 'pseudo.pseudo_number_of_affix_mods')!
+      expect(chip.value).toBe(8)
+      expect(chip.min).toBe(8)
+    })
+  })
+
+  describe('originator (Zana memory) rare maps (#541)', () => {
+    // Originator maps are farmed and priced on their drop-boosting rolls, so Rarity
+    // pre-checks there even though it's noise on a regular rare map. Quantity, Pack
+    // Size, and the more-drops pseudo stats are already on by default and must stay so.
+    it('enables map.map_iir and keeps the other map property chips enabled on a rare originator map', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({
+          itemClass: 'Maps',
+          rarity: 'Rare',
+          sockets: '',
+          zanaMemory: true,
+          mapQuantity: 65,
+          mapRarity: 39,
+          mapPackSize: 25,
+          mapMoreScarabs: 22,
+          mapMoreCurrency: 47,
+          mapMoreMaps: 35,
+        }),
+      )
+      expect(filters.find((f) => f.id === 'map.map_iir')?.enabled).toBe(true)
+      expect(filters.find((f) => f.id === 'map.map_iiq')?.enabled).toBe(true)
+      expect(filters.find((f) => f.id === 'map.map_packsize')?.enabled).toBe(true)
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_map_more_scarab_drops')?.enabled).toBe(true)
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_map_more_currency_drops')?.enabled).toBe(true)
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_map_more_map_drops')?.enabled).toBe(true)
+    })
+
+    it('leaves map.map_iir disabled on a rare non-originator map', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ itemClass: 'Maps', rarity: 'Rare', sockets: '', mapRarity: 39 }),
+      )
+      expect(filters.find((f) => f.id === 'map.map_iir')?.enabled).toBe(false)
+    })
+
+    it('emits an enabled misc.rarity chip on a rare originator map', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ itemClass: 'Maps', rarity: 'Rare', sockets: '', zanaMemory: true }),
+      )
+      const rarityChip = filters.find((f) => f.id === 'misc.rarity')
+      expect(rarityChip).toBeDefined()
+      expect(rarityChip?.text).toBe('Rare')
+      expect(rarityChip?.enabled).toBe(true)
+    })
+
+    it('emits no misc.rarity chip on a rare non-originator map', () => {
+      const filters = matchItemMods([], [], undefined, makeItemInfo({ itemClass: 'Maps', rarity: 'Rare', sockets: '' }))
+      expect(filters.find((f) => f.id === 'misc.rarity')).toBeUndefined()
+    })
+
+    it('emits an enabled misc.rarity chip on a Normal (white) originator map (#545)', () => {
+      // A white originator map must not be compared against far pricier magic/rare
+      // copies, so the pin applies at every rarity, not just Rare.
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ itemClass: 'Maps', rarity: 'Normal', sockets: '', zanaMemory: true }),
+      )
+      const rarityChip = filters.find((f) => f.id === 'misc.rarity')
+      expect(rarityChip).toBeDefined()
+      expect(rarityChip?.text).toBe('Normal')
+      expect(rarityChip?.enabled).toBe(true)
+    })
+
+    it('emits no misc.rarity chip on a Normal non-originator map', () => {
+      const filters = matchItemMods(
+        [],
+        [],
+        undefined,
+        makeItemInfo({ itemClass: 'Maps', rarity: 'Normal', sockets: '' }),
+      )
+      expect(filters.find((f) => f.id === 'misc.rarity')).toBeUndefined()
+    })
+  })
+
   describe('timeless jewel chips', () => {
     it('generates timeless jewel chips from plain text (Remembrancing)', () => {
       const filters = matchItemMods(
@@ -1749,6 +2032,53 @@ describe('matchItemMods', () => {
       )
       const res = filters.find((f) => f.id === 'implicit.stat_3372524247')
       expect(res?.value).toBe(12)
+    })
+  })
+
+  describe('vestigial items (#533)', () => {
+    // A vestigial item's implicit replaces the base implicit and is the item's
+    // defining mod (the whole reason it's worth anything), so it must default to
+    // enabled even on a non-corrupted unique -- unlike a normal unique implicit,
+    // which is a fixed base roll and stays disabled unless corrupted.
+    it('enables the implicit row on a non-corrupted vestigial unique', () => {
+      _setStatEntriesForTests([
+        { id: 'implicit.stat_383509486', text: '#% of Physical Damage taken as Fire Damage', type: 'implicit' },
+      ])
+      const filters = matchItemMods(
+        [],
+        ['20% of Physical Damage taken as Fire Damage'],
+        undefined,
+        makeItemInfo({
+          rarity: 'Unique',
+          itemClass: 'Body Armours',
+          baseType: 'Simple Robe',
+          corrupted: false,
+          vestigial: true,
+        }),
+      )
+      const implicitRow = filters.find((f) => f.id === 'implicit.stat_383509486')
+      expect(implicitRow).toBeDefined()
+      expect(implicitRow?.enabled).toBe(true)
+    })
+  })
+
+  describe('abyssal sockets (singular clipboard vs plural trade text)', () => {
+    // PoE1 trade stores "Has # Abyssal Sockets"; Stygian Vise clipboard prints
+    // "Has 1 Abyssal Socket". Without a singular->plural variant the match used to
+    // fall through to relaxed "Has 1 Socket" and break Stygian searches.
+    it('matches Has 1 Abyssal Socket to Has # Abyssal Sockets, not Has 1 Socket', () => {
+      _setStatEntriesForTests([
+        { id: 'implicit.stat_4077843608', text: 'Has 1 Socket', type: 'implicit' },
+        { id: 'implicit.stat_3527617737', text: 'Has # Abyssal Sockets', type: 'implicit' },
+      ])
+      const result = matchModToStat('Has 1 Abyssal Socket', false, 'implicit')
+      expect(result?.statId).toBe('implicit.stat_3527617737')
+      expect(result?.value).toBe(1)
+    })
+
+    it('relaxed Has 1 Socket does not swallow Has 1 Abyssal Socket', () => {
+      _setStatEntriesForTests([{ id: 'implicit.stat_4077843608', text: 'Has 1 Socket', type: 'implicit' }])
+      expect(matchModToStat('Has 1 Abyssal Socket', false, 'implicit')).toBeNull()
     })
   })
 
@@ -2972,6 +3302,266 @@ describe('matchItemMods', () => {
     })
   })
 
+  describe('minion resistance excluded from resistance pseudo', () => {
+    // Bone Ring / minion gear: "Minions have +#% to all Elemental Resistances"
+    // must not create a player Total Ele Res chip ((15+22)×3 = 111 false positive).
+    it('minion all-ele-res does not feed Total Elemental Resistance', () => {
+      _setStatEntriesForTests([
+        {
+          id: 'implicit.stat_minion_allres',
+          text: 'Minions have #% to all Elemental Resistances',
+          type: 'implicit',
+        },
+        {
+          id: 'explicit.stat_minion_allres',
+          text: 'Minions have #% to all Elemental Resistances',
+          type: 'explicit',
+        },
+        { id: 'explicit.stat_4220027924', text: '#% to Cold Resistance', type: 'explicit' },
+      ])
+      const filters = matchItemMods(
+        ['Minions have +22% to all Elemental Resistances', '+30% to Cold Resistance'],
+        ['Minions have +15% to all Elemental Resistances'],
+        undefined,
+        makeItemInfo({ rarity: 'Rare', itemClass: 'Rings', baseType: 'Bone Ring' }),
+      )
+      const pseudo = filters.find((f) => f.id === 'pseudo.pseudo_total_elemental_resistance')
+      expect(pseudo?.value).toBe(30)
+    })
+
+    it('Bone Ring with only minion resists emits no Total Elemental Resistance chip', () => {
+      _setStatEntriesForTests([
+        {
+          id: 'implicit.stat_minion_allres',
+          text: 'Minions have #% to all Elemental Resistances',
+          type: 'implicit',
+        },
+        {
+          id: 'explicit.stat_minion_allres',
+          text: 'Minions have #% to all Elemental Resistances',
+          type: 'explicit',
+        },
+      ])
+      const filters = matchItemMods(
+        ['Minions have +22% to all Elemental Resistances'],
+        ['Minions have +15% to all Elemental Resistances'],
+        undefined,
+        makeItemInfo({ rarity: 'Rare', itemClass: 'Rings', baseType: 'Bone Ring' }),
+      )
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_total_elemental_resistance')).toBeUndefined()
+    })
+  })
+
+  describe('nearby enemies resistance excluded from resistance pseudo', () => {
+    // Redeemer "of the Conquest" and its cold/lightning/chaos twins: "Nearby
+    // Enemies have -#% to <Ele> Resistance" is an enemy debuff, not player
+    // resistance. #544: the negative roll was folding into
+    // pseudo_total_elemental_resistance, understating the total and hiding
+    // the real mod row (the pseudo replaces its source row).
+    it('nearby enemies fire resistance debuff does not subtract from Total Elemental Resistance', () => {
+      _setStatEntriesForTests([
+        {
+          id: 'explicit.stat_3914021960',
+          text: 'Nearby Enemies have #% to Fire Resistance',
+          type: 'explicit',
+        },
+        { id: 'explicit.stat_4220027924', text: '#% to Cold Resistance', type: 'explicit' },
+      ])
+      const filters = matchItemMods(
+        ['Nearby Enemies have -9% to Fire Resistance', '+36% to Cold Resistance'],
+        [],
+        undefined,
+        makeItemInfo({ rarity: 'Rare', itemClass: 'Helmets' }),
+      )
+      const pseudo = filters.find((f) => f.id === 'pseudo.pseudo_total_elemental_resistance')
+      expect(pseudo).toBeDefined()
+      // Only the +36 Cold Res counts; the -9 enemy debuff must not subtract.
+      expect(pseudo?.value).toBe(36)
+    })
+
+    it('nearby enemies resistance debuff alone emits no resistance pseudo chip', () => {
+      _setStatEntriesForTests([
+        {
+          id: 'explicit.stat_3914021960',
+          text: 'Nearby Enemies have #% to Fire Resistance',
+          type: 'explicit',
+        },
+      ])
+      const filters = matchItemMods(
+        ['Nearby Enemies have -9% to Fire Resistance'],
+        [],
+        undefined,
+        makeItemInfo({ rarity: 'Rare', itemClass: 'Helmets' }),
+      )
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_total_elemental_resistance')).toBeUndefined()
+    })
+
+    it('nearby enemies chaos resistance debuff does not feed Total Chaos Resistance', () => {
+      _setStatEntriesForTests([
+        {
+          id: 'explicit.stat_1902595112',
+          text: 'Nearby Enemies have #% to Chaos Resistance',
+          type: 'explicit',
+        },
+      ])
+      const filters = matchItemMods(
+        ['Nearby Enemies have -9% to Chaos Resistance'],
+        [],
+        undefined,
+        makeItemInfo({ rarity: 'Rare', itemClass: 'Helmets' }),
+      )
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_total_chaos_resistance')).toBeUndefined()
+    })
+
+    it('unique enemy presence implicit still contributes to Total Elemental Resistance', () => {
+      _setStatEntriesForTests([
+        {
+          id: 'implicit.stat_3521653836',
+          text: 'While a Unique Enemy is in your Presence, #% to Fire Resistance',
+          type: 'implicit',
+        },
+      ])
+      const filters = matchItemMods(
+        [],
+        ['While a Unique Enemy is in your Presence, +18% to Fire Resistance'],
+        undefined,
+        makeItemInfo({ rarity: 'Rare', itemClass: 'Helmets' }),
+      )
+      const pseudo = filters.find((f) => f.id === 'pseudo.pseudo_total_elemental_resistance')
+      expect(pseudo?.value).toBe(18)
+    })
+  })
+
+  describe('passive-granting mods excluded from PoE1 pseudos', () => {
+    // "Passive Skills in Radius also grant +#% to X" (The Light of Meaning) and
+    // "Added Small Passive Skills also grant: +#% to X" (cluster jewels) push the
+    // stat onto tree passives, not onto the wearer. GGG's PoE1 pseudos exclude
+    // them -- probed live: 4517 listings carry the cluster chaos-res mod and 0 of
+    // them satisfy pseudo_total_chaos_resistance >= 1. Emitting the pseudo also
+    // suppressed the real mod row, so the search returned nothing at all.
+    let prevVersion: ReturnType<typeof getPoeVersion>
+
+    beforeEach(() => {
+      prevVersion = getPoeVersion()
+      setPoeVersion(1)
+    })
+
+    afterEach(() => {
+      setPoeVersion(prevVersion)
+    })
+
+    const RADIUS_CHAOS = {
+      id: 'explicit.stat_1812306107',
+      text: 'Passive Skills in Radius also grant +#% to Chaos Resistance',
+      type: 'explicit',
+    }
+    const RADIUS_LIFE = {
+      id: 'explicit.stat_1223932609',
+      text: 'Passive Skills in Radius also grant +# to maximum Life',
+      type: 'explicit',
+    }
+    const RADIUS_MANA = {
+      id: 'explicit.stat_3382199855',
+      text: 'Passive Skills in Radius also grant +# to maximum Mana',
+      type: 'explicit',
+    }
+    const CLUSTER_CHAOS = {
+      id: 'explicit.stat_1811604576',
+      text: 'Added Small Passive Skills also grant: +#% to Chaos Resistance',
+      type: 'explicit',
+    }
+    const jewel = () =>
+      makeItemInfo({ rarity: 'Unique', itemClass: 'Jewels', baseType: 'Prismatic Jewel', name: 'The Light of Meaning' })
+
+    it('radius chaos-res grant emits no Total Chaos Resistance pseudo', () => {
+      _setStatEntriesForTests([RADIUS_CHAOS])
+      const filters = matchItemMods(
+        ['Passive Skills in Radius also grant +5% to Chaos Resistance'],
+        [],
+        undefined,
+        jewel(),
+      )
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_total_chaos_resistance')).toBeUndefined()
+    })
+
+    it('radius chaos-res grant keeps its own mod row enabled', () => {
+      _setStatEntriesForTests([RADIUS_CHAOS])
+      const filters = matchItemMods(
+        ['Passive Skills in Radius also grant +5% to Chaos Resistance'],
+        [],
+        undefined,
+        jewel(),
+      )
+      const row = filters.find((f) => f.id === RADIUS_CHAOS.id)
+      expect(row).toBeDefined()
+      expect(row?.enabled).toBe(true)
+    })
+
+    it('radius life and mana grants emit no Total Life / Total Mana pseudos', () => {
+      _setStatEntriesForTests([RADIUS_LIFE, RADIUS_MANA])
+      const filters = matchItemMods(
+        [
+          'Passive Skills in Radius also grant +5 to maximum Life',
+          'Passive Skills in Radius also grant +5 to maximum Mana',
+        ],
+        [],
+        undefined,
+        jewel(),
+      )
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_total_life')).toBeUndefined()
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_total_mana')).toBeUndefined()
+    })
+
+    it('cluster jewel passive grant emits no Total Chaos Resistance pseudo', () => {
+      _setStatEntriesForTests([CLUSTER_CHAOS])
+      const filters = matchItemMods(
+        ['Added Small Passive Skills also grant: +12% to Chaos Resistance'],
+        [],
+        undefined,
+        makeItemInfo({ rarity: 'Rare', itemClass: 'Jewels', baseType: 'Large Cluster Jewel' }),
+      )
+      expect(filters.find((f) => f.id === 'pseudo.pseudo_total_chaos_resistance')).toBeUndefined()
+    })
+
+    it('a real player chaos-res roll on the same jewel still feeds the pseudo', () => {
+      _setStatEntriesForTests([
+        RADIUS_CHAOS,
+        { id: 'explicit.stat_2923486259', text: '+#% to Chaos Resistance', type: 'explicit' },
+      ])
+      const filters = matchItemMods(
+        ['Passive Skills in Radius also grant +5% to Chaos Resistance', '+26% to Chaos Resistance'],
+        [],
+        undefined,
+        jewel(),
+      )
+      const pseudo = filters.find((f) => f.id === 'pseudo.pseudo_total_chaos_resistance')
+      // Only the +26 real roll counts; the radius grant must not add its 5.
+      expect(pseudo?.value).toBe(26)
+    })
+
+    it('PoE2 radius grants DO still feed the pseudo (GGG counts them there)', () => {
+      // Divergence, not an oversight: a live Time-Lost Diamond whose only chaos
+      // source is "+3% to Chaos Resistance" in radius matches trade2's
+      // pseudo_total_chaos_resistance at min 3 and drops out at min 4.
+      setPoeVersion(2)
+      _setStatEntriesForTests([
+        {
+          id: 'explicit.stat_2264240911',
+          text: 'Small Passive Skills in Radius also grant #% to Chaos Resistance',
+          type: 'explicit',
+        },
+      ])
+      const filters = matchItemMods(
+        ['Small Passive Skills in Radius also grant +3% to Chaos Resistance'],
+        [],
+        undefined,
+        makeItemInfo({ rarity: 'Unique', itemClass: 'Jewels', baseType: 'Time-Lost Diamond' }),
+      )
+      const pseudo = filters.find((f) => f.id === 'pseudo.pseudo_total_chaos_resistance')
+      expect(pseudo?.value).toBe(3)
+    })
+  })
+
   describe('fractured chip', () => {
     it('generates fractured chip for equipment in "any" state when no fractured mods', () => {
       const filters = matchItemMods(
@@ -3153,6 +3743,64 @@ describe('matchItemMods', () => {
       )
       expect(filters.find((f) => f.id === 'explicit.stat_1030153674')).toBeDefined()
       expect(filters.find((f) => f.id === 'explicit.stat_1604736568')).toBeUndefined()
+    })
+  })
+
+  describe('PoE1 staff-block attack (jewels vs Staves)', () => {
+    // Live trade API: jewels use untagged stat_1778298516; staves use
+    // stat_1001829678 tagged "(Staves)". A former STAT_ID_REMAPS blanket always
+    // forced jewels→staves and empty-resulted Cobalt Jewel searches.
+    const STAFF_BLOCK_STATS = [
+      {
+        id: 'explicit.stat_1778298516',
+        text: '+#% Chance to Block Attack Damage while wielding a Staff',
+        type: 'explicit',
+      },
+      {
+        id: 'explicit.stat_1001829678',
+        text: '+#% Chance to Block Attack Damage while wielding a Staff (Staves)',
+        type: 'explicit',
+      },
+    ]
+
+    it('Cobalt Jewel keeps the untagged jewels trade id', () => {
+      _setStatEntriesForTests(STAFF_BLOCK_STATS)
+      const filters = matchItemMods(
+        ['+3% Chance to Block Attack Damage while wielding a Staff'],
+        [],
+        undefined,
+        makeItemInfo({ rarity: 'Magic', itemClass: 'Jewels', baseType: 'Cobalt Jewel' }),
+      )
+      const block = filters.find((f) => f.id === 'explicit.stat_1778298516')
+      expect(block).toBeDefined()
+      expect(block?.value).toBe(3)
+      expect(filters.find((f) => f.id === 'explicit.stat_1001829678')).toBeUndefined()
+    })
+
+    it('staff weapon prefers the (Staves) trade id', () => {
+      _setStatEntriesForTests(STAFF_BLOCK_STATS)
+      const filters = matchItemMods(
+        ['+18% Chance to Block Attack Damage while wielding a Staff'],
+        [],
+        undefined,
+        makeItemInfo({ rarity: 'Unique', itemClass: 'Staves', baseType: 'Judgement Staff' }),
+      )
+      const block = filters.find((f) => f.id === 'explicit.stat_1001829678')
+      expect(block).toBeDefined()
+      expect(block?.value).toBe(18)
+      expect(filters.find((f) => f.id === 'explicit.stat_1778298516')).toBeUndefined()
+    })
+
+    it('still picks jewels id when the staves entry is listed first', () => {
+      _setStatEntriesForTests([...STAFF_BLOCK_STATS].reverse())
+      const filters = matchItemMods(
+        ['+3% Chance to Block Attack Damage while wielding a Staff'],
+        [],
+        undefined,
+        makeItemInfo({ rarity: 'Magic', itemClass: 'Jewels', baseType: 'Cobalt Jewel' }),
+      )
+      expect(filters.find((f) => f.id === 'explicit.stat_1778298516')).toBeDefined()
+      expect(filters.find((f) => f.id === 'explicit.stat_1001829678')).toBeUndefined()
     })
   })
 
@@ -3624,6 +4272,101 @@ describe('category-qualified implicit stats', () => {
   })
 })
 
+// ─── local vs non-local implicit resolution (#542) ───────────────────────────
+
+describe('local vs non-local implicit resolution', () => {
+  it('resolves a weapon-twinned implicit to the "(Local)" id, not the zero-listing non-local twin', () => {
+    // A claw's phys-leech-as-life corruption implicit indexes under the local id
+    // league-wide; its non-local twin has zero listings (probe-verified).
+    _setStatEntriesForTests([
+      { id: 'implicit.stat_55876295', text: '#% of Physical Attack Damage Leeched as Life (Local)', type: 'implicit' },
+      { id: 'implicit.stat_3593843976', text: '#% of Physical Attack Damage Leeched as Life', type: 'implicit' },
+    ])
+    const filters = matchItemMods(
+      [],
+      ['1.2% of Physical Attack Damage Leeched as Life'],
+      undefined,
+      makeItemInfo({ itemClass: 'Claws', corrupted: true }),
+    )
+    expect(filters.find((f) => f.id === 'implicit.stat_55876295')).toBeDefined()
+    expect(filters.find((f) => f.id === 'implicit.stat_3593843976')).toBeUndefined()
+  })
+
+  it('regression: jewellery keeps resolving a twinned implicit to the non-local id', () => {
+    // Rings are neither weapon nor armour, so hasLocalMods is false and the local
+    // retry never fires -- the "Adds # to # Fire Damage" implicit stays on its
+    // non-local id even though a local twin exists in the catalog.
+    _setStatEntriesForTests([
+      { id: 'implicit.stat_local_fire', text: 'Adds # to # Fire Damage (Local)', type: 'implicit' },
+      { id: 'implicit.stat_321077055', text: 'Adds # to # Fire Damage', type: 'implicit' },
+    ])
+    const filters = matchItemMods(
+      [],
+      ['Adds 1 to 5 Fire Damage'],
+      undefined,
+      makeItemInfo({ itemClass: 'Rings', corrupted: true }),
+    )
+    expect(filters.find((f) => f.id === 'implicit.stat_321077055')).toBeDefined()
+    expect(filters.find((f) => f.id === 'implicit.stat_local_fire')).toBeUndefined()
+  })
+
+  it('regression: the ambiguous armour "chance to Poison on Hit" implicit stays on the non-local id', () => {
+    // Armour deliberately gets no blanket local preference -- a glove's poison-on-hit
+    // implicit is the NON-local id (the local twin has zero listings), unlike its
+    // "#% increased Armour" implicit which IS local. A blanket rule would regress this.
+    _setStatEntriesForTests([
+      { id: 'implicit.stat_3885634897', text: '#% chance to Poison on Hit (Local)', type: 'implicit' },
+      { id: 'implicit.stat_795138349', text: '#% chance to Poison on Hit', type: 'implicit' },
+    ])
+    const filters = matchItemMods(
+      [],
+      ['10% chance to Poison on Hit'],
+      undefined,
+      makeItemInfo({ itemClass: 'Gloves', corrupted: true }),
+    )
+    expect(filters.find((f) => f.id === 'implicit.stat_795138349')).toBeDefined()
+    expect(filters.find((f) => f.id === 'implicit.stat_3885634897')).toBeUndefined()
+  })
+
+  it('resolves an armour local-ONLY implicit instead of falling through to the explicit remap', () => {
+    // "+# to Armour" has no non-local implicit twin. Before the fix, the plain
+    // implicit lookup found nothing and execution fell through to the explicit
+    // fallback, which matched the non-local EXPLICIT twin and rewrote its id to
+    // implicit.stat_809229260 -- an id that does not exist in the implicit catalog.
+    // Seeding that explicit twin here proves the local retry wins instead.
+    _setStatEntriesForTests([
+      { id: 'implicit.stat_3484657501', text: '+# to Armour (Local)', type: 'implicit' },
+      { id: 'explicit.stat_809229260', text: '+# to Armour', type: 'explicit' },
+    ])
+    const filters = matchItemMods(
+      [],
+      ['+50 to Armour'],
+      undefined,
+      makeItemInfo({ itemClass: 'Gloves', corrupted: true }),
+    )
+    expect(filters.find((f) => f.id === 'implicit.stat_3484657501')).toBeDefined()
+    expect(filters.find((f) => f.id === 'implicit.stat_809229260')).toBeUndefined()
+  })
+
+  it('resolves a weapon local-ONLY implicit instead of the nonexistent explicit-remap id', () => {
+    // "Adds # to # Physical Damage" is local-only on weapons too -- same failure
+    // mode as the armour case above, this time gated through isWeapon rather than
+    // the hasLocalMods-and-not-weapon retry.
+    _setStatEntriesForTests([
+      { id: 'implicit.stat_1940865751', text: 'Adds # to # Physical Damage (Local)', type: 'implicit' },
+      { id: 'explicit.stat_960081730', text: 'Adds # to # Physical Damage', type: 'explicit' },
+    ])
+    const filters = matchItemMods(
+      [],
+      ['Adds 5 to 10 Physical Damage'],
+      undefined,
+      makeItemInfo({ itemClass: 'Two Hand Axes', corrupted: true }),
+    )
+    expect(filters.find((f) => f.id === 'implicit.stat_1940865751')).toBeDefined()
+    expect(filters.find((f) => f.id === 'implicit.stat_960081730')).toBeUndefined()
+  })
+})
+
 // ─── matchModToStat: requires stat entries (network-dependent) ───────────────
 
 describe('matchModToStat (requires stat entries)', () => {
@@ -3704,6 +4447,70 @@ describe('matchModToStat (PoE2 stat text without leading sign)', () => {
     const result = matchModToStat('Adds +5 to +15 Cold Damage')
     expect(result).not.toBeNull()
     expect(result?.value).toBe(10)
+    expect(result?.aggregated).toBe(true)
+  })
+
+  // Kitava's Thirst (and its foulborn Life twin) publish TWO `#` placeholders:
+  // chance% and spend threshold. Averaging them produced Exact Values=125 and
+  // zero trade hits. Prefer the first `#` (chance); do not mark aggregated.
+  it('uses the first # for Kitava-style chance+threshold mods (not the average)', () => {
+    _setStatEntriesForTests([
+      {
+        id: 'explicit.stat_2513998383',
+        text: '#% chance to Trigger Socketed Spells when you Spend at least # Life on an\nUpfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown',
+        type: 'explicit',
+      },
+      {
+        id: 'explicit.stat_723388324',
+        text: '#% chance to Trigger Socketed Spells when you Spend at least # Mana on an\nUpfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown',
+        type: 'explicit',
+      },
+    ])
+    const life = matchModToStat(
+      '50% chance to Trigger Socketed Spells when you Spend at least 200 Life on an Upfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown',
+    )
+    expect(life?.statId).toBe('explicit.stat_2513998383')
+    expect(life?.value).toBe(50)
+    expect(life?.aggregated).toBeUndefined()
+
+    const mana = matchModToStat(
+      '50% chance to Trigger Socketed Spells when you Spend at least 100 Mana on an Upfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown',
+    )
+    expect(mana?.statId).toBe('explicit.stat_723388324')
+    expect(mana?.value).toBe(50)
+    expect(mana?.aggregated).toBeUndefined()
+  })
+
+  // The same mod as it actually arrives from a basic (Ctrl+C) copy: wrapped across
+  // two lines, with the clipboard parser adding the "\n"-joined candidate. Only the
+  // joined row may survive -- the trailing half alone matches the WRONG twin (Mana)
+  // with no value, which searched for a different item entirely (#527).
+  it('resolves the wrapped basic-copy Kitava mod to one valued row on the right twin', () => {
+    _setStatEntriesForTests([
+      {
+        id: 'explicit.stat_2513998383',
+        text: '#% chance to Trigger Socketed Spells when you Spend at least # Life on an\nUpfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown',
+        type: 'explicit',
+      },
+      {
+        id: 'explicit.stat_723388324',
+        text: '#% chance to Trigger Socketed Spells when you Spend at least # Mana on an\nUpfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown',
+        type: 'explicit',
+      },
+    ])
+    const half1 = '50% chance to Trigger Socketed Spells when you Spend at least 200 Life on an'
+    const half2 = 'Upfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown'
+    const filters = matchItemMods(
+      [half1, half2, `${half1}\n${half2}`],
+      [],
+      undefined,
+      makeItemInfo({ rarity: 'Unique', itemClass: 'Helmets', baseType: 'Zealot Helmet' }),
+    )
+    const rows = filters.filter((f) => f.type === 'explicit')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].id).toBe('explicit.stat_2513998383')
+    expect(rows[0].value).toBe(50)
+    expect(rows[0].aggregated).toBeUndefined()
   })
 
   // The trade API stores "fewer enemies to be Surrounded" as the inverse of its
@@ -3845,6 +4652,24 @@ describe('matchModToStat (Unscalable Value prefix/suffix fallback)', () => {
     const result = matchModToStat("Gain Alchemist's Genius when you use a Flask")
     expect(result).not.toBeNull()
     expect(result?.statId).toBe('explicit.stat_2989883253')
+    expect(result?.value).toBeNull()
+  })
+
+  it('matches synthesis Intimidate-on-hit when the trade text keeps a fixed duration digit', () => {
+    // Clipboard: "Intimidate Enemies for 4 seconds on Hit with Attacks"
+    // Trade:     "#% chance to Intimidate Enemies for 4 seconds on Hit with Attacks"
+    // Digits must be stripped on both sides or the leftover "4" on the stat
+    // breaks endsWith and the synthesised implicit chip never appears.
+    _setStatEntriesForTests([
+      {
+        id: 'implicit.stat_3438201750',
+        text: '#% chance to Intimidate Enemies for 4 seconds on Hit with Attacks',
+        type: 'implicit',
+      },
+    ])
+    const result = matchModToStat('Intimidate Enemies for 4 seconds on Hit with Attacks', false, 'implicit')
+    expect(result).not.toBeNull()
+    expect(result?.statId).toBe('implicit.stat_3438201750')
     expect(result?.value).toBeNull()
   })
 
@@ -4527,9 +5352,8 @@ describe('tier-aware default enablement (e2e via matchItemMods)', () => {
 
 describe('parseAdvancedMods (Forbidden Shako randomSupport detection)', () => {
   // Sanity: the clipboard parser must set randomSupport=true on advanced mod blocks
-  // whose lines start with "Socketed Gems are Supported by" AND carry the
-  // "Unscalable Value" suffix. This is the upstream fingerprint that drives the
-  // indexable_support routing in matchModToStat.
+  // whose support lines carry a rolled Level N(min-max) bracket AND "Unscalable Value".
+  // Fixed Elder hybrid supports (Level N — Unscalable Value, no bracket) must NOT be flagged.
 
   it('flags Forbidden Shako support mods with randomSupport=true', async () => {
     const { parseItemText } = await import('./clipboard')
@@ -4558,6 +5382,118 @@ Socketed Gems are Supported by Level 35(25-35) Bloodthirst(Greater Multiple Proj
     const attrMod = item?.advancedMods?.find((am) => am.lines.some((l) => /to all Attributes/.test(l)))
     expect(attrMod).toBeDefined()
     expect(attrMod?.randomSupport).toBeUndefined()
+  })
+
+  it('does not flag Elder hybrid fixed support levels as randomSupport', async () => {
+    const { parseItemText } = await import('./clipboard')
+    const text = `Item Class: Helmets
+Rarity: Rare
+Skull Crown
+Conqueror's Helmet
+--------
+Item Level: 85
+--------
+{ Prefix Modifier "The Elder's" (Tier: 1) }
+Socketed Gems are Supported by Level 20 Burning Damage — Unscalable Value
+35(31-35)% increased Burning Damage
+{ Suffix Modifier "of the Elder" (Tier: 4) }
+Socketed Gems are Supported by Level 16 Concentrated Effect — Unscalable Value
+15(12-14)% increased Area Damage
+`
+    const item = parseItemText(text)
+    expect(item).not.toBeNull()
+    const supportMods =
+      item?.advancedMods?.filter((am) => am.lines.some((l) => /Socketed Gems are Supported by/i.test(l))) ?? []
+    expect(supportMods.length).toBe(2)
+    expect(supportMods.every((m) => !m.randomSupport)).toBe(true)
+  })
+})
+
+describe('Elder hybrid socketed-support search values', () => {
+  // Companion "% increased" brackets must not rewrite the support Level N search min.
+  it('pins Burning / Concentrated support chips to Level N, not companion T# ranges', () => {
+    const BURN_SUPPORT = {
+      id: 'explicit.stat_elder_burn_support',
+      text: 'Socketed Gems are Supported by Level # Burning Damage',
+      type: 'explicit',
+    }
+    const BURN_INC = {
+      id: 'explicit.stat_elder_burn_inc',
+      text: '#% increased Burning Damage',
+      type: 'explicit',
+    }
+    const CONC_SUPPORT = {
+      id: 'explicit.stat_elder_conc_support',
+      text: 'Socketed Gems are Supported by Level # Concentrated Effect',
+      type: 'explicit',
+    }
+    const AREA_INC = {
+      id: 'explicit.stat_elder_area_inc',
+      text: '#% increased Area Damage',
+      type: 'explicit',
+    }
+    _setStatEntriesForTests([BURN_SUPPORT, BURN_INC, CONC_SUPPORT, AREA_INC])
+
+    const adv: AdvancedMod[] = [
+      {
+        type: 'prefix',
+        name: "The Elder's",
+        tier: 1,
+        tags: [],
+        lines: [
+          'Socketed Gems are Supported by Level 20 Burning Damage — Unscalable Value',
+          '35(31-35)% increased Burning Damage',
+        ],
+        ranges: [{ value: 35, min: 31, max: 35 }],
+      },
+      {
+        type: 'suffix',
+        name: 'of the Elder',
+        tier: 4,
+        tags: [],
+        lines: [
+          'Socketed Gems are Supported by Level 16 Concentrated Effect — Unscalable Value',
+          '15(12-14)% increased Area Damage',
+        ],
+        ranges: [{ value: 15, min: 12, max: 14 }],
+      },
+    ]
+
+    const filters = matchItemMods(
+      [
+        'Socketed Gems are Supported by Level 20 Burning Damage',
+        '35% increased Burning Damage',
+        'Socketed Gems are Supported by Level 16 Concentrated Effect',
+        '15% increased Area Damage',
+      ],
+      [],
+      undefined,
+      makeItemInfo({
+        rarity: 'Rare',
+        itemClass: 'Helmets',
+        baseType: "Conqueror's Helmet",
+        itemLevel: 85,
+      }),
+      adv,
+    )
+
+    const burn = filters.find((f) => f.id === BURN_SUPPORT.id)
+    expect(burn).toBeDefined()
+    expect(burn?.value).toBe(20)
+    expect(burn?.min).toBe(20)
+    expect(burn?.max).toBe(20)
+    expect(burn?.tierLadder).toBeUndefined()
+
+    const conc = filters.find((f) => f.id === CONC_SUPPORT.id)
+    expect(conc).toBeDefined()
+    expect(conc?.value).toBe(16)
+    expect(conc?.min).toBe(16)
+    expect(conc?.max).toBe(16)
+    expect(conc?.tierLadder).toBeUndefined()
+
+    // Companion % lines stay present but off by default (hybrid companion rule).
+    expect(filters.find((f) => f.id === BURN_INC.id)?.enabled).toBe(false)
+    expect(filters.find((f) => f.id === AREA_INC.id)?.enabled).toBe(false)
   })
 })
 
@@ -5285,5 +6221,42 @@ describe('unique tablet class rule: drawback (reduced pack size) prefills max bo
     expect(waystoneRow!.enabled).toBe(true)
     expect(waystoneRow!.min).toBe(32) // floor(36 * 0.9) = 32
     expect(waystoneRow!.max).toBeNull()
+  })
+})
+
+describe('mercenary warrant chips', () => {
+  const warrantInfo = makeItemInfo({
+    baseType: 'Mercenary Warrant',
+    itemClass: 'Map Fragments',
+    rarity: 'Normal',
+    mercenaryBuild: 'Mysterious Diver',
+    mercenaryLevel: 83,
+  })
+
+  it('emits the build chip and the mercenary level row', () => {
+    const filters = matchItemMods([], [], undefined, warrantInfo)
+
+    expect(filters.find((f) => f.id === 'misc.mercenary_build')).toMatchObject({
+      text: 'Mysterious Diver',
+      enabled: true,
+    })
+    expect(filters.find((f) => f.id === 'misc.ilvl')).toMatchObject({ text: 'Mercenary Level', value: 83 })
+  })
+
+  it('emits exactly one ilvl row -- the generic one never fires at itemLevel 0', () => {
+    const filters = matchItemMods([], [], undefined, warrantInfo)
+
+    expect(filters.filter((f) => f.id === 'misc.ilvl')).toHaveLength(1)
+  })
+
+  it('leaves other map fragments alone', () => {
+    const filters = matchItemMods(
+      [],
+      [],
+      undefined,
+      makeItemInfo({ baseType: 'Sacrifice at Dusk', itemClass: 'Map Fragments', rarity: 'Normal' }),
+    )
+
+    expect(filters.find((f) => f.id === 'misc.mercenary_build')).toBeUndefined()
   })
 })

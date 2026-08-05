@@ -190,6 +190,20 @@ export const api = {
     league: string,
   ): Promise<Record<string, { chaosValue: number; divineValue?: number } | null>> =>
     ipcRenderer.invoke('batch-lookup-ref-prices', refs, league),
+  getBeastPrices: (
+    force?: boolean,
+  ): Promise<{
+    lines: Array<{
+      name: string
+      chaosValue: number
+      divineValue?: number
+      listingCount: number
+      graph?: (number | null)[]
+    }>
+    league: string
+    updatedAt: number | null
+    error?: string
+  }> => ipcRenderer.invoke('get-beast-prices', force),
   sisterOpenPriceCheck: (ref: {
     name: string
     baseType?: string
@@ -514,6 +528,12 @@ export const api = {
   respondGameSwitch: (choice: 'restart' | 'cancel'): void => {
     ipcRenderer.send('game-switch-response', choice)
   },
+  /** Full app relaunch. Used by the Developer settings "Restart Scalpel"
+   *  button so plugin authors can pick up freshly-built plugin code without
+   *  closing + reopening the app by hand. No-op in dev builds (see main). */
+  restartApp: (): void => {
+    ipcRenderer.send('app-restart')
+  },
   onPriceCheck: (
     cb: (data: {
       item: import('@shared/types').PoeItem
@@ -584,6 +604,7 @@ export const api = {
     itemName: string,
     baseType: string,
     haveId?: string,
+    zanaMemory?: boolean,
   ): Promise<{
     total: number
     listings: Array<{
@@ -598,14 +619,19 @@ export const api = {
       whisper?: string
     }>
     queryId: string
-  }> => ipcRenderer.invoke('bulk-exchange', itemName, baseType, haveId),
+  }> => ipcRenderer.invoke('bulk-exchange', itemName, baseType, haveId, zanaMemory),
   warrantsScan: (opts?: {
     limit?: number
     onlineOnly?: boolean
     pricedOnly?: boolean
   }): Promise<import('@shared/warrants').WarrantScanResult> => ipcRenderer.invoke('warrants-scan', opts),
-  checkBulkItem: (itemName: string, baseType: string, itemClass: string, rarity?: string): Promise<boolean> =>
-    ipcRenderer.invoke('check-bulk-item', itemName, baseType, itemClass, rarity),
+  checkBulkItem: (
+    itemName: string,
+    baseType: string,
+    itemClass: string,
+    rarity?: string,
+    zanaMemory?: boolean,
+  ): Promise<boolean> => ipcRenderer.invoke('check-bulk-item', itemName, baseType, itemClass, rarity, zanaMemory),
   mapRegexTrade: (params: {
     tier: number
     avoidTexts: string[]
@@ -955,6 +981,9 @@ export const api = {
     Array<{
       manifest: import('../plugin-sdk/src/types').PluginManifest
       entryUrl: string
+      /** Absent when the plugin was side-loaded before source dirs were
+       *  tracked - Reload needs it, so the button stays disabled without one. */
+      sourceDir?: string
     }>
   > => ipcRenderer.invoke('plugins:list-unpacked'),
   getInstalledPlugin: (
@@ -979,6 +1008,10 @@ export const api = {
     ipcRenderer.invoke('plugins:list-registered-tabs'),
   pluginInstallUnpacked: (): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
     ipcRenderer.invoke('plugins:install-unpacked'),
+  /** Re-copy an unpacked plugin from the directory it was loaded from and
+   *  hot-swap the running instance. The plugin dev loop, without a restart. */
+  pluginReloadUnpacked: (pluginId: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('plugins:reload-unpacked', pluginId),
   pluginFetchRegistry: (): Promise<
     { ok: true; snapshot: import('@shared/plugin-registry-types').RegistrySnapshot } | { ok: false; error: string }
   > => ipcRenderer.invoke('plugins:fetch-registry'),
@@ -1044,8 +1077,10 @@ export const api = {
     ipcRenderer.on('plugin-overlay:init', handler)
     return () => ipcRenderer.removeListener('plugin-overlay:init', handler)
   },
-  pluginTriggerMainHotkey: (): Promise<import('@shared/types').PoeItem | null> =>
-    ipcRenderer.invoke('plugins:trigger-main-hotkey'),
+  pluginTriggerMainHotkey: (opts?: {
+    showOverlay?: boolean
+    dispatch?: boolean
+  }): Promise<import('@shared/types').PoeItem | null> => ipcRenderer.invoke('plugins:trigger-main-hotkey', opts),
   pluginShowOverlay: (): Promise<void> => ipcRenderer.invoke('plugins:show-overlay'),
   pluginRegisterOverlay: (
     pluginId: string,
@@ -1147,6 +1182,8 @@ export const api = {
     region?: import('../plugin-sdk/src/types').GameRect,
   ): Promise<import('../plugin-sdk/src/types').GameCapture | null> =>
     ipcRenderer.invoke('plugins:capture-game-window', region),
+  pluginGetCursorPosition: (): Promise<{ x: number; y: number } | null> =>
+    ipcRenderer.invoke('plugins:get-cursor-position'),
 }
 
 contextBridge.exposeInMainWorld('api', api)

@@ -16,6 +16,9 @@ type MiscItemInfo = {
   memoryStrands?: number
   isSynthetic?: boolean
   unidentifiedTier?: number
+  vestigial?: boolean
+  foulborn?: boolean
+  zanaMemory?: boolean
 }
 
 // Non-gem quality, item level, open prefix/suffix, memory strands, corrupted,
@@ -194,15 +197,56 @@ export function buildMiscFilters(
     })
   }
 
-  // Rarity filter for equipment (off by default - search includes all non-unique by default)
-  if (isEquipment && itemInfo.rarity !== 'Unique') {
+  // Vestigial (3.27 Legion). Ternary like Corrupted so the user can flip to 'no' and
+  // price the plain version for comparison. Only emitted for vestigial items - the
+  // mechanic is rare enough that a chip on every item would be noise.
+  if (itemInfo.vestigial) {
+    out.push({
+      id: 'misc.vestigial',
+      text: 'Vestigial',
+      value: null,
+      min: null,
+      max: null,
+      enabled: false,
+      chipState: 'yes',
+      type: 'misc',
+    })
+  }
+
+  // Foulborn (3.27) is unique-only, and the trade API's name match is prefix-insensitive:
+  // searching "Headhunter" also returns "Foulborn Headhunter" at wildly different prices.
+  // Default the chip to the item's own state so a plain unique never shows foulborn copies
+  // (#532). An UNIDENTIFIED unique is the one case we cannot call - an unid foulborn listing
+  // has an empty name field, so the clipboard has no prefix to read. Leave that as Any
+  // rather than wrongly excluding foulborn copies from an unid search.
+  if (itemInfo.rarity === 'Unique') {
+    out.push({
+      id: 'misc.foulborn',
+      text: 'Foulborn',
+      value: null,
+      min: null,
+      max: null,
+      enabled: false,
+      ...(itemInfo.identified === false ? {} : { chipState: itemInfo.foulborn ? ('yes' as const) : ('no' as const) }),
+      type: 'misc',
+    })
+  }
+
+  // Rarity filter for equipment (off by default - search includes all non-unique by default).
+  // Originator (Zana memory) maps are priced separately from the plain map market at every
+  // rarity, and the Maps branch in trade.ts otherwise searches `rarity: nonunique`, mixing
+  // magic/rare copies into a white search and vice versa. Pin rarity for them at whatever
+  // rarity the item actually rolled (#541, #545). Regular maps still get no rarity chip -
+  // the mechanic only matters for originator.
+  const isOriginatorMap = itemInfo.itemClass === 'Maps' && !!itemInfo.zanaMemory
+  if ((isEquipment && itemInfo.rarity !== 'Unique') || isOriginatorMap) {
     out.push({
       id: 'misc.rarity',
       text: itemInfo.rarity,
       value: null,
       min: null,
       max: null,
-      enabled: false,
+      enabled: isOriginatorMap,
       type: 'misc',
     })
   }

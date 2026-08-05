@@ -24,6 +24,8 @@ import { buildMiscFilters } from './producers/misc'
 import { emitPseudoFilters } from './producers/pseudo-emit'
 import { buildRelicFilters } from './producers/relics'
 import { buildRuneFilters } from './producers/rune-mods'
+import { buildMercenaryWarrantFilters } from './producers/mercenary-warrant'
+import { buildScryingOrbFilters } from './producers/scrying-orb'
 import { buildSocketFilters } from './producers/sockets'
 import { buildStoredExperienceFilters } from './producers/stored-experience'
 import { buildTabletFilters } from './producers/tablets'
@@ -93,7 +95,7 @@ export function matchItemMods(
   const enchantFilters = buildEnchantFilters(itemInfo, ctx.hasLocalMods)
 
   // Socket chips (rune, white, abyssal, links)
-  const socketFilters = buildSocketFilters(itemInfo, advancedMods)
+  const socketFilters = buildSocketFilters(itemInfo, ctx.explicits, ctx.implicits)
 
   // Base type chip
   const baseTypeFilters = buildBaseTypeFilter(itemInfo)
@@ -120,10 +122,16 @@ export function matchItemMods(
   const atzoatlFilters = buildAtzoatlFilters(itemInfo)
 
   // Map property chips (Item Quantity, Rarity, Pack Size, More X, 8-mod corrupted)
-  const mapFilters = buildMapFilters(itemInfo, advancedMods)
+  const mapFilters = buildMapFilters(itemInfo, advancedMods, ctx.pct)
 
   // Chart zone, quantity and shape chips
-  const chartFilters = buildChartFilters(itemInfo)
+  const chartFilters = buildChartFilters(itemInfo, ctx.pct)
+
+  // Scrying Orb map-area chip
+  const scryingOrbFilters = buildScryingOrbFilters(itemInfo)
+
+  // Mercenary Warrant build and level chips
+  const mercenaryWarrantFilters = buildMercenaryWarrantFilters(itemInfo)
 
   // Timeless jewel handling: two toggleable chips - "Any Leader" and specific leader
   const timelessFilters = buildTimelessFilters(itemInfo, advancedMods, explicits)
@@ -147,6 +155,8 @@ export function matchItemMods(
     ...runeFilters,
     ...mapFilters,
     ...chartFilters,
+    ...scryingOrbFilters,
+    ...mercenaryWarrantFilters,
     ...socketFilters,
     // Rune chip sits before the base-name chip so they read left-to-right as
     // "Runeforged" + "<base>" (the composed type the search sends).

@@ -70,8 +70,9 @@ export function createPluginContext(deps: PluginContextFactoryDeps): ScalpelPlug
     craft: deps.craft,
     openExternal: deps.openExternal,
     openTab: () => deps.openTab(deps.pluginId),
-    copyAndEvaluateItem: () => deps.copyAndEvaluateItem(),
+    copyAndEvaluateItem: (opts) => deps.copyAndEvaluateItem(opts),
     captureGameWindow: (region) => deps.captureGameWindow(region),
+    getCursorPosition: () => deps.getCursorPosition(),
     log: (...args: unknown[]) => {
       if (DEBUG()) {
         // biome-ignore lint/suspicious/noConsole: gated behind DEBUG() debug logging

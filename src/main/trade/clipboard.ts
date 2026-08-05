@@ -1,5 +1,6 @@
 import { clipboard } from 'electron'
 import { getItemClasses } from '@shared/data/items/item-classes'
+import { MERCENARY_WARRANT_BASE_TYPE } from '@shared/data/trade/mercenary-warrants'
 import { endgameAreaLevel, SKILL_GEM_CLASSES } from '@shared/poe-item'
 import type { AdvancedMod, ItemRarity, PoeItem } from '@shared/types'
 import { getPoeVersion } from '../game-state'
@@ -135,6 +136,19 @@ const ENHANCEMENT_HEADER = /^\{\s*(?:Corruption\s+)?Enhancement\b[^}]*\}$/i
 // trade group; routed the same). Captured into runes[] and kept out of explicits.
 const RUNE_SUFFIX = /\s*\((?:rune|added rune)\)\s*$/i
 
+// Display-only prefix on a vestigial item's base-type line ("Vestigial Simple Robe").
+const VESTIGIAL_PREFIX = /^Vestigial\s+/
+
+// Name prefix on a foulborn unique ("Foulborn Headhunter").
+const FOULBORN_PREFIX = /^Foulborn\s+/i
+
+// A mod too long for the item panel wraps mid-sentence, and GGG's wrap point is not
+// always before a lowercase word: Kitava's Thirst breaks as "... Spend at least 200
+// Life on an" / "Upfront Cost to Use or Trigger a Skill ...". No complete mod line
+// ends on one of these function words, so a line that does is always a first half.
+const DANGLING_WRAP_TAIL =
+  /\b(?:a|an|the|to|of|on|in|at|by|for|with|and|or|from|per|while|when|if|as|is|are|than|that|this|your|their|you)$/i
+
 /** Strip advanced-mod roll-range notation ("41(39-42)%" -> "41%"), variant
  *  alternatives ("Bladefall(Fireball-Divine Blast)" -> "Bladefall"), and the
  *  trailing "Unscalable Value" suffix from a single advanced-mod stat line. */
@@ -224,6 +238,10 @@ export function parseItemText(text: string): PoeItem | null {
   // For Normal/Magic items, name IS the base type; for Rare/Unique, line 2 is base type
   // Unidentified Rare/Unique items only have one line (the base type), no separate name
   const rawBaseType = rarity === 'Rare' || rarity === 'Unique' ? (afterRarity[1] ?? nameStripped) : nameStripped
+  // Vestigial items (3.27 Legion) carry the mechanic as a base-type prefix
+  // ("Vestigial Simple Robe"); there is no marker line. The real base type has no
+  // prefix (the trade API's baseType field drops it), so it is stripped below.
+  const vestigial = VESTIGIAL_PREFIX.test(rawBaseType)
   // Strip modifier prefixes -- filters treat these as separate conditions, not part of the base type
   // Keep Blighted/Blight-ravaged for maps and incubators since it's part of the actual base type name
   const keepBlight = itemClass === 'Maps' || itemClass === 'Incubators'
@@ -260,12 +278,17 @@ export function parseItemText(text: string): PoeItem | null {
     cleanBaseType(
       rawBaseType
         .replace(/^Synthesised /, '')
+        .replace(VESTIGIAL_PREFIX, '')
         .replace(keepBlight ? /(?:)/ : /^Blighted /i, '')
         .replace(keepBlight ? /(?:)/ : /^Blight-[Rr]avaged /i, ''),
       rarity as ItemRarity,
       itemClass,
       magicAffixNames,
     )
+
+  // Unid items have no name line, so `name` is the prefixed base-type line. trade.ts
+  // detects an unid unique via name === baseType, which the prefix would break.
+  const cleanName = vestigial && name === rawBaseType ? name.replace(VESTIGIAL_PREFIX, '') : name
 
   const isGemClass = SKILL_GEM_CLASSES.has(itemClass)
   const isVaalGem =
@@ -341,6 +364,20 @@ export function parseItemText(text: string): PoeItem | null {
   })()
   const chartShape = itemClass === 'Chart' ? extractStr(allLines, 'Chart Shape:') : undefined
 
+  // A Scrying Orb is bound to one map area ("Map Area: Dunes"), which is its
+  // whole trade identity -- the API indexes each area as a separate type. Gated
+  // on the base so an unrelated future item printing the same line can't emit a
+  // chip that resolves to nothing.
+  const scryingArea = baseType === 'Scrying Orb' ? extractStr(allLines, 'Map Area:') : undefined
+
+  // A Mercenary Warrant sells one mercenary, and the build ("Build: Mysterious
+  // Diver", "Infamous" prefix included when it has one) is its trade identity --
+  // the API indexes each build as a separate type. The level rides along as
+  // misc_filters.ilvl. Gated on the base for the same reason the orb is.
+  const isMercenaryWarrant = baseType === MERCENARY_WARRANT_BASE_TYPE
+  const mercenaryBuild = isMercenaryWarrant ? extractStr(allLines, 'Build:') : undefined
+  const mercenaryLevel = isMercenaryWarrant ? (extractNum(allLines, 'Mercenary Level:') ?? undefined) : undefined
+
   const memoryStrands = extractNum(allLines, 'Memory Strands:')
 
   // Heist blueprints: "Wings Revealed: 3/4"
@@ -348,11 +385,10 @@ export function parseItemText(text: string): PoeItem | null {
   const wingsParts = wingsLine?.split(':')[1]?.trim().split('/')
   const wingsRevealed = wingsParts ? parseInt(wingsParts[0], 10) : undefined
   const wingsTotal = wingsParts?.[1] ? parseInt(wingsParts[1], 10) : undefined
-  // Facetor's Lens: "Stored Experience: 999,627,082"
+  // Facetor's Lens: "Stored Experience: 999,627,082" (or "750 000 000" on a
+  // space-grouping client -- see parseGroupedInt)
   const storedExpLine = allLines.find((l) => l.startsWith('Stored Experience:'))
-  const storedExperience = storedExpLine
-    ? parseInt(storedExpLine.split(':')[1].trim().replace(/,/g, ''), 10)
-    : undefined
+  const storedExperience = storedExpLine ? parseGroupedInt(storedExpLine.split(':')[1]) : undefined
 
   // Equipped PoE2 gems inflate the `Level:` display line with transient bonuses
   // (Global Modifiers, Support links) that vanish when the gem is unsocketed and
@@ -383,8 +419,10 @@ export function parseItemText(text: string): PoeItem | null {
       : (extractNum(allLines, 'Level:') ?? nameGemLevel)
   const stackSizeLine = allLines.find((l) => l.startsWith('Stack Size:'))
   const stackParts = stackSizeLine?.split(':')[1]?.trim().split('/') ?? []
-  const stackSize = stackParts[0] ? parseInt(stackParts[0].replace(/,/g, ''), 10) : 1
-  const maxStackSize = stackParts[1] ? parseInt(stackParts[1].replace(/,/g, ''), 10) : undefined
+  // Same grouping-separator trap as Stored Experience: a 5000-stack currency copied
+  // from a space-grouping client reads "5 000", which parsed as 5.
+  const stackSize = stackParts[0] ? parseGroupedInt(stackParts[0]) : 1
+  const maxStackSize = stackParts[1] ? parseGroupedInt(stackParts[1]) : undefined
 
   // Requirements
   // Defenses (total computed values from the item header)
@@ -468,9 +506,10 @@ export function parseItemText(text: string): PoeItem | null {
   const transfigured = isGemClass && allLines.some((l) => l === 'Transfigured')
   const vaalGem = isGemClass && rarity === 'Gem' && allLines.some((l) => l.startsWith('Souls Per Use:'))
   const scourged = allLines.some((l) => l.includes('Scourge'))
-  // Vestigial uniques (3.27 Legion, replaces incubators). Marker line is the
-  // expected form; unverified against a real in-game item copy yet.
-  const vestigial = allLines.some((l) => l === 'Vestigial' || l === 'Vestigial Item')
+  // Foulborn uniques (3.27) carry the mechanic as a NAME prefix ("Foulborn Headhunter").
+  // Unlike the vestigial base-type prefix this is NOT stripped: poe.ninja lists Foulborn
+  // variants separately and trade.ts strips it at query time instead.
+  const foulborn = FOULBORN_PREFIX.test(name)
   const zanaMemory = allLines.some((l) => l.toLowerCase().includes("originator's memories"))
   const implicitCount = allLines.filter((l) => l.endsWith('(implicit)')).length
 
@@ -660,7 +699,7 @@ export function parseItemText(text: string): PoeItem | null {
   return {
     itemClass,
     rarity,
-    name: isVaalGem ? `Vaal ${name}` : name,
+    name: isVaalGem ? `Vaal ${cleanName}` : cleanName,
     baseType: isVaalGem ? `Vaal ${baseType}` : baseType,
     mapTier,
     itemLevel,
@@ -689,6 +728,7 @@ export function parseItemText(text: string): PoeItem | null {
     uberBlighted,
     scourged,
     vestigial,
+    foulborn,
     zanaMemory,
     implicitCount,
     gemLevel,
@@ -718,6 +758,9 @@ export function parseItemText(text: string): PoeItem | null {
     ...(mapRareMonsters != null ? { mapRareMonsters } : {}),
     ...(chartZone != null ? { chartZone } : {}),
     ...(chartShape != null ? { chartShape } : {}),
+    ...(scryingArea != null ? { scryingArea } : {}),
+    ...(mercenaryBuild != null ? { mercenaryBuild } : {}),
+    ...(mercenaryLevel != null ? { mercenaryLevel } : {}),
     ...(physDamageMin != null ? { physDamageMin, physDamageMax } : {}),
     ...(eleDamageAvg != null ? { eleDamageAvg } : {}),
     ...(chaosDamageAvg != null ? { chaosDamageAvg } : {}),
@@ -744,6 +787,15 @@ export function parseItemText(text: string): PoeItem | null {
     // in evaluation.ts corrects this in-zone.
     areaLevel: Math.max(itemLevel, endgameAreaLevel(getPoeVersion())),
   }
+}
+
+/** Parse a whole number that may carry locale thousands separators. GGG groups large
+ *  numbers differently per client language -- commas in English, spaces (including
+ *  non-breaking ones) elsewhere -- and a Facetor's Lens copied from a space-grouping
+ *  client parsed "750 000 000" as 750 (#539). These fields are always integers, so
+ *  every non-digit in the value is a separator. */
+function parseGroupedInt(text: string): number {
+  return parseInt(text.replace(/\D/g, ''), 10)
 }
 
 function extractNum(lines: string[], prefix: string): number | null {
@@ -820,6 +872,8 @@ function parseModSections(sections: string[], explicits: string[], implicits: st
     'Attacks per Second:',
     'Weapon Range:',
     'Map Area:',
+    'Build:',
+    'Mercenary Level:',
     'Monster Level:',
     'Reward:',
     'One Handed',
@@ -925,11 +979,12 @@ function parseModSections(sections: string[], explicits: string[], implicits: st
         explicits.push(modLines[li])
         // A mod too long for the item panel wraps onto the next line. A basic
         // (Ctrl+C) copy has no advanced-mod headers to group the halves, so offer
-        // the pair joined as well. Every real mod line starts with a capital, a
-        // digit or a sign, so a lowercase start is always the previous line
-        // spilling over. The leftover half-line row is dropped downstream by
-        // dropFragmentDuplicates.
-        if (li > 0 && /^[a-z]/.test(modLines[li])) explicits.push(`${modLines[li - 1]}\n${modLines[li]}`)
+        // the pair joined as well. Two tells: the continuation starts lowercase
+        // (most real mod lines start with a capital, a digit or a sign), or the
+        // previous line ends on a dangling function word. The leftover half-line
+        // rows are dropped downstream by dropFragmentDuplicates.
+        if (li > 0 && (/^[a-z]/.test(modLines[li]) || DANGLING_WRAP_TAIL.test(modLines[li - 1])))
+          explicits.push(`${modLines[li - 1]}\n${modLines[li]}`)
       }
       break
     }
@@ -1005,11 +1060,11 @@ function parseAdvancedMods(text: string): AdvancedMod[] {
       currentMod.lines.push(line)
 
       // Forbidden Shako-style rolling supports: when a "Socketed Gems are Supported by"
-      // line carries the "Unscalable Value" suffix, the trade API stores it under the
-      // explicit.indexable_support_* family rather than the regular explicit.stat_*
-      // family. Both share identical display text in the stat dictionary, so without
-      // this signal the matcher coin-flips between them.
-      if (/^Socketed Gems are Supported by Level/i.test(line) && /\bUnscalable Value\b/i.test(line)) {
+      // line carries a rolled Level N(min-max) bracket AND "Unscalable Value", the trade
+      // API stores it under explicit.indexable_support_* rather than explicit.stat_*.
+      // Elder hybrids also say "Unscalable Value" but have a fixed Level N with no
+      // bracket — those must stay on the craftable stat_* ids.
+      if (/^Socketed Gems are Supported by Level \d+\(/i.test(line) && /\bUnscalable Value\b/i.test(line)) {
         currentMod.randomSupport = true
       }
 

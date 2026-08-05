@@ -51,6 +51,9 @@ import {
   setStashScrollModifier,
 } from './hotkeys'
 import { refreshLeagues } from './trade/leagues'
+import { resolvePresetRegex } from './trade/beast-preset'
+import { getBeastPrices, peekBeastPrices } from './trade/beast-prices'
+import { fetchJson } from './trade/prices'
 import { stopOnlineSync } from './online-sync'
 import { applyPendingUpdate } from './update/update-swap'
 import { getCurrentFilter, loadFilter, onFilterLoaded } from './filter-state'
@@ -279,6 +282,7 @@ if (!gotLock) {
 const installDir = IS_E2E ? process.cwd() : applyPendingUpdate()
 
 app.whenReady().then(() => {
+  recordMainBreadcrumb('session-start')
   if (!IS_E2E)
     getOverlayAttachStrategy(store).createInitialOverlay((store.get(PROFILE_VERSION_KEY) as GameVariant) ?? 1)
   setMainOverlayGetter(getOverlayWindow)
@@ -334,6 +338,19 @@ app.whenReady().then(() => {
     setTimeout(restoreClip, 100)
   }
 
+  // Beasts presets re-derive against cached poe.ninja prices so a hotkey bound
+  // weeks ago still pastes today's valuable beasts. A cold cache pastes the
+  // stored regex immediately and warms in the background, so a keypress never
+  // waits on the network.
+  const beastPresetDeps = {
+    peek: peekBeastPrices,
+    warm: (league: string): void => {
+      void getBeastPrices(league, fetchJson)
+    },
+  }
+  const presetRegex = (preset: RegexPreset): string | undefined =>
+    resolvePresetRegex(preset, getProfileBackedSetting(store, 'league'), beastPresetDeps)
+
   const REGEX_REMOTE_FLUSH_EPS = 0.01
   function regexRemoteFlushLeft(anchor: { fracX: number } | null): boolean {
     if (!anchor || !getCurrentPanelState().leftPanelOpen) return false
@@ -356,6 +373,7 @@ app.whenReady().then(() => {
       },
       paste: pasteRegexToSearch,
       defer: (fn) => setTimeout(fn, 50),
+      resolveRegex: presetRegex,
     })
   })
   ipcMain.on('regex-remote:close', () => getRegexRemoteOverlay()?.hide())
@@ -377,7 +395,8 @@ app.whenReady().then(() => {
       const preset = presetId
         ? presets.find((p) => p.id === presetId)
         : presets.find((p) => p.tags?.some((t) => t.text === tag && (!t.source || t.source === 'custom')))
-      if (preset?.regex) pasteRegexToSearch(preset.regex)
+      const regex = preset ? presetRegex(preset) : undefined
+      if (regex) pasteRegexToSearch(regex)
       return
     }
     if (action === 'closeOverlay') {
@@ -473,6 +492,20 @@ app.whenReady().then(() => {
 
   ipcMain.on('suspend-hotkeys', () => suspendHotkeys())
   ipcMain.on('resume-hotkeys', () => resumeHotkeys())
+
+  // Plugin dev quality-of-life: a fully-reload requires an app relaunch
+  // (plugin code is loaded once at start). Surface a button in the Developer
+  // settings section so plugin authors don't have to close + reopen by hand.
+  // Dev builds skip the relaunch step since electron-vite dev won't come back
+  // after app.quit() — same caveat as game-switch.ts.
+  ipcMain.on('app-restart', () => {
+    if (!app.isPackaged) {
+      console.warn('[app-restart] dev build — close and `npm run dev` to re-attach')
+      return
+    }
+    app.relaunch()
+    app.quit()
+  })
 
   ipcMain.on('overlay-input-focused', (e, focused: boolean) => {
     setWindowInputFocused(e.sender.id, focused)

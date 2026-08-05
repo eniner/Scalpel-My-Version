@@ -653,6 +653,59 @@ describe('parseItemText', () => {
       expect(item.stackSize).toBe(1)
     })
 
+    it("parses a Facetor's Lens stored experience grouped with commas", () => {
+      const text = [
+        'Item Class: Stackable Currency',
+        'Rarity: Currency',
+        "Facetor's Lens",
+        '--------',
+        'Stack Size: 1/10',
+        '--------',
+        'Stored Experience: 999,627,082',
+        '--------',
+        'Adds stored experience to a gem, up to its maximum level.',
+      ].join('\n')
+
+      expect(parseItemText(text)!.storedExperience).toBe(999627082)
+    })
+
+    it.each([
+      ['plain spaces', '750 000 000'],
+      ['non-breaking spaces', '750\u00A0000\u00A0000'],
+      ['narrow non-breaking spaces', '750\u202F000\u202F000'],
+      ['periods', '750.000.000'],
+    ])('parses stored experience grouped with %s (#539)', (_label, grouped) => {
+      // GGG groups large numbers per client language. A space-grouped lens used to
+      // parse as 750 because only commas were stripped.
+      const text = [
+        'Item Class: Stackable Currency',
+        'Rarity: Currency',
+        "Facetor's Lens",
+        '--------',
+        `Stored Experience: ${grouped}`,
+        '--------',
+        'Adds stored experience to a gem, up to its maximum level.',
+      ].join('\n')
+
+      expect(parseItemText(text)!.storedExperience).toBe(750000000)
+    })
+
+    it('parses a space-grouped stack size (#539)', () => {
+      const text = [
+        'Item Class: Stackable Currency',
+        'Rarity: Currency',
+        'Chaos Orb',
+        '--------',
+        'Stack Size: 3 500/5 000',
+        '--------',
+        'Reforges the properties of an item',
+      ].join('\n')
+
+      const item = parseItemText(text)!
+      expect(item.stackSize).toBe(3500)
+      expect(item.maxStackSize).toBe(5000)
+    })
+
     it('defaults areaLevel to the endgame level for currency with no item level', () => {
       const text = [
         'Item Class: Stackable Currency',
@@ -797,6 +850,35 @@ describe('parseItemText', () => {
       expect(item.explicits).toContain('4% increased maximum Mana')
       expect(item.explicits).toContain('19% of Damage taken while affected by Clarity Recouped as Mana')
       expect(item.explicits).not.toContain('4% increased maximum Life\n6% increased maximum Energy Shield')
+    })
+
+    it('joins a wrapped mod whose continuation starts with a capital (#527)', () => {
+      // Kitava's Thirst wraps before "Upfront", so the lowercase-continuation tell
+      // doesn't fire. The first half ends on a dangling "an" instead. Without the
+      // join, the trailing half matched the WRONG twin (the Mana stat id) with no
+      // value, and the real Life mod never reached the search at all.
+      const text = [
+        'Item Class: Helmets',
+        'Rarity: Unique',
+        "Foulborn Kitava's Thirst",
+        'Zealot Helmet',
+        '--------',
+        'Item Level: 84',
+        '--------',
+        '50% chance to Trigger Socketed Spells when you Spend at least 200 Life on an',
+        'Upfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown',
+        '15% reduced Cast Speed',
+      ].join('\n')
+
+      const item = parseItemText(text)!
+      expect(item.explicits).toContain(
+        '50% chance to Trigger Socketed Spells when you Spend at least 200 Life on an\nUpfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown',
+      )
+      expect(item.explicits).toContain('15% reduced Cast Speed')
+      // "...Cooldown" is not a dangling tail, so the next mod is not swept into a join.
+      expect(item.explicits).not.toContain(
+        'Upfront Cost to Use or Trigger a Skill, with a 0.1 second Cooldown\n15% reduced Cast Speed',
+      )
     })
 
     it('parses a PoE2 Waystone property block and monster affixes', () => {
@@ -1085,6 +1167,117 @@ describe('parseItemText', () => {
   })
 
   // ---------------------------------------------------------------------------
+  // Scrying Orbs (PoE1)
+  // ---------------------------------------------------------------------------
+
+  describe('scrying orbs', () => {
+    const scryingOrbText = (area: string) =>
+      [
+        'Item Class: Stackable Currency',
+        'Rarity: Currency',
+        'Scrying Orb',
+        '--------',
+        `Map Area: ${area}`,
+        '--------',
+        'Scries a Map on your Atlas',
+        '--------',
+        'Right click on this item then left click a Map on your Atlas.',
+      ].join('\n')
+
+    it('parses the bound map area', () => {
+      const item = parseItemText(scryingOrbText('Dunes'))!
+
+      expect(item.itemClass).toBe('Stackable Currency')
+      expect(item.baseType).toBe('Scrying Orb')
+      expect(item.scryingArea).toBe('Dunes')
+    })
+
+    it('keeps a multi-word area intact', () => {
+      expect(parseItemText(scryingOrbText('Sunken City'))!.scryingArea).toBe('Sunken City')
+    })
+
+    it('leaves the area line out of the mod list', () => {
+      const item = parseItemText(scryingOrbText('Dunes'))!
+
+      expect(item.explicits ?? []).not.toContain('Map Area: Dunes')
+    })
+
+    it('leaves scryingArea undefined on another currency', () => {
+      const text = [
+        'Item Class: Stackable Currency',
+        'Rarity: Currency',
+        'Chaos Orb',
+        '--------',
+        'Stack Size: 12/20',
+        '--------',
+        'Reforges a rare item with new random modifiers',
+      ].join('\n')
+
+      expect(parseItemText(text)!.scryingArea).toBeUndefined()
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // Mercenary Warrants (PoE1)
+  // ---------------------------------------------------------------------------
+
+  describe('mercenary warrants', () => {
+    const warrantText = (build: string, level = 83) =>
+      [
+        'Item Class: Map Fragments',
+        'Rarity: Normal',
+        'Mercenary Warrant',
+        '--------',
+        'Saxon, the Azadin Seafarer',
+        '--------',
+        `Build: ${build}`,
+        `Mercenary Level: ${level}`,
+        '--------',
+        'Right click this item to view Mercenary details.',
+        'Can be used in a personal Map Device alongside a Map to have this previously fought Mercenary reappear in the area for a rematch.',
+      ].join('\n')
+
+    it('parses the build and the mercenary level', () => {
+      const item = parseItemText(warrantText('Mysterious Diver'))!
+
+      expect(item.itemClass).toBe('Map Fragments')
+      expect(item.baseType).toBe('Mercenary Warrant')
+      expect(item.mercenaryBuild).toBe('Mysterious Diver')
+      expect(item.mercenaryLevel).toBe(83)
+    })
+
+    it('keeps the Infamous prefix, which is its own trade type', () => {
+      expect(parseItemText(warrantText('Infamous Mysterious Diver'))!.mercenaryBuild).toBe('Infamous Mysterious Diver')
+    })
+
+    it('parses a below-cap mercenary level', () => {
+      expect(parseItemText(warrantText('Sniper', 68))!.mercenaryLevel).toBe(68)
+    })
+
+    it('leaves the build, level and mercenary name out of the mod list', () => {
+      const explicits = parseItemText(warrantText('Mysterious Diver'))!.explicits ?? []
+
+      expect(explicits).not.toContain('Build: Mysterious Diver')
+      expect(explicits).not.toContain('Mercenary Level: 83')
+      expect(explicits).not.toContain('Saxon, the Azadin Seafarer')
+    })
+
+    it('leaves both fields undefined on another map fragment', () => {
+      const text = [
+        'Item Class: Map Fragments',
+        'Rarity: Normal',
+        'Sacrifice at Dusk',
+        '--------',
+        'Only the unworthy shall be sacrificed.',
+      ].join('\n')
+
+      const item = parseItemText(text)!
+      expect(item.mercenaryBuild).toBeUndefined()
+      expect(item.mercenaryLevel).toBeUndefined()
+    })
+  })
+
+  // ---------------------------------------------------------------------------
   // Flags
   // ---------------------------------------------------------------------------
 
@@ -1165,14 +1358,109 @@ describe('parseItemText', () => {
       expect(item.mirrored).toBe(true)
     })
 
-    it('detects Vestigial flag', () => {
-      const item = parseItemText(makeRing(['--------', 'Vestigial']))!
+    it('detects a vestigial unique via the base-type prefix and strips it', () => {
+      // Vestigial items (3.27 Legion) carry the mechanic as a "Vestigial " base-type
+      // prefix -- there is no marker line. The prefix is display-only: the real base
+      // type (what the trade API's baseType field expects) has no prefix.
+      const text = [
+        'Item Class: Body Armours',
+        'Rarity: Unique',
+        'Tabula Rasa',
+        'Vestigial Simple Robe',
+        '--------',
+        'Requirements:',
+        'Level: 14',
+        '--------',
+        'Sockets: W-W-W-W-W-W',
+        '--------',
+        'Item Level: 83',
+        '--------',
+        '{ Vestigial Implicit Modifier }',
+        '20% of Physical Damage taken as Fire Damage',
+      ].join('\n')
+      const item = parseItemText(text)!
       expect(item.vestigial).toBe(true)
+      expect(item.baseType).toBe('Simple Robe')
+      expect(item.name).toBe('Tabula Rasa')
+    })
+
+    it('detects a vestigial rare via the base-type prefix and strips it', () => {
+      const text = [
+        'Item Class: Boots',
+        'Rarity: Rare',
+        'Storm Knuckle',
+        'Vestigial Dragonscale Boots',
+        '--------',
+        'Item Level: 83',
+        '--------',
+        '+30 to Strength',
+      ].join('\n')
+      const item = parseItemText(text)!
+      expect(item.vestigial).toBe(true)
+      expect(item.baseType).toBe('Dragonscale Boots')
+    })
+
+    it('an unidentified vestigial item has no separate name line -- name === baseType with the prefix stripped', () => {
+      // Unid items only have one line under the header (the base type), so the
+      // parser sets name == the raw base line. trade.ts keys the unid-unique
+      // search off name === baseType, so both must have the prefix stripped.
+      const text = [
+        'Item Class: Body Armours',
+        'Rarity: Unique',
+        'Vestigial Simple Robe',
+        '--------',
+        'Unidentified',
+        '--------',
+        'Item Level: 83',
+      ].join('\n')
+      const item = parseItemText(text)!
+      expect(item.vestigial).toBe(true)
+      expect(item.name).toBe('Simple Robe')
+      expect(item.baseType).toBe('Simple Robe')
     })
 
     it('a normal item is not vestigial', () => {
       const item = parseItemText(makeRing([]))!
       expect(item.vestigial).toBe(false)
+    })
+
+    it('detects a foulborn unique via the name prefix and does NOT strip it (#532)', () => {
+      // Unlike vestigial, the Foulborn prefix stays on `name` -- trade.ts strips it
+      // at query time instead, since poe.ninja/the clipboard need the full name.
+      const text = [
+        'Item Class: Belts',
+        'Rarity: Unique',
+        'Foulborn Headhunter',
+        'Heavy Belt',
+        '--------',
+        'Requires: Level 50',
+        '--------',
+        'Item Level: 64',
+        '--------',
+        '{ Unique Modifier }',
+        'When you kill a Rare monster, you gain its Modifiers for 60 seconds',
+      ].join('\n')
+      const item = parseItemText(text)!
+      expect(item.foulborn).toBe(true)
+      expect(item.name).toBe('Foulborn Headhunter')
+    })
+
+    it('a plain unique is not foulborn', () => {
+      const text = [
+        'Item Class: Belts',
+        'Rarity: Unique',
+        'Headhunter',
+        'Heavy Belt',
+        '--------',
+        'Requires: Level 50',
+        '--------',
+        'Item Level: 64',
+        '--------',
+        '{ Unique Modifier }',
+        'When you kill a Rare monster, you gain its Modifiers for 60 seconds',
+      ].join('\n')
+      const item = parseItemText(text)!
+      expect(item.foulborn).toBeFalsy()
     })
 
     it('detects Fractured flag via (fractured) suffix', () => {

@@ -1,6 +1,6 @@
 {
   "name": "scalpel",
-  "version": "1.0.1",
+  "version": "1.0.2-rc4",
   "description": "Path of Exile's First Fourth-Party Tool",
   "author": "Scalpel",
   "license": "AGPL-3.0-only",
@@ -46,7 +46,6 @@
     "build-crafting-data:all": "node scripts/build-crafting-data.js && node scripts/build-coe-crafting-data.js"
   },
   "dependencies": {
-    "active-win": "^9.0.0",
     "electron-overlay-window": "github:scalpelpoe/electron-overlay-window#db989812d62d6e988e915e25d772fc5c34aebdbb",
     "electron-store": "^8.2.0",
     "konva": "^9.3.22",

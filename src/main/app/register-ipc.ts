@@ -34,6 +34,7 @@ import { registerBuildPlannerHandlers } from '../handlers/build-planner'
 import { registerPluginTradeHandlers } from '../handlers/plugin-trade'
 import { registerPluginWebPanelHandlers } from '../handlers/plugin-web-panel'
 import { registerPluginCraftHandlers } from '../handlers/plugin-craft'
+import { registerPluginCursorHandlers } from '../handlers/plugin-cursor'
 
 export interface IpcRegistrationDeps {
   store: Store<AppSettings>
@@ -71,6 +72,7 @@ export function registerAllIpc(deps: IpcRegistrationDeps): void {
   registerPluginTradeHandlers(store)
   registerPluginWebPanelHandlers()
   registerPluginCraftHandlers()
+  registerPluginCursorHandlers()
   registerDiagnostics({ store, getAppWindow, showAppWindow })
 
   // ── Simple inline handlers ────────────────────────────────────────────────

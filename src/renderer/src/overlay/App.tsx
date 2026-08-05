@@ -1147,7 +1147,7 @@ export default function App(): JSX.Element {
             setView(`plugin:${pluginId}` as View)
             void window.api.pluginShowOverlay()
           }}
-          onCopyAndEvaluateItem={() => window.api.pluginTriggerMainHotkey()}
+          onCopyAndEvaluateItem={(opts) => window.api.pluginTriggerMainHotkey(opts)}
           onPluginError={handlePluginError}
           onPluginUnloaded={(pluginId) => {
             if (view === `plugin:${pluginId}`) setView('idle')

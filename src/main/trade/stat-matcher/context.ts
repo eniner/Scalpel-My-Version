@@ -48,6 +48,9 @@ export interface ItemInfo {
   mapReward?: string
   transfigured?: boolean
   synthesised?: boolean
+  vestigial?: boolean
+  foulborn?: boolean
+  zanaMemory?: boolean
   logbookFactions?: string[]
   logbookBosses?: string[]
   atzoatlRooms?: string[]
@@ -60,6 +63,9 @@ export interface ItemInfo {
   unidentifiedTier?: number
   chartZone?: string
   chartShape?: string
+  scryingArea?: string
+  mercenaryBuild?: string
+  mercenaryLevel?: number
 }
 
 export interface DefenseValues {

@@ -20,3 +20,38 @@ describe('isVendorExchangeItem (PoE2 / Ange)', () => {
     expect(isVendorExchangeItem(2, 'Body Armours', 'Ornate Ringmail')).toBe(false)
   })
 })
+
+describe('isVendorExchangeItem (PoE1 / Faustus)', () => {
+  it('routes stackable currency to the exchange', () => {
+    expect(isVendorExchangeItem(1, 'Stackable Currency', 'Chaos Orb', 'Currency')).toBe(true)
+  })
+
+  it('excludes Scrying Orbs -- Faustus has no listing for a map-bound orb (#513)', () => {
+    expect(isVendorExchangeItem(1, 'Stackable Currency', 'Scrying Orb', 'Currency')).toBe(false)
+  })
+
+  it('routes ordinary map fragments to the exchange', () => {
+    expect(isVendorExchangeItem(1, 'Map Fragments', 'Sacrifice at Dusk', 'Normal')).toBe(true)
+  })
+
+  it('excludes Mercenary Warrants -- each sells one mercenary, nothing fungible to exchange', () => {
+    expect(isVendorExchangeItem(1, 'Map Fragments', 'Mercenary Warrant', 'Normal')).toBe(false)
+  })
+
+  it('excludes every Incursion vial -- Faustus does not carry them, they sell on regular trade (#550)', () => {
+    const VIALS = [
+      'Vial of Awakening',
+      'Vial of Consequence',
+      'Vial of Dominance',
+      'Vial of Fate',
+      'Vial of Sacrifice',
+      'Vial of Summoning',
+      'Vial of Transcendence',
+      'Vial of the Ghost',
+      'Vial of the Ritual',
+    ]
+    for (const vial of VIALS) {
+      expect(isVendorExchangeItem(1, 'Stackable Currency', vial, 'Currency')).toBe(false)
+    }
+  })
+})
