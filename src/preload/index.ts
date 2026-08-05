@@ -421,6 +421,11 @@ export const api = {
     ipcRenderer.on('overlay-hide', handler)
     return () => ipcRenderer.removeListener('overlay-hide', handler)
   },
+  onOverlayShow: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on('overlay-show', handler)
+    return () => ipcRenderer.removeListener('overlay-show', handler)
+  },
   onSettingUpdated: (cb: (key: string, value: unknown) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, key: string, value: unknown): void => cb(key, value)
     ipcRenderer.on('setting-updated', handler)
