@@ -1,12 +1,12 @@
 {
   "repo": "repoe-fork/repoe-fork.github.io",
   "etags": {
-    "poe1/mods_by_base.json": "\"6a1bca6b-13b8167\"",
-    "poe1/mods.json": "\"6a1bca6c-1fe7948\"",
-    "poe1/base_items.json": "\"6a1bca69-719b47\"",
-    "poe2/mods_by_base.json": "\"6a1d9aac-4e2969\"",
-    "poe2/mods.json": "\"6a1d9aac-c60f55\"",
-    "poe2/base_items.json": "\"6a1d9aab-776247\""
+    "poe1/mods_by_base.json": "\"6a73fa70-1413015\"",
+    "poe1/mods.json": "\"6a73fa71-20af5f0\"",
+    "poe1/base_items.json": "\"6a73fa6f-743d15\"",
+    "poe2/mods_by_base.json": "\"6a72e5a3-4dd487\"",
+    "poe2/mods.json": "\"6a72e5a3-c4ecf1\"",
+    "poe2/base_items.json": "\"6a72e5a2-77a9a6\""
   },
-  "timestamp": "2026-06-02T00:21:44.996Z"
+  "timestamp": "2026-08-08T07:12:42.253Z"
 }
