@@ -1,0 +1,15 @@
+{
+  "chaosP": 0.014285714285714285,
+  "chaosE": 70,
+  "afterRemoveLife": {
+    "poolN": 35,
+    "poolW": 35000,
+    "t1W": 1000,
+    "blocked": [
+      "IncreasedMana",
+      "FireResistance",
+      "ColdResistance"
+    ]
+  },
+  "prefixForcedE": null
+}

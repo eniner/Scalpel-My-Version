@@ -7,6 +7,7 @@ import {
   MINIMAP_SHAPES,
   MINIMAP_SIZES,
   POE_COLOR_HEX,
+  getMinimapIconUrl,
 } from '@shared/data/filter/filter-actions'
 import { ColorActionEditor } from '@renderer/features/filter/filter-block-editor/ColorActionEditor'
 
@@ -44,6 +45,8 @@ export function TierStyleEditor({ blockIndex, tierLabel, onClose, onSaved }: Pro
   const [block, setBlock] = useState<FilterBlock | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [customSounds, setCustomSounds] = useState<string[]>([])
+  const [filterDir, setFilterDir] = useState<string | null>(null)
 
   useEffect(() => {
     void window.api.getFilterBlock(blockIndex).then((r) => {
@@ -54,6 +57,21 @@ export function TierStyleEditor({ blockIndex, tierLabel, onClose, onSaved }: Pro
       setBlock(structuredClone(r.block))
     })
   }, [blockIndex])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const settings = await window.api.getSettings()
+        const dir = settings.activeProfile?.filterDir
+        setFilterDir(dir ?? null)
+        if (!dir) return
+        const files = await window.api.scanSoundFiles(dir)
+        setCustomSounds(files)
+      } catch {
+        /* ignore */
+      }
+    })()
+  }, [])
 
   const text = useMemo(
     () => (block ? actionOf(block, 'SetTextColor', ['200', '200', '200', '255']) : null),
@@ -195,12 +213,38 @@ export function TierStyleEditor({ blockIndex, tierLabel, onClose, onSaved }: Pro
           }}
         >
           <option value="__none__">None</option>
-          {ALERT_SOUNDS.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
+          <optgroup label="Built-in">
+            {ALERT_SOUNDS.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </optgroup>
+          {customSounds.length > 0 && (
+            <optgroup label="Custom (filter folder)">
+              {customSounds.map((f) => (
+                <option key={f} value={`custom:${f}`}>
+                  {f}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
+        {alert?.type === 'CustomAlertSound' && filterDir && alert.values[0] && (
+          <button
+            type="button"
+            style={{ fontSize: 10, alignSelf: 'flex-start' }}
+            onClick={() => {
+              void window.api.getSoundDataUrl(filterDir, alert.values[0]).then((url) => {
+                if (!url) return
+                const a = new Audio(url)
+                void a.play()
+              })
+            }}
+          >
+            Preview custom
+          </button>
+        )}
       </label>
 
       <div>
@@ -264,58 +308,66 @@ export function TierStyleEditor({ blockIndex, tierLabel, onClose, onSaved }: Pro
               </option>
             ))}
           </select>
-          <select
-            value={minimap?.values[1] ?? 'White'}
-            disabled={!minimap || minimap.values.length === 0}
-            onChange={(e) =>
-              setBlock(
-                upsertAction(block, {
-                  type: 'MinimapIcon',
-                  values: [minimap?.values[0] ?? '0', e.target.value, minimap?.values[2] ?? 'Circle'],
-                }),
+          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            {MINIMAP_COLORS.map((c) => {
+              const selected = minimap && minimap.values.length > 0 && minimap.values[1] === c
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  title={c}
+                  onClick={() =>
+                    setBlock(
+                      upsertAction(block, {
+                        type: 'MinimapIcon',
+                        values: [minimap?.values[0] ?? '0', c, minimap?.values[2] ?? 'Circle'],
+                      }),
+                    )
+                  }
+                  style={{
+                    width: 18,
+                    height: 18,
+                    padding: 0,
+                    background: POE_COLOR_HEX[c] ?? '#888',
+                    border: selected ? '2px solid #fff' : '2px solid transparent',
+                    borderRadius: 2,
+                  }}
+                />
               )
-            }
-            style={{ background: '#12131a', color: '#f0e6d2', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 4 }}
-          >
-            {MINIMAP_COLORS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <select
-            value={minimap?.values[2] ?? 'Circle'}
-            disabled={!minimap || minimap.values.length === 0}
-            onChange={(e) =>
-              setBlock(
-                upsertAction(block, {
-                  type: 'MinimapIcon',
-                  values: [minimap?.values[0] ?? '0', minimap?.values[1] ?? 'White', e.target.value],
-                }),
+            })}
+          </div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+            {MINIMAP_SHAPES.map((s) => {
+              const color = minimap?.values[1] ?? 'White'
+              const url = getMinimapIconUrl(color, s.id)
+              const selected = minimap && minimap.values.length > 0 && minimap.values[2] === s.id
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  title={s.name}
+                  onClick={() =>
+                    setBlock(
+                      upsertAction(block, {
+                        type: 'MinimapIcon',
+                        values: [minimap?.values[0] ?? '0', color, s.id],
+                      }),
+                    )
+                  }
+                  style={{
+                    width: 28,
+                    height: 28,
+                    padding: 2,
+                    background: selected ? 'rgba(201,162,39,0.35)' : 'rgba(255,255,255,0.06)',
+                    border: selected ? '1px solid #c9a227' : '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 4,
+                  }}
+                >
+                  {url ? <img src={url} alt={s.name} width={22} height={22} /> : s.name.slice(0, 1)}
+                </button>
               )
-            }
-            style={{ background: '#12131a', color: '#f0e6d2', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 4 }}
-          >
-            {MINIMAP_SHAPES.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() =>
-              setBlock(
-                upsertAction(block, {
-                  type: 'MinimapIcon',
-                  values: [minimap?.values[0] ?? '0', minimap?.values[1] ?? 'White', minimap?.values[2] ?? 'Circle'],
-                }),
-              )
-            }
-            style={{ fontSize: 10 }}
-          >
-            Enable
-          </button>
+            })}
+          </div>
         </div>
       </div>
 

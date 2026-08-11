@@ -1,10 +1,11 @@
-/** poe.ninja PoE2 economy URL segments for Runes of Aldur. */
+/** poe.ninja economy URL segments / host PriceEntry.category slugs. */
 export interface EconomyCategory {
   slug: string
   label: string
 }
 
-export const RUNES_OF_ALDUR_ECONOMY: EconomyCategory[] = [
+/** PoE2 — Runes of Aldur (and future leagues that keep the same overview types). */
+export const POE2_ECONOMY: EconomyCategory[] = [
   { slug: 'currency', label: 'Currency' },
   { slug: 'fragments', label: 'Fragments' },
   { slug: 'abyssal-bones', label: 'Abyssal Bones' },
@@ -31,8 +32,72 @@ export const RUNES_OF_ALDUR_ECONOMY: EconomyCategory[] = [
   { slug: 'unique-maps', label: 'Unique Maps' },
 ]
 
-export const ECONOMY_SLUGS = new Set(RUNES_OF_ALDUR_ECONOMY.map((c) => c.slug))
+/** PoE1 — dense overview categories Scalpel already fetches from poe.ninja. */
+export const POE1_ECONOMY: EconomyCategory[] = [
+  { slug: 'currency', label: 'Currency' },
+  { slug: 'fragments', label: 'Fragments' },
+  { slug: 'divination-cards', label: 'Divination Cards' },
+  { slug: 'scarabs', label: 'Scarabs' },
+  { slug: 'oils', label: 'Oils' },
+  { slug: 'essences', label: 'Essences' },
+  { slug: 'fossils', label: 'Fossils' },
+  { slug: 'resonators', label: 'Resonators' },
+  { slug: 'incubators', label: 'Incubators' },
+  { slug: 'delirium-orbs', label: 'Delirium Orbs' },
+  { slug: 'omens', label: 'Omens' },
+  { slug: 'tattoos', label: 'Tattoos' },
+  { slug: 'runes', label: 'Runes' },
+  { slug: 'artifacts', label: 'Artifacts' },
+  { slug: 'allflame-embers', label: 'Allflame Embers' },
+  { slug: 'coffins', label: 'Coffins' },
+  { slug: 'beasts', label: 'Beasts' },
+  { slug: 'skill-gems', label: 'Skill Gems' },
+  { slug: 'cluster-jewels', label: 'Cluster Jewels' },
+  { slug: 'unique-weapons', label: 'Unique Weapons' },
+  { slug: 'unique-armours', label: 'Unique Armours' },
+  { slug: 'unique-accessories', label: 'Unique Accessories' },
+  { slug: 'unique-flasks', label: 'Unique Flasks' },
+  { slug: 'unique-jewels', label: 'Unique Jewels' },
+  { slug: 'unique-maps', label: 'Unique Maps' },
+  { slug: 'maps', label: 'Maps' },
+  { slug: 'invitations', label: 'Invitations' },
+  { slug: 'memories', label: 'Memories' },
+  { slug: 'vials', label: 'Vials' },
+]
 
-export function categoryLabel(slug: string): string {
-  return RUNES_OF_ALDUR_ECONOMY.find((c) => c.slug === slug)?.label ?? slug
+/** @deprecated use POE2_ECONOMY — kept for older imports/tests */
+export const RUNES_OF_ALDUR_ECONOMY = POE2_ECONOMY
+
+export function economyCategoriesFor(poeVersion: 1 | 2): EconomyCategory[] {
+  return poeVersion === 1 ? POE1_ECONOMY : POE2_ECONOMY
+}
+
+export function economySlugsFor(poeVersion: 1 | 2): Set<string> {
+  return new Set(economyCategoriesFor(poeVersion).map((c) => c.slug))
+}
+
+export function categoryLabel(slug: string, poeVersion: 1 | 2 = 2): string {
+  return economyCategoriesFor(poeVersion).find((c) => c.slug === slug)?.label ?? slug
+}
+
+/** Preferred categories first; append any extra slugs present in live price data. */
+export function categoriesWithData(
+  poeVersion: 1 | 2,
+  presentSlugs: Iterable<string>,
+): EconomyCategory[] {
+  const preferred = economyCategoriesFor(poeVersion)
+  const known = new Set(preferred.map((c) => c.slug))
+  const extras: EconomyCategory[] = []
+  for (const slug of presentSlugs) {
+    if (!slug || known.has(slug)) continue
+    known.add(slug)
+    extras.push({
+      slug,
+      label: slug
+        .split('-')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' '),
+    })
+  }
+  return [...preferred, ...extras]
 }

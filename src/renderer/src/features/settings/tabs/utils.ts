@@ -7,7 +7,6 @@ export const APP_MACRO_DEFS = [
   { id: 'openDivCards', label: 'Open Div Card Explorer' },
   { id: 'openScarabs', label: 'Open Scarab Atlas' },
   { id: 'openTimeless', label: 'Open Timeless Jewels' },
-  { id: 'openWarrants', label: 'Open Scalpel Warrants' },
   { id: 'openRegex', label: 'Open Regex Tool' },
   { id: 'openWiki', label: 'Open Wiki' },
   { id: 'openPoeDb', label: 'Open PoEDB' },
@@ -16,6 +15,7 @@ export const APP_MACRO_DEFS = [
   { id: 'closeOverlay', label: 'Close Overlay' },
   { id: 'toggleWhiteboard', label: 'Toggle Whiteboard' },
   { id: 'toggleRegexRemote', label: 'Toggle Regex Remote' },
+  { id: 'toggleFilterSectionEditor', label: 'Toggle Filter Section Editor' },
 ] as const
 
 export function generateClientCategoryId(): string {

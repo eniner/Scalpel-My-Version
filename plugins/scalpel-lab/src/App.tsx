@@ -11,8 +11,12 @@ import {
 } from './craft-build-context'
 import { CraftEmulator } from './CraftEmulator'
 import { CraftPath } from './CraftPath'
+import { CraftSequence } from './CraftSequence'
+import { BaseSetupWizard, type BaseSetupSelection } from './BaseSetupWizard'
 import { TargetOdds } from './TargetOdds'
 import { CRAFT_HOST_REQUIRED } from './craft-api'
+import { LAB_OMENS, omenIconName } from './craft-omens'
+import { ItemIcon } from './ItemIcon'
 import { useCraftSession } from './use-craft-session'
 
 type CraftActionResult = Awaited<ReturnType<CraftApi['listActions']>>[number]
@@ -22,7 +26,7 @@ interface AppProps {
   ctx: ScalpelPluginContext
 }
 
-type View = 'simulator' | 'cheatsheet' | 'emulator' | 'target' | 'path'
+type View = 'setup' | 'sequence' | 'simulator' | 'cheatsheet' | 'emulator' | 'target' | 'path'
 
 export type { CraftTabProps } from './craft-build-context'
 
@@ -81,6 +85,7 @@ function CraftSimulator({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [omens, setOmens] = useState<string[]>([])
 
   const activeItem = useMemo(
     () => (sessionState ? craftStateToPoeItem(sessionState) : item),
@@ -90,9 +95,13 @@ function CraftSimulator({
   const craftOpts = useMemo(
     () =>
       activeItem
-        ? { marksmanEnabled: resolveMarksmanEnabled(activeItem, buildContext) || sessionState?.marksmanEnabled }
+        ? {
+            marksmanEnabled:
+              resolveMarksmanEnabled(activeItem, buildContext) || sessionState?.marksmanEnabled,
+            omens: omens.length ? omens : sessionState?.activeOmens,
+          }
         : undefined,
-    [activeItem, buildContext, sessionState?.marksmanEnabled],
+    [activeItem, buildContext, sessionState?.marksmanEnabled, sessionState?.activeOmens, omens],
   )
 
   const runSim = useCallback(
@@ -101,7 +110,14 @@ function CraftSimulator({
       setError(null)
       try {
         const marksman = resolveMarksmanEnabled(target, buildContext)
-        setResult(await craft.simulate(target, actionId, marksman ? { marksmanEnabled: true } : undefined))
+        setResult(
+          await craft.simulate(target, actionId, {
+            ...(marksman ? { marksmanEnabled: true } : {}),
+            ...(omens.length || sessionState?.activeOmens?.length
+              ? { omens: omens.length ? omens : sessionState?.activeOmens }
+              : {}),
+          }),
+        )
       } catch (err) {
         setResult(null)
         setError(err instanceof Error ? err.message : String(err))
@@ -109,8 +125,12 @@ function CraftSimulator({
         setBusy(false)
       }
     },
-    [craft, buildContext],
+    [craft, buildContext, omens, sessionState?.activeOmens],
   )
+
+  const toggleOmen = useCallback((id: string) => {
+    setOmens((prev) => (prev.includes(id) ? prev.filter((o) => o !== id) : [...prev, id]))
+  }, [])
 
   const loadItem = useCallback(
     async (target: PoeItem, preferActionId?: string) => {
@@ -141,6 +161,16 @@ function CraftSimulator({
     if (activeItem) void loadItem(activeItem, selected)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when working item changes
   }, [activeItem?.baseType, activeItem?.itemLevel, activeItem?.rarity, activeItem?.explicits?.length, buildContext.marksmanSource])
+
+  useEffect(() => {
+    if (activeItem && selected) void runSim(activeItem, selected)
+    // Re-roll odds when omen toggles change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [omens.join('|')])
+
+  useEffect(() => {
+    if (sessionState?.activeOmens?.length) setOmens([...sessionState.activeOmens])
+  }, [sessionState?.activeOmens?.join('|')])
 
   const importItem = useCallback(async () => {
     setBusy(true)
@@ -204,13 +234,69 @@ function CraftSimulator({
 
       {!activeItem ? (
         <p style={{ margin: 0, opacity: 0.75, fontSize: 13, lineHeight: 1.5 }}>
-          Hover an item in PoE 2 and import it. Import a belt or quiver first to auto-enable the marksman pool when
-          crafting other gear.
+          Import an item (or craft one in Emulator first). Then pick a currency below to see outcome %.
         </p>
       ) : (
         <>
+          <p style={{ margin: 0, fontSize: 11, opacity: 0.7, lineHeight: 1.45 }}>
+            Pick a currency to simulate — table below is the chance each mod appears for that craft.
+          </p>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, opacity: 0.85 }}>Currency / action</label>
+            <label style={{ fontSize: 12, fontWeight: 600, opacity: 0.85 }}>Simulate currency</label>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {[
+                'pool:all',
+                'pool:exalt',
+                'currency:Orb of Alchemy',
+                'currency:Chaos Orb',
+                'currency:Exalted Orb',
+                'currency:Greater Exalted Orb',
+                'currency:Perfect Exalted Orb',
+                'currency:Greater Chaos Orb',
+                'currency:Perfect Chaos Orb',
+                'currency:Regal Orb',
+                'currency:Orb of Alteration',
+                'currency:Orb of Annulment',
+              ].map((id) => {
+                const act = actions.find((a) => a.id === id)
+                const label =
+                  id === 'pool:all'
+                    ? 'All affixes'
+                    : id === 'pool:exalt'
+                      ? 'Exalt pool'
+                      : (act?.label ?? id.replace(/^currency:/, '')).replace(/^Orb of /, '').replace(/ Orb$/, '')
+                const disabled = busy || (act ? !act.applies && !id.startsWith('pool:') : !id.startsWith('pool:'))
+                const on = selected === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={disabled && !id.startsWith('pool:')}
+                    title={act?.reason ?? act?.description ?? id}
+                    onClick={() => {
+                      setSelected(id)
+                      void runSim(activeItem, id)
+                    }}
+                    style={{
+                      ...selectStyle,
+                      fontSize: 11,
+                      fontWeight: on ? 600 : 500,
+                      opacity: disabled && !id.startsWith('pool:') ? 0.4 : 1,
+                      background: on ? 'rgba(200,160,80,0.28)' : selectStyle.background,
+                      border: on ? '1px solid rgba(200,160,80,0.55)' : selectStyle.border,
+                      cursor: disabled && !id.startsWith('pool:') ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    {!id.startsWith('pool:') ? <ItemIcon name={id.replace(/^currency:/, '')} size={16} /> : null}
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
             <select
               value={selected}
               disabled={busy}
@@ -242,9 +328,42 @@ function CraftSimulator({
             </select>
             {selectedAction ? (
               <p style={{ margin: 0, fontSize: 11, opacity: 0.7, lineHeight: 1.45 }}>
-                {selectedAction.applies ? selectedAction.description : (selectedAction.reason ?? selectedAction.description)}
+                {selectedAction.applies
+                  ? selectedAction.description
+                  : (selectedAction.reason ?? selectedAction.description)}
               </p>
             ) : null}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, opacity: 0.85 }}>Active omens (odds)</label>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxHeight: 72, overflow: 'auto' }}>
+              {LAB_OMENS.map((o) => {
+                const on = omens.includes(o.id)
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    disabled={busy || !activeItem}
+                    title={omenIconName(o.id)}
+                    onClick={() => toggleOmen(o.id)}
+                    style={{
+                      ...selectStyle,
+                      fontSize: 10,
+                      padding: '4px 6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      background: on ? 'rgba(200,160,80,0.25)' : selectStyle.background,
+                      border: on ? '1px solid rgba(200,160,80,0.5)' : selectStyle.border,
+                    }}
+                  >
+                    <ItemIcon name={omenIconName(o.id)} size={16} />
+                    {o.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -313,12 +432,29 @@ function CraftSimulator({
 
 export function App({ ctx }: AppProps): JSX.Element {
   const { craft, item, setItem, sessionState, setSessionState, tabProps, buildContext } = useCraftSession(ctx)
-  const [view, setView] = useState<View>('simulator')
+  const [view, setView] = useState<View>('setup')
+  const [setupSelection, setSetupSelection] = useState<BaseSetupSelection | null>(null)
 
   const openCheatSheetWindow = useCallback(() => {
     setView('cheatsheet')
     ctx.openOverlay()
   }, [ctx])
+
+  const onSetupProceed = useCallback(
+    (selection: BaseSetupSelection, state: CraftItemStateResult) => {
+      setSetupSelection(selection)
+      setSessionState(state)
+      setItem({
+        ...(item ?? ({} as PoeItem)),
+        baseType: selection.baseType,
+        itemLevel: selection.itemLevel,
+        rarity: state.rarity,
+        name: selection.baseType,
+      })
+      setView('sequence')
+    },
+    [item, setItem, setSessionState],
+  )
 
   if (!craft) {
     return (
@@ -333,12 +469,20 @@ export function App({ ctx }: AppProps): JSX.Element {
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10, height: '100%', minHeight: 0 }}>
       <p style={{ margin: 0, fontSize: 11, opacity: 0.55, lineHeight: 1.45 }}>
-        Scalpel Lab per-base weights · 131 currencies · essences &amp; orbs in-game
+        <strong style={{ opacity: 0.85 }}>Setup → Sequence</strong> = Craft of Exile flow ·{' '}
+        <strong style={{ opacity: 0.85 }}>Simulator</strong> = single-currency odds ·{' '}
+        <strong style={{ opacity: 0.85 }}>Emulator</strong> = click crafts
       </p>
       <BuildContextBar buildContext={buildContext} />
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => setView('setup')} style={tabStyle(view === 'setup')}>
+          Setup
+        </button>
+        <button type="button" onClick={() => setView('sequence')} style={tabStyle(view === 'sequence')}>
+          Sequence
+        </button>
         <button type="button" onClick={() => setView('simulator')} style={tabStyle(view === 'simulator')}>
-          Craft odds
+          Simulator
         </button>
         <button type="button" onClick={() => setView('emulator')} style={tabStyle(view === 'emulator')}>
           Emulator
@@ -354,6 +498,18 @@ export function App({ ctx }: AppProps): JSX.Element {
         </button>
       </div>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <TabPanel active={view === 'setup'}>
+          <BaseSetupWizard craft={craft} onProceed={onSetupProceed} />
+        </TabPanel>
+        <TabPanel active={view === 'sequence'}>
+          <CraftSequence
+            craft={craft}
+            selection={setupSelection}
+            sessionState={sessionState}
+            onBackToSetup={() => setView('setup')}
+            onSessionChange={setSessionState}
+          />
+        </TabPanel>
         <TabPanel active={view === 'simulator'}>
           <CraftSimulator
             craft={craft}
@@ -373,6 +529,7 @@ export function App({ ctx }: AppProps): JSX.Element {
             virt={sessionState}
             onVirtChange={setSessionState}
             onItemChange={setItem}
+            onOpenSimulator={() => setView('simulator')}
             {...tabPropsWithImport}
           />
         </TabPanel>

@@ -12,6 +12,8 @@ export interface CraftMod {
   w: Array<[string, number]>
   gw?: Array<[string, number]>
   a?: string[]
+  /** Per-# numeric ranges from CoE nvalues — used for Divine re-rolls. */
+  ranges?: Array<[number, number]>
   /** CoE mgroup 10 — desecration pool. */
   desecrated?: boolean
   /** CoE rune pool (marksman) — only when marksmanEnabled on item. */
@@ -55,6 +57,27 @@ export interface CraftEssenceEntry {
   bases: Record<string, CraftEssenceForcedMod>
 }
 
+export interface CraftCatalystEntry {
+  id: string
+  name: string
+  /** Affix tags this catalyst boosts (CoE mtype / poedb ids). */
+  tags: string[]
+}
+
+export interface CraftSocketableEntry {
+  id: string
+  stype: 'rune' | 'soulcore' | 'talisman' | string
+  name: string
+  /** Slot → modifier id map from CoE (`armour` / `weapons` / `caster` / `all` / `class`). */
+  mods: Record<string, unknown>
+  /** Human-readable effect text per slot key (when resolvable). */
+  texts?: Record<string, string>
+  img?: string
+}
+
+/** Optional baked CoE chaos-relative prices (currency / essence / rune names → chaos). */
+export type CraftChaosPrices = Record<string, number>
+
 export interface CraftDataset {
   schemaVersion: number
   /** `coe` = Craft of Exile per-base weightings; `repoe` = RePoE tag weights. */
@@ -66,6 +89,14 @@ export interface CraftDataset {
   /** @deprecated use currencies */
   essences?: CraftEssenceEntry[]
   currencies: CraftCurrencyEntry[]
+  /** Quality catalysts — used by mod cheat sheet weight preview. */
+  catalysts?: CraftCatalystEntry[]
+  /** Runes / soul cores / talismans from CoE. */
+  socketables?: CraftSocketableEntry[]
+  /** Max sockets by base class name (from CoE bgroups). */
+  maxSocketsByClass?: Record<string, number>
+  /** Chaos-relative prices baked from CoE prices export. */
+  chaosPrices?: CraftChaosPrices
 }
 
 export interface CraftItemMod {
@@ -77,6 +108,8 @@ export interface CraftItemMod {
   desecrated?: boolean
   veiled?: boolean
   fractured?: boolean
+  /** Per-# ranges for Divine (copied from CraftMod at roll time). */
+  ranges?: Array<[number, number]>
   /** Rolled from marksman rune pool (belt/quiver implicit). */
   pool?: 'marksman'
 }
@@ -95,6 +128,14 @@ export interface CraftItemState {
   itemClass: string
   corrupted: boolean
   mods: CraftItemMod[]
+  /** Item quality % (catalyst weight mult). */
+  quality?: number
+  /** Active catalyst name (e.g. Flesh). */
+  catalyst?: string
+  /** Current socket count (Artificer's Orb). */
+  sockets?: number
+  /** Socketed rune/soulcore/talisman names. */
+  socketed?: string[]
   /** Inventory omens active until consumed by a craft. */
   activeOmens?: string[]
   /** Pending desecration reveal (veiled slot on item). */
@@ -114,6 +155,8 @@ export interface CraftApplyOptions {
 /** Optional context when resolving PoeItem → craft state (worn belt/quiver marksman). */
 export interface CraftResolveOpts {
   marksmanEnabled?: boolean
+  /** Active inventory omens for odds / apply (same ids as emulator). */
+  omens?: string[]
 }
 
 export type CraftActionId = string
@@ -204,4 +247,6 @@ export interface CraftEngineOptions {
   maxMods?: number
   modCountWeights?: Array<[number, number]>
   samples?: number
+  /** Active omens for this simulation (overrides state.activeOmens when set). */
+  omens?: string[]
 }

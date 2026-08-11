@@ -16,6 +16,8 @@ const PLUGIN_IDS = [
   'scalpel-economy',
   'scalpel-harvest',
   'scalpel-advisor',
+  'scalpel-skill-dps',
+  'scalpel-warrants',
   'runeshape-checker',
   'well-tiers',
 ]
@@ -84,9 +86,43 @@ function installPlugin(pluginId) {
 
 function verifyAsar(asarPath) {
   const listing = execSync(`npx --yes @electron/asar list "${asarPath}"`, { encoding: 'utf8' })
-  if (!listing.includes('\\out\\main\\index.js')) {
+  if (!listing.includes('\\out\\main\\index.js') && !listing.includes('/out/main/index.js')) {
     throw new Error(`Invalid asar (missing out/main/index.js): ${asarPath}`)
   }
+  // Official GitHub betas omit this window; our fork packs it. Refuse to install a build
+  // that would leave the Filter tab plugin dead.
+  if (!listing.includes('filter-section-editor.html')) {
+    throw new Error(
+      `Invalid asar (missing filter-section-editor.html): ${asarPath}. Rebuild from this repo.`,
+    )
+  }
+}
+
+function writeCleanInstallManifest(version) {
+  const userData = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Scalpel')
+  mkdirSync(userData, { recursive: true })
+  const manifestPath = join(userData, 'install-manifest.json')
+  let existing = {}
+  if (existsSync(manifestPath)) {
+    try {
+      existing = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    } catch {
+      existing = {}
+    }
+  }
+  const next = {
+    ...existing,
+    version,
+    electronVersion: existing.electronVersion || process.versions.electron || '32.3.3',
+    nativeModules: existing.nativeModules || {
+      'electron-overlay-window': '4.1.0',
+      'uiohook-napi': '1.5.4',
+    },
+  }
+  // Never leave a sticky brick banner after a local install.
+  delete next.brickedMessage
+  writeFileSync(manifestPath, `${JSON.stringify(next, null, 2)}\n`)
+  console.log(`Wrote clean install-manifest.json (version ${version}, no brickedMessage)`)
 }
 
 /** Install a bundled cheat-sheet prefab into every PoE2 profile. */
@@ -198,14 +234,15 @@ async function main() {
   const builtAsar = join(root, 'dist', `v${version}`, 'app.asar')
   console.log('Building Scalpel with Lab support…')
   await run('node', ['scripts/build-coe-crafting-data.js'])
-  if (!existsSync(builtAsar)) {
-    process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS ?? ''} --max-old-space-size=8192`.trim()
-    await run('npm', ['run', 'build'])
-    await run('node', ['scripts/pack-asar.js'])
-  } else {
-    console.log('Using existing dist build:', builtAsar)
-    verifyAsar(builtAsar)
+  if (existsSync(builtAsar)) {
+    console.log('Removing stale dist asar so this build is packed…')
+    rmSync(builtAsar, { force: true })
+    const unpacked = `${builtAsar}.unpacked`
+    if (existsSync(unpacked)) rmSync(unpacked, { recursive: true, force: true })
   }
+  process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS ?? ''} --max-old-space-size=8192`.trim()
+  await run('npm', ['run', 'build'])
+  await run('node', ['scripts/pack-asar.js'])
 
   for (const pluginId of PLUGIN_IDS) {
     const pluginDir = join(root, 'plugins', pluginId)
@@ -216,6 +253,7 @@ async function main() {
 
   stopScalpel()
   patchInstalledAsar(version)
+  writeCleanInstallManifest(version)
   ensureInstalledJson()
   for (const pluginId of PLUGIN_IDS) installPlugin(pluginId)
   installExpeditionCheatSheet()

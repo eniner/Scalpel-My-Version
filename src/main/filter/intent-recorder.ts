@@ -40,6 +40,30 @@ export function getIntents(): IntentLog {
   return currentLog
 }
 
+/** Replace the entire intent log (import edit pack). */
+export function replaceIntents(log: IntentLog): void {
+  currentLog = {
+    filterName: log.filterName || currentLog.filterName,
+    intents: Array.isArray(log.intents) ? [...log.intents] : [],
+  }
+  persist()
+}
+
+/** Merge intents from an edit pack (append + compact). */
+export function mergeIntents(intents: Intent[]): number {
+  let n = 0
+  for (const intent of intents) {
+    if (!intent?.type || !intent.target) continue
+    currentLog.intents.push({ ...intent, timestamp: intent.timestamp || Date.now() })
+    n++
+  }
+  if (n > 0) {
+    compact()
+    persist()
+  }
+  return n
+}
+
 export function record(intent: Intent): void {
   currentLog.intents.push(intent)
   compact()
@@ -124,6 +148,68 @@ function compact(): void {
         return `${i.target.typePath}/${i.target.tier}/${ip.action}` === key
       })
       if (priorIdx !== -1) compacted.splice(priorIdx, 1)
+      compacted.push(intent)
+    } else if (intent.type === 'remove-basetype') {
+      const p = intent.payload as import('./intents').RemoveBaseTypePayload
+      // Cancel against a prior move/add of the same value into this tier
+      const moveIdx = compacted.findIndex(
+        (i) =>
+          i.type === 'move-basetype' &&
+          (i.payload as import('./intents').MoveBaseTypePayload).value === p.value &&
+          i.target.typePath === intent.target.typePath &&
+          i.target.tier === intent.target.tier,
+      )
+      if (moveIdx !== -1) {
+        compacted.splice(moveIdx, 1)
+        continue
+      }
+      const priorIdx = compacted.findIndex(
+        (i) =>
+          i.type === 'remove-basetype' &&
+          (i.payload as import('./intents').RemoveBaseTypePayload).value === p.value &&
+          i.target.typePath === intent.target.typePath &&
+          i.target.tier === intent.target.tier,
+      )
+      if (priorIdx !== -1) compacted.splice(priorIdx, 1)
+      compacted.push(intent)
+    } else if (intent.type === 'insert-section-rule') {
+      const key = `${intent.target.typePath}/${intent.target.tier}`
+      const priorIdx = compacted.findIndex(
+        (i) => i.type === 'insert-section-rule' && `${i.target.typePath}/${i.target.tier}` === key,
+      )
+      if (priorIdx !== -1) compacted.splice(priorIdx, 1)
+      // Cancel delete of same tier
+      const delIdx = compacted.findIndex(
+        (i) => i.type === 'delete-block' && `${i.target.typePath}/${i.target.tier}` === key,
+      )
+      if (delIdx !== -1) compacted.splice(delIdx, 1)
+      compacted.push(intent)
+    } else if (intent.type === 'delete-block') {
+      const key = `${intent.target.typePath}/${intent.target.tier}`
+      // Drop insert of same tier
+      const insIdx = compacted.findIndex(
+        (i) => i.type === 'insert-section-rule' && `${i.target.typePath}/${i.target.tier}` === key,
+      )
+      if (insIdx !== -1) {
+        compacted.splice(insIdx, 1)
+        continue
+      }
+      const priorIdx = compacted.findIndex(
+        (i) => i.type === 'delete-block' && `${i.target.typePath}/${i.target.tier}` === key,
+      )
+      if (priorIdx !== -1) compacted.splice(priorIdx, 1)
+      compacted.push(intent)
+    } else if (intent.type === 'set-condition') {
+      const p = intent.payload as import('./intents').SetConditionPayload
+      const key = `${intent.target.typePath}/${intent.target.tier}/${p.condition}`
+      const priorIdx = compacted.findIndex((i) => {
+        if (i.type !== 'set-condition') return false
+        const ip = i.payload as import('./intents').SetConditionPayload
+        return `${i.target.typePath}/${i.target.tier}/${ip.condition}` === key
+      })
+      if (priorIdx !== -1) compacted.splice(priorIdx, 1)
+      compacted.push(intent)
+    } else {
       compacted.push(intent)
     }
   }

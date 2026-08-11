@@ -118,7 +118,9 @@ function appliesForSim(sim: string | null, state: CraftItemState, cur: CraftCurr
     case 'regal':
       return state.rarity === 'Magic' ? { applies: true } : { applies: false, reason: 'Only applies to Magic items.' }
     case 'alchemy':
-      return state.rarity === 'Normal' ? { applies: true } : { applies: false, reason: 'Only applies to Normal items.' }
+      return state.rarity === 'Normal' || state.rarity === 'Magic'
+        ? { applies: true }
+        : { applies: false, reason: 'Only applies to Normal or Magic items.' }
     case 'scouring':
       return state.rarity !== 'Normal' ? { applies: true } : { applies: false, reason: 'Item is already Normal.' }
     case 'divine':
@@ -129,9 +131,23 @@ function appliesForSim(sim: string | null, state: CraftItemState, cur: CraftCurr
       return state.rarity === 'Rare' && total > 0
         ? { applies: true }
         : { applies: false, reason: 'Only applies to Rare items with modifiers.' }
+    case 'catalyst':
+      return { applies: true }
+    case 'artificer': {
+      if (state.corrupted) return { applies: false, reason: 'Item is corrupted.' }
+      const max = data.maxSocketsByClass?.[state.itemClass] ?? 0
+      if (max <= 0) return { applies: false, reason: 'This base cannot have sockets.' }
+      return { applies: true }
+    }
     default:
       if (sim.startsWith('essence:')) {
-        if (state.rarity !== 'Magic') return { applies: false, reason: 'Essences apply to Magic items.' }
+        const perfect = /perfect|alloy/i.test(cur.name)
+        if (perfect) {
+          if (state.rarity !== 'Rare') return { applies: false, reason: 'Perfect essences and alloys need a Rare item.' }
+          if (total === 0) return { applies: false, reason: 'Item needs at least one modifier.' }
+        } else if (state.rarity !== 'Magic') {
+          return { applies: false, reason: 'Essences apply to Magic items.' }
+        }
         const forced = data.essences?.find((e) => e.name === cur.name)?.bases?.[state.baseType]
         if (!forced) return { applies: false, reason: 'This essence cannot be used on this base.' }
         if (forced.minIlvl > state.itemLevel) {
@@ -186,7 +202,27 @@ export function listCraftActions(data: CraftDataset, state: CraftItemState | nul
     }
   })
 
-  return [...pools, ...currencyActions, ...boneActions]
+  const socketActions: CraftAction[] = (data.socketables ?? []).map((s) => {
+    const reason = (() => {
+      if (state.corrupted) return 'Item is corrupted.'
+      const max = data.maxSocketsByClass?.[state.itemClass] ?? 0
+      if (max <= 0) return 'This base cannot have sockets.'
+      if ((state.sockets ?? 0) <= 0) return "Add a socket with Artificer's Orb first."
+      if ((state.socketed?.length ?? 0) >= (state.sockets ?? 0)) return 'All sockets are filled.'
+      return undefined
+    })()
+    return {
+      id: `socketable:${s.id}`,
+      label: s.name,
+      description: `${s.stype} — socket into an open Artificer socket`,
+      applies: !reason,
+      reason,
+      simKey: 'socketable',
+      category: s.stype,
+    }
+  })
+
+  return [...pools, ...currencyActions, ...boneActions, ...socketActions]
 }
 
 export function modPoolToOutcomes(
@@ -238,6 +274,8 @@ export function resolveSimActionId(actionId: string, data: CraftDataset): string
     return simKeyForCurrency(name, cur?.cat) ?? actionId
   }
   if (actionId.startsWith('essence:')) return actionId
+  if (actionId.startsWith('socketable:')) return 'socketable'
+  if (actionId.startsWith('desecration:')) return 'desecration'
   return actionId
 }
 
@@ -265,6 +303,10 @@ export function labelForActionId(actionId: string, data: CraftDataset): string {
   if (actionId.startsWith('desecration:')) {
     const bone = DESECRATION_BONES.find((b) => `desecration:${b.id}` === actionId)
     return bone?.name ?? actionId.slice('desecration:'.length)
+  }
+  if (actionId.startsWith('socketable:')) {
+    const id = actionId.slice('socketable:'.length)
+    return data.socketables?.find((x) => x.id === id)?.name ?? id
   }
   return actionId
 }

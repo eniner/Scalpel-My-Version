@@ -8,11 +8,14 @@ import {
   itemStateFromPoeItem,
   listCraftActions,
   listItemClasses,
+  loadCoeCatalog,
   searchBaseTypes,
   searchModTiers,
   simulateCraft,
   simulateCraftPath,
+  estimateCraftSequence,
 } from '@shared/crafting'
+import type { CoeCatalog, CraftSequenceConfig, CraftSequenceRunResult } from '@shared/crafting'
 import type {
   CraftAction,
   CraftApplyResult,
@@ -27,11 +30,26 @@ import type { ModPoolReport } from '@shared/crafting/mod-pool'
 import type { ModSearchHit } from '@shared/crafting/mod-search'
 import { getCraftDataset } from '../crafting-data'
 import { getPoeVersion } from '../game-state'
+import { lookupPrice } from '../trade/prices'
 
 const PLUGIN_ID_PATTERN = /^[\w-]+$/
 
 function assertPoe2(): void {
   if (getPoeVersion() !== 2) throw new Error('Craft simulation is PoE 2 only.')
+}
+
+/** Live ninja/EE prices as chaos-relative overrides (Chaos Orb = 1). */
+function liveChaosPriceOverrides(names: string[]): Record<string, number> {
+  const chaosInfo = lookupPrice('Chaos Orb', 'Chaos Orb')
+  const chaosUnit = chaosInfo?.chaosValue && chaosInfo.chaosValue > 0 ? chaosInfo.chaosValue : 0
+  if (!chaosUnit) return {}
+  const out: Record<string, number> = {}
+  for (const name of names) {
+    const info = lookupPrice(name, name)
+    if (!info?.chaosValue || info.chaosValue <= 0) continue
+    out[name] = info.chaosValue / chaosUnit
+  }
+  return out
 }
 
 function resolveState(item: PoeItem, opts?: CraftResolveOpts) {
@@ -64,7 +82,9 @@ export function registerPluginCraftHandlers(): void {
       assertPoe2()
       const { data, state } = resolveState(item, opts)
       if (!state) throw new Error(`Unknown base type "${item.baseType}" for crafting.`)
-      return simulateCraft(data, state, actionId)
+      return simulateCraft(data, state, actionId, {
+        omens: opts?.omens ?? state.activeOmens,
+      })
     },
   )
 
@@ -119,6 +139,9 @@ export function registerPluginCraftHandlers(): void {
         context?: 'fresh' | 'item'
         poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
         marksmanEnabled?: boolean
+        tierFloor?: number
+        catalyst?: string
+        quality?: number
       },
     ): ModPoolReport => {
       if (!PLUGIN_ID_PATTERN.test(_pluginId)) throw new Error('invalid plugin id')
@@ -221,6 +244,48 @@ export function registerPluginCraftHandlers(): void {
       const data = getCraftDataset()
       if (!data) throw new Error('Crafting data not loaded.')
       return searchModTiers(data, opts)
+    },
+  )
+
+  ipcMain.handle('plugins:craft-get-catalog', async (_evt, _pluginId: string): Promise<CoeCatalog> => {
+    if (!PLUGIN_ID_PATTERN.test(_pluginId)) throw new Error('invalid plugin id')
+    assertPoe2()
+    return loadCoeCatalog()
+  })
+
+  ipcMain.handle(
+    'plugins:craft-sequence',
+    async (_evt, _pluginId: string, config: CraftSequenceConfig): Promise<CraftSequenceRunResult> => {
+      if (!PLUGIN_ID_PATTERN.test(_pluginId)) throw new Error('invalid plugin id')
+      assertPoe2()
+      const data = getCraftDataset()
+      if (!data) throw new Error('Crafting data not loaded.')
+      try {
+        const currencyNames = [
+          ...(data.currencies?.map((c) => c.name) ?? []),
+          ...(data.essences?.map((e) => e.name) ?? []),
+          ...(data.catalysts?.map((c) => c.name) ?? []),
+        ]
+        const live = liveChaosPriceOverrides(currencyNames)
+        // NEVER Monte Carlo on the Electron main thread — that hard-froze Scalpel.
+        // Pool-weight / light target-odds estimate only (milliseconds).
+        const run = Promise.resolve().then(() =>
+          estimateCraftSequence(data, {
+            ...config,
+            rarity: config.rarity ?? 'Normal',
+            chaosPrices: { ...live, ...(config.chaosPrices ?? {}) },
+          }),
+        )
+        const timeout = new Promise<never>((_, reject) => {
+          setTimeout(
+            () => reject(new Error('Sequence estimate timed out (5s) — try Target Odds instead.')),
+            5000,
+          )
+        })
+        return await Promise.race([run, timeout])
+      } catch (err) {
+        throw new Error(err instanceof Error ? err.message : 'Sequence simulation failed.')
+      }
     },
   )
 }

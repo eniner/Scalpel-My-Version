@@ -213,11 +213,23 @@ function GroupRows({
         <td style={{ padding: '5px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{pct(weightPct)}</td>
       </tr>
       {open
-        ? group.tiers.map((t) => (
+        ? [...group.tiers]
+            .sort((a, b) => b.ilvl - a.ilvl || b.spawnWeight - a.spawnWeight)
+            .map((t, i) => (
             <tr key={t.id} style={{ background: 'rgba(255,255,255,0.02)', fontSize: 10 }}>
               <td />
               <td style={{ padding: '4px 6px 4px 18px', opacity: 0.85 }} colSpan={2}>
-                <span style={{ opacity: 0.55, marginRight: 6 }}>{t.name}</span>
+                <span
+                  style={{
+                    opacity: i === 0 ? 1 : 0.55,
+                    marginRight: 6,
+                    color: i === 0 ? '#e6c07b' : 'inherit',
+                    fontWeight: i === 0 ? 700 : 400,
+                  }}
+                >
+                  T{i + 1}
+                </span>
+                <span style={{ opacity: 0.45, marginRight: 6 }}>{t.name}</span>
                 {t.text}
               </td>
               <td style={{ padding: '4px 6px', textAlign: 'right', opacity: 0.7 }}>{t.ilvl}</td>

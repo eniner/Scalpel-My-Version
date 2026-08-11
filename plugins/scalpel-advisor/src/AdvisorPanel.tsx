@@ -2,8 +2,8 @@ import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
 import { useEffect, useState } from 'react'
 import catalogJson from './data/tools-catalog.json'
 import { divineRate, indexPrices, mirrorRateDiv } from './shared/prices'
-import { ToolIcon } from './shared/ToolChrome'
-import { accentBtnStyle, btnStyle, theme } from './shared/theme'
+import { BrandMark, LeagueStamp, Shell, ToolTile } from './shared/ui'
+import { theme } from './shared/theme'
 import { BetrayalTool } from './tools/BetrayalTool'
 import { BeastsTool } from './tools/BeastsTool'
 import { BossProfitTool } from './tools/BossProfitTool'
@@ -42,7 +42,7 @@ export function AdvisorPanel({ ctx }: { ctx: ScalpelPluginContext }): JSX.Elemen
       const { prices } = await ctx.prices.getPrices()
       const byName = indexPrices(prices)
       setRates({ cpd: divineRate(byName), mirrorDiv: mirrorRateDiv(byName) })
-      setStatus(`League ${ctx.getLeague()}`)
+      setStatus(ctx.getLeague())
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err))
     }
@@ -56,12 +56,11 @@ export function AdvisorPanel({ ctx }: { ctx: ScalpelPluginContext }): JSX.Elemen
     const tool = CATALOG.find((t) => t.id === route.toolId)
     if (!tool) {
       return (
-        <div style={{ padding: 12, color: theme.text }}>
-          Unknown tool.{' '}
-          <button type="button" style={btnStyle} onClick={back}>
+        <Shell>
+          <button type="button" onClick={back}>
             Back
           </button>
-        </div>
+        </Shell>
       )
     }
 
@@ -102,114 +101,68 @@ export function AdvisorPanel({ ctx }: { ctx: ScalpelPluginContext }): JSX.Elemen
         return <ScryingTool ctx={ctx} onBack={back} />
       default:
         return (
-          <div style={{ padding: 12, color: theme.text }}>
-            Unknown tool.{' '}
-            <button type="button" style={btnStyle} onClick={back}>
+          <Shell>
+            <button type="button" onClick={back}>
               Back
             </button>
-          </div>
+          </Shell>
         )
     }
   }
 
   return (
-    <div
-      style={{
-        boxSizing: 'border-box',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        padding: 12,
-        background: theme.bg,
-        color: theme.text,
-        overflow: 'auto',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-        <div>
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              color: theme.accent,
-              borderBottom: `2px solid ${theme.accent}`,
-              display: 'inline-block',
-              paddingBottom: 2,
-            }}
-          >
-            Tools
-          </div>
-          <div style={{ color: theme.dim, fontSize: 11, marginTop: 4 }}>Scalpel Advisor · E9</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: theme.dim }}>
-          <span>{status || ctx.getLeague()}</span>
-          <span>Div {Math.round(rates.cpd)} c</span>
-          <span>Mirror {Math.round(rates.mirrorDiv)} d</span>
-          <button type="button" style={accentBtnStyle} onClick={() => void refreshRates()}>
-            Refresh
-          </button>
-        </div>
+    <Shell className="sa-enter">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        <BrandMark subtitle="Scalpel · Atlas drafts for PoE1 farms" />
+        <LeagueStamp
+          league={status || ctx.getLeague()}
+          divine={rates.cpd}
+          mirror={rates.mirrorDiv}
+          onRefresh={() => void refreshRates()}
+        />
       </div>
+
+      <p
+        style={{
+          margin: '4px 0 0',
+          maxWidth: 520,
+          color: theme.dim,
+          fontSize: 13,
+          lineHeight: 1.5,
+        }}
+      >
+        Pick a calculator. Same EV logic as the public farm tools — redrawn for the overlay, priced live from
+        poe.ninja.
+      </p>
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
           gap: 10,
+          overflow: 'auto',
+          paddingBottom: 4,
+          marginTop: 4,
         }}
       >
         {CATALOG.map((tool) => (
-          <div
+          <ToolTile
             key={tool.id}
-            style={{
-              background: theme.panel,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 8,
-              padding: '12px 14px',
-              display: 'flex',
-              gap: 12,
-              alignItems: 'stretch',
-              minHeight: 88,
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 48,
-                flexShrink: 0,
-              }}
-            >
-              <ToolIcon toolId={tool.id} size={40} />
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              <strong style={{ fontSize: 13 }}>{tool.title}</strong>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 'auto' }}>
-                {tool.actions.map((action) => (
-                  <button
-                    key={action}
-                    type="button"
-                    style={btnStyle}
-                    onClick={() => setRoute({ kind: 'tool', toolId: tool.id, action })}
-                  >
-                    {action}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+            toolId={tool.id}
+            title={tool.title}
+            actions={tool.actions}
+            onAction={(action) => setRoute({ kind: 'tool', toolId: tool.id, action })}
+          />
         ))}
       </div>
-    </div>
+    </Shell>
   )
 }

@@ -1,5 +1,5 @@
 import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import rowsJson from '../data/betrayal-rows.json'
 import {
   BETRAYAL_SCARAB_IDS,
@@ -14,6 +14,17 @@ import { ItemName } from '../shared/ItemName'
 import { chaosForId, chaosForName, fmtChaos, fmtSignedChaos, idToName, indexPrices } from '../shared/prices'
 import { ToolHeader } from '../shared/ToolChrome'
 import { inputStyle, theme } from '../shared/theme'
+import {
+  Blurb,
+  FieldLabel,
+  HeroMetric,
+  HeroRow,
+  ListRow,
+  SetupGroup,
+  SplitBody,
+  Workbench,
+  fonts,
+} from '../shared/ui'
 
 const ROWS = rowsJson as BetrayalRow[]
 
@@ -22,6 +33,13 @@ const DEFAULT_MAPS: BetrayalMaps = {
   fortification: 15,
   research: 3.5,
   intervention: 4,
+}
+
+const SAFEHOUSE_LABEL: Record<Safehouse, string> = {
+  transportation: 'Trans',
+  fortification: 'Fort',
+  research: 'Res',
+  intervention: 'Int',
 }
 
 export function BetrayalTool({
@@ -95,7 +113,7 @@ export function BetrayalTool({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%', overflow: 'hidden' }}>
+    <Workbench>
       <ToolHeader
         toolId="betrayal"
         title="Betrayal EV"
@@ -103,132 +121,137 @@ export function BetrayalTool({
         status={status}
         onRefresh={() => void refresh()}
       />
-      <p style={{ margin: 0, color: theme.dim, fontSize: 11 }}>
-        Expected value per map of running Betrayal safehouses. Defaults assume 3-star leaders.
-      </p>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
-        {(['transportation', 'fortification', 'research', 'intervention'] as Safehouse[]).map((k) => (
-          <label key={k} style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: theme.dim }}>
-            Maps / {k.slice(0, 4)}
-            <input
-              style={inputStyle}
-              type="number"
-              step="0.5"
-              value={maps[k]}
-              onChange={(e) => setMap(k, Number(e.target.value) || 1)}
-            />
-          </label>
-        ))}
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: theme.dim }}>
-          Sec / Map
-          <input
-            style={inputStyle}
-            type="number"
-            value={timeSec}
-            onChange={(e) => setTimeSec(Number(e.target.value) || 240)}
-          />
-        </label>
-        {(Object.keys(scarabs) as (keyof BetrayalScarabSel)[]).map((key) => (
-          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-            <input
-              type="checkbox"
-              checked={scarabs[key]}
-              onChange={(e) => setScarabs((s) => ({ ...s, [key]: e.target.checked }))}
-            />
-            {key}{' '}
-            <span style={{ color: theme.dim }}>
-              {scarabPrices[key] != null ? fmtChaos(scarabPrices[key], cpd) : '—'}
-            </span>
-          </label>
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-        <Stat label="GROSS EV / MAP" value={fmtChaos(result.grossEvPerMap, cpd)} />
-        <Stat label="SCARAB COST / MAP" value={fmtSignedChaos(-result.scarabCostPerMap, cpd)} color={theme.red} />
-        <Stat label="NET EV / MAP" value={fmtSignedChaos(result.netEvPerMap, cpd)} color={theme.green} />
-        <Stat label="NET EV / HOUR" value={fmtSignedChaos(result.netEvPerHour, cpd)} color={theme.green} />
-      </div>
-
-      <div style={{ flex: 1, overflow: 'auto', border: `1px solid ${theme.border}`, borderRadius: 6 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead>
-            <tr style={{ color: theme.dim, textAlign: 'left' }}>
-              <th style={th}>ITEM</th>
-              <th style={th}>PRICE</th>
-              <th style={th}>DROP %</th>
-              <th style={th}>EV / SH</th>
-              <th style={th}>EV / MAP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.rows.map(({ row, price, dropPct, evPerSafehouse, evPerMap }) => (
-              <tr key={row.id} style={{ borderTop: `1px solid ${theme.border}` }}>
-                <td style={td}>
-                  <ItemName
-                    name={row.name}
-                    opts={{
-                      priceIcons,
-                      aliases: [
-                        ...(row.uniqueName ? [row.uniqueName] : []),
-                        ...(row.currencyId ? [idToName(row.currencyId)] : []),
-                      ],
-                    }}
-                  >
-                    {row.name}
-                    {row.safehouse ? (
-                      <span style={{ color: theme.dim }}> ({row.safehouse})</span>
-                    ) : null}
-                  </ItemName>
-                </td>
-                <td style={td}>
+      <SplitBody
+        railWidth={260}
+        rail={
+          <>
+            <SetupGroup title="Maps per safehouse">
+              {(['transportation', 'fortification', 'research', 'intervention'] as Safehouse[]).map((k) => (
+                <FieldLabel key={k} label={`Maps / ${SAFEHOUSE_LABEL[k]}`}>
                   <input
-                    style={{ ...inputStyle, width: 80 }}
-                    value={price != null ? String(Math.round(price * 100) / 100) : ''}
-                    placeholder="—"
-                    onChange={(e) => {
-                      const v = Number(e.target.value)
-                      setPrices((p) => ({ ...p, [row.id]: Number.isFinite(v) ? v : null }))
-                    }}
-                  />
-                </td>
-                <td style={td}>
-                  <input
-                    style={{ ...inputStyle, width: 56 }}
+                    style={{ ...inputStyle, width: '100%' }}
                     type="number"
-                    value={dropPct}
-                    onChange={(e) =>
-                      setDrops((d) => ({ ...d, [row.id]: Number(e.target.value) || 0 }))
-                    }
+                    step="0.5"
+                    value={maps[k]}
+                    onChange={(e) => setMap(k, Number(e.target.value) || 1)}
                   />
-                </td>
-                <td style={{ ...td, color: theme.purple }}>{fmtChaos(evPerSafehouse, cpd)}</td>
-                <td style={{ ...td, color: theme.green }}>{fmtChaos(evPerMap, cpd)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                </FieldLabel>
+              ))}
+            </SetupGroup>
+            <SetupGroup title="Pacing">
+              <FieldLabel label="Sec / Map">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={timeSec}
+                  onChange={(e) => setTimeSec(Number(e.target.value) || 240)}
+                />
+              </FieldLabel>
+            </SetupGroup>
+            <SetupGroup title="Scarabs">
+              {(Object.keys(scarabs) as (keyof BetrayalScarabSel)[]).map((key) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: theme.text }}>
+                  <input
+                    type="checkbox"
+                    checked={scarabs[key]}
+                    onChange={(e) => setScarabs((s) => ({ ...s, [key]: e.target.checked }))}
+                  />
+                  <ItemName
+                    name={idToName(BETRAYAL_SCARAB_IDS[key])}
+                    size={16}
+                    opts={{ priceIcons }}
+                    style={{ flex: 1 }}
+                  >
+                    <span style={{ textTransform: 'capitalize' }}>{key}</span>
+                  </ItemName>
+                  <span className="sa-num" style={{ color: theme.dim, fontSize: 10 }}>
+                    {scarabPrices[key] != null ? fmtChaos(scarabPrices[key], cpd) : '—'}
+                  </span>
+                </label>
+              ))}
+            </SetupGroup>
+            <SetupGroup title="About" defaultOpen={false}>
+              <Blurb>
+                Expected value per map of running Betrayal safehouses. Defaults assume 3-star leaders.
+              </Blurb>
+            </SetupGroup>
+          </>
+        }
+        stage={
+          <>
+            <HeroRow>
+              <HeroMetric label="Gross EV / Map" value={fmtChaos(result.grossEvPerMap, cpd)} tone="accent" />
+              <HeroMetric
+                label="Scarab Cost / Map"
+                value={fmtSignedChaos(-result.scarabCostPerMap, cpd)}
+                tone="warn"
+              />
+              <HeroMetric label="Net EV / Map" value={fmtSignedChaos(result.netEvPerMap, cpd)} tone="good" />
+              <HeroMetric label="Net EV / Hour" value={fmtSignedChaos(result.netEvPerHour, cpd)} tone="good" />
+            </HeroRow>
+
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: `1px solid ${theme.border}` }}>
+              {result.rows.map(({ row, price, dropPct, evPerSafehouse, evPerMap }) => (
+                <ListRow
+                  key={row.id}
+                  leading={
+                    <div>
+                      <ItemName
+                        name={row.name}
+                        opts={{
+                          priceIcons,
+                          aliases: [
+                            ...(row.uniqueName ? [row.uniqueName] : []),
+                            ...(row.currencyId ? [idToName(row.currencyId)] : []),
+                          ],
+                        }}
+                        style={{ fontFamily: fonts.display, fontSize: 14, color: theme.ink }}
+                      >
+                        {row.name}
+                        {row.safehouse ? (
+                          <span style={{ color: theme.dim, fontFamily: fonts.ui, fontSize: 11 }}>
+                            {' '}
+                            ({row.safehouse})
+                          </span>
+                        ) : null}
+                      </ItemName>
+                    </div>
+                  }
+                  trailing={
+                    <>
+                      <input
+                        style={{ ...inputStyle, width: 72 }}
+                        value={price != null ? String(Math.round(price * 100) / 100) : ''}
+                        placeholder="—"
+                        onChange={(e) => {
+                          const v = Number(e.target.value)
+                          setPrices((p) => ({ ...p, [row.id]: Number.isFinite(v) ? v : null }))
+                        }}
+                      />
+                      <input
+                        style={{ ...inputStyle, width: 52 }}
+                        type="number"
+                        value={dropPct}
+                        title="Drop %"
+                        onChange={(e) =>
+                          setDrops((d) => ({ ...d, [row.id]: Number(e.target.value) || 0 }))
+                        }
+                      />
+                      <span className="sa-num" style={{ color: theme.purple, minWidth: 52, textAlign: 'right', fontSize: 11 }}>
+                        {fmtChaos(evPerSafehouse, cpd)}
+                      </span>
+                      <span className="sa-num" style={{ color: theme.green, minWidth: 52, textAlign: 'right', fontSize: 11 }}>
+                        {fmtChaos(evPerMap, cpd)}
+                      </span>
+                    </>
+                  }
+                />
+              ))}
+            </div>
+          </>
+        }
+      />
+    </Workbench>
   )
 }
-
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div
-      style={{
-        background: theme.panel,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 6,
-        padding: '8px 10px',
-      }}
-    >
-      <div style={{ fontSize: 9, color: theme.dim, letterSpacing: '0.04em' }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: color ?? theme.text }}>{value}</div>
-    </div>
-  )
-}
-
-const th: CSSProperties = { padding: '6px 8px', fontWeight: 500, fontSize: 10 }
-const td: CSSProperties = { padding: '5px 8px' }

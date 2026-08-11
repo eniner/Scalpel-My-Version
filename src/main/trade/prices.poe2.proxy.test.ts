@@ -142,7 +142,7 @@ describe('applyProxyResponse (EE2 proxy math)', () => {
     expect(map.has('mirror of kalandra')).toBe(true)
   })
 
-  it('last write wins when the same name appears in multiple overviews', () => {
+  it('keeps the higher divine when the same name appears in multiple overviews', () => {
     const map = new Map<string, PriceInfo>()
     applyProxyResponse(
       resp({
@@ -155,6 +155,21 @@ describe('applyProxyResponse (EE2 proxy math)', () => {
       map,
     )
     expect(map.get('repeated')).toMatchObject({ chaosValue: 300, divineValue: 3 })
+  })
+
+  it('does not let a cheaper duplicate overwrite a higher ask', () => {
+    const map = new Map<string, PriceInfo>()
+    applyProxyResponse(
+      resp({
+        rates: { exalted: 100 },
+        itemOverviews: [
+          { type: 'Currency', lines: [{ name: 'Repeated', primaryValue: 5 }] },
+          { type: 'Essences', lines: [{ name: 'Repeated', primaryValue: 2 }] },
+        ],
+      }),
+      map,
+    )
+    expect(map.get('repeated')).toMatchObject({ chaosValue: 500, divineValue: 5 })
   })
 
   it('tolerates missing itemOverviews', () => {

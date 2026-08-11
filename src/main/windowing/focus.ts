@@ -106,6 +106,8 @@ export function hideAllOnPoeBlur(): void {
   if (isAnyScalpelWindowFocused()) return
   for (const state of overlays.values()) {
     if (!state.win || state.win.isDestroyed()) continue
+    // Pinned overlays stay up across PoE blur (filter section editor keep-open).
+    if (state.stayOpenOnPoeBlur) continue
     state.wasVisibleBeforeFocusLoss = state.win.isVisible()
     if (state.wasVisibleBeforeFocusLoss) state.win.hide()
   }
@@ -155,6 +157,8 @@ export function hideFocusedOrAnyVisibleSecondaryOverlay(): boolean {
 function hideOverlayState(state: import('./state').OverlayState): void {
   if (!state.win || state.win.isDestroyed()) return
   state.wasVisibleBeforeFocusLoss = false
+  // Esc / explicit hide clears pin so blur-hide exemption doesn't stick.
+  state.stayOpenOnPoeBlur = false
   state.win.hide()
 }
 

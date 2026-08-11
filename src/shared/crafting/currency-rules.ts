@@ -31,5 +31,7 @@ export function simKeyForCurrencyName(name: string, cat?: string): string | null
   if (n === 'fracturing orb') return 'fracture'
   if (n === 'vaal orb') return 'vaal'
   if (n.includes('essence') || cat === 'essence') return `essence:${name}`
+  if (cat === 'catalyst' || n.endsWith(' catalyst')) return 'catalyst'
+  if (n.includes('artificer')) return 'artificer'
   return null
 }

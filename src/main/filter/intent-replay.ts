@@ -1,11 +1,14 @@
 // src/main/filter/intent-replay.ts
 
-import type { ActionType, ComparisonOperator, FilterBlock, FilterFile } from '@shared/types'
+import type { ActionType, ComparisonOperator, FilterBlock, FilterCondition, FilterFile } from '@shared/types'
 import type {
+  InsertSectionRulePayload,
   Intent,
   IntentLog,
   MoveBaseTypePayload,
+  RemoveBaseTypePayload,
   SetActionPayload,
+  SetConditionPayload,
   SetThresholdPayload,
   SetVisibilityPayload,
 } from './intents'
@@ -57,13 +60,48 @@ function findBaseTypeInFilter(filter: FilterFile, value: string): { block: Filte
   return null
 }
 
+function findFirstBlockOfType(filter: FilterFile, typePath: string): number {
+  for (let i = 0; i < filter.blocks.length; i++) {
+    if (filter.blocks[i].tierTag?.typePath === typePath) return i
+  }
+  return Math.max(0, filter.blocks.length - 1)
+}
+
+function upsertCondition(block: FilterBlock, cond: FilterCondition): void {
+  if (cond.type === 'BaseType') return
+  const existing = block.conditions.find((c) => c.type === cond.type)
+  if (existing) {
+    existing.operator = cond.operator
+    existing.values = [...cond.values]
+    existing.explicitOperator = cond.explicitOperator
+  } else {
+    const baseIdx = block.conditions.findIndex((c) => c.type === 'BaseType')
+    const row = { ...cond, values: [...cond.values] }
+    if (baseIdx >= 0) block.conditions.splice(baseIdx, 0, row)
+    else block.conditions.push(row)
+  }
+}
+
+function ensureBaseType(block: FilterBlock, value: string): void {
+  const bt = block.conditions.find((c) => c.type === 'BaseType')
+  if (bt) {
+    if (!bt.values.includes(value)) bt.values.push(value)
+  } else {
+    block.conditions.push({
+      type: 'BaseType',
+      operator: '==',
+      values: [value],
+      explicitOperator: true,
+    })
+  }
+}
+
 export function replayIntents(
   upstreamContent: string,
   upstreamPath: string,
   intentLog: IntentLog,
   options?: { resolutions?: Map<number, 'keep-mine' | 'take-upstream'>; forceApply?: boolean },
 ): ReplayResult {
-  // Parse a working copy of the upstream filter
   const filter = parseFilterFile(upstreamPath, upstreamContent)
   const conflicts: ReplayConflict[] = []
   const modifiedBlocks = new Set<number>()
@@ -75,6 +113,66 @@ export function replayIntents(
     const intent = intentLog.intents[i]
     const { typePath, tier } = intent.target
     const match = findBlockByTierTag(filter, typePath, tier)
+    const resolution = options?.resolutions?.get(i)
+    const forceApply = options?.forceApply ?? false
+
+    if (intent.type === 'insert-section-rule') {
+      const p = intent.payload as InsertSectionRulePayload
+      if (match) {
+        ensureBaseType(match.block, p.baseType)
+        match.block.visibility = p.visibility
+        for (const c of p.conditions) upsertCondition(match.block, c)
+        for (const a of p.actions) {
+          const existing = match.block.actions.find((x) => x.type === a.type)
+          if (existing) existing.values = [...a.values]
+          else match.block.actions.push({ ...a, values: [...a.values] })
+        }
+        modifiedBlocks.add(match.index)
+        applied++
+      } else {
+        const insertAt = findFirstBlockOfType(filter, typePath)
+        const styleNeighbor = filter.blocks[insertAt]
+        const newBlock: FilterBlock = {
+          id: `replay-insert-${Date.now()}-${i}`,
+          visibility: p.visibility,
+          conditions: [
+            ...p.conditions.map((c) => ({ ...c, values: [...c.values] })),
+            { type: 'BaseType', operator: '==', values: [p.baseType], explicitOperator: true },
+          ],
+          actions:
+            p.actions.length > 0
+              ? p.actions.map((a) => ({ ...a, values: [...a.values] }))
+              : (styleNeighbor?.actions ?? []).map((a) => ({ ...a, values: [...a.values] })),
+          continue: false,
+          lineStart: 0,
+          lineEnd: 0,
+          inlineComment: `$type->${typePath} $tier->${tier}`,
+          tierTag: { typePath, tier },
+        }
+        filter.blocks.splice(insertAt, 0, newBlock)
+        const shift = (set: Set<number>): void => {
+          const next = [...set].map((idx) => (idx >= insertAt ? idx + 1 : idx))
+          set.clear()
+          for (const idx of next) set.add(idx)
+        }
+        shift(modifiedBlocks)
+        shift(removedBlocks)
+        modifiedBlocks.add(insertAt)
+        applied++
+      }
+      continue
+    }
+
+    if (intent.type === 'delete-block') {
+      if (!match) {
+        applied++
+        continue
+      }
+      removedBlocks.add(match.index)
+      modifiedBlocks.delete(match.index)
+      applied++
+      continue
+    }
 
     if (!match) {
       conflicts.push({
@@ -86,13 +184,16 @@ export function replayIntents(
       continue
     }
 
-    // Check if user provided a resolution for this intent
-    const resolution = options?.resolutions?.get(i)
-    const forceApply = options?.forceApply ?? false
-
     if (intent.type === 'move-basetype') {
       const p = intent.payload as MoveBaseTypePayload
       const current = findBaseTypeInFilter(filter, p.value)
+
+      if (!current && p.fromTier === '__new__') {
+        ensureBaseType(match.block, p.value)
+        modifiedBlocks.add(match.index)
+        applied++
+        continue
+      }
 
       if (!current) {
         conflicts.push({
@@ -104,18 +205,15 @@ export function replayIntents(
         continue
       }
 
-      // Check if upstream also moved it (it's not in fromTier anymore)
       const isInOriginalTier = current.block.tierTag?.tier === p.fromTier
       const isAlreadyInTarget = current.block.tierTag?.tier === tier && current.block.tierTag?.typePath === typePath
 
       if (isAlreadyInTarget) {
-        // Already where we want it
         applied++
         continue
       }
 
-      if (!isInOriginalTier && !resolution && !forceApply) {
-        // Upstream moved it somewhere else - conflict
+      if (!isInOriginalTier && p.fromTier !== '__new__' && !resolution && !forceApply) {
         const upstreamTier = current.block.tierTag?.tier ?? 'unknown'
         conflicts.push({
           intent,
@@ -134,41 +232,39 @@ export function replayIntents(
         continue
       }
 
-      // Apply the move: remove from current location, add to target
-      // Remove from current block's BaseType condition
       for (const cond of current.block.conditions) {
         if (cond.type === 'BaseType') {
           cond.values = cond.values.filter((v) => v !== p.value)
         }
       }
-      // Drop any BaseType condition that is now empty so we never serialize a
-      // dangling "BaseType ==" line (PoE parse error).
       current.block.conditions = current.block.conditions.filter(
         (c) => !(c.type === 'BaseType' && c.values.length === 0),
       )
       if (current.block.conditions.length === 0) {
-        // The move emptied the block's only condition; a condition-less block is a
-        // catch-all that matches every item. Drop the whole block instead.
         removedBlocks.add(current.index)
         modifiedBlocks.delete(current.index)
       } else {
         modifiedBlocks.add(current.index)
       }
-      // Add to target block's BaseType condition
-      const targetBaseType = match.block.conditions.find((c) => c.type === 'BaseType')
-      if (targetBaseType) {
-        if (!targetBaseType.values.includes(p.value)) {
-          targetBaseType.values.push(p.value)
-        }
-      } else {
-        match.block.conditions.push({
-          type: 'BaseType',
-          operator: '==',
-          values: [p.value],
-          explicitOperator: true,
-        })
-      }
+      ensureBaseType(match.block, p.value)
       modifiedBlocks.add(match.index)
+      applied++
+    } else if (intent.type === 'remove-basetype') {
+      const p = intent.payload as RemoveBaseTypePayload
+      for (const cond of match.block.conditions) {
+        if (cond.type === 'BaseType') {
+          cond.values = cond.values.filter((v) => v !== p.value)
+        }
+      }
+      match.block.conditions = match.block.conditions.filter(
+        (c) => !(c.type === 'BaseType' && c.values.length === 0),
+      )
+      if (match.block.conditions.length === 0) {
+        removedBlocks.add(match.index)
+        modifiedBlocks.delete(match.index)
+      } else {
+        modifiedBlocks.add(match.index)
+      }
       applied++
     } else if (intent.type === 'set-visibility') {
       const p = intent.payload as SetVisibilityPayload
@@ -181,13 +277,33 @@ export function replayIntents(
       if (cond) {
         cond.operator = p.operator as ComparisonOperator
         cond.values = [String(p.value)]
+      } else {
+        upsertCondition(match.block, {
+          type: p.condition,
+          operator: p.operator as ComparisonOperator,
+          values: [String(p.value)],
+          explicitOperator: true,
+        })
+      }
+      modifiedBlocks.add(match.index)
+      applied++
+    } else if (intent.type === 'set-condition') {
+      const p = intent.payload as SetConditionPayload
+      if (!p.values.length) {
+        match.block.conditions = match.block.conditions.filter((c) => c.type !== p.condition)
+      } else {
+        upsertCondition(match.block, {
+          type: p.condition,
+          operator: (p.operator || '==') as ComparisonOperator,
+          values: [...p.values],
+          explicitOperator: true,
+        })
       }
       modifiedBlocks.add(match.index)
       applied++
     } else if (intent.type === 'set-action') {
       const p = intent.payload as SetActionPayload
       if (p.values.length === 0) {
-        // Remove the action
         match.block.actions = match.block.actions.filter((a) => a.type !== p.action)
       } else {
         const existing = match.block.actions.find((a) => a.type === p.action)
@@ -199,15 +315,16 @@ export function replayIntents(
       }
       modifiedBlocks.add(match.index)
       applied++
+    } else {
+      skipped++
     }
   }
 
-  // Return the modified filter object - caller handles serialization and I/O
   return {
     filter,
     modifiedBlocks,
     removedBlocks,
     conflicts,
-    stats: { applied, skipped: skipped - conflicts.length, conflicts: conflicts.length },
+    stats: { applied, skipped: Math.max(0, skipped - conflicts.length), conflicts: conflicts.length },
   }
 }

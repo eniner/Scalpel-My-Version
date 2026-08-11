@@ -52,21 +52,59 @@ function findDataFile(dir, subdir, pattern) {
   return hit ? path.join(folder, hit) : null
 }
 
+function isNum(x) {
+  return typeof x === 'number' || (typeof x === 'string' && x !== '' && Number.isFinite(Number(x)))
+}
+
+/** Extract [min,max] pairs from CoE nvalues for Divine re-rolls. */
+function parseRanges(nvalues) {
+  try {
+    const vals = JSON.parse(nvalues)
+    const flat = []
+    function walk(v) {
+      if (Array.isArray(v) && v.length === 2 && isNum(v[0]) && isNum(v[1])) {
+        flat.push([Number(v[0]), Number(v[1])])
+        return
+      }
+      if (Array.isArray(v)) {
+        v.forEach(walk)
+        return
+      }
+    }
+    walk(vals)
+    return flat
+  } catch {
+    return []
+  }
+}
+
 function formatModText(name, nvalues) {
   let text = name || ''
   try {
     const vals = JSON.parse(nvalues)
     const flat = []
     function walk(v) {
-      if (Array.isArray(v)) v.forEach(walk)
-      else flat.push(v)
+      // CoE stores each # placeholder as [min, max] (sometimes nested one level).
+      if (Array.isArray(v) && v.length === 2 && isNum(v[0]) && isNum(v[1])) {
+        flat.push([Number(v[0]), Number(v[1])])
+        return
+      }
+      if (Array.isArray(v)) {
+        v.forEach(walk)
+        return
+      }
+      flat.push(v)
     }
     walk(vals)
     let i = 0
     text = text.replace(/#/g, () => {
       const v = flat[i++]
       if (v == null) return '#'
-      if (Array.isArray(v)) return `(${v[0]}-${v[1]})`
+      if (Array.isArray(v)) {
+        const [a, b] = v
+        if (a === b) return String(a)
+        return `(${a}-${b})`
+      }
       return String(v)
     })
   } catch {
@@ -212,7 +250,123 @@ function buildMarksmanPool(coe, lang, computeMgroups) {
   return mods
 }
 
-function buildDataset(coe, lang) {
+/** CoE sometimes ships bitems whose id_base master was removed — infer slot from art path. */
+const ORPHAN_CLASS_FROM_IMG = [
+  [/BodyArmours/i, { c: 'Body Armours', bgroup: '2' }],
+  [/Boots/i, { c: 'Boots', bgroup: '3' }],
+  [/Gloves/i, { c: 'Gloves', bgroup: '5' }],
+  [/Helmets/i, { c: 'Helmets', bgroup: '4' }],
+  [/Belts|Amulets|Rings/i, { c: 'Jewellery', bgroup: '1' }],
+]
+
+function resolveBaseClass(bitem, master, bgroupById) {
+  const bgroup = master ? bgroupById[master.id_bgroup] : null
+  if (bgroup?.name_bgroup) {
+    return { className: bgroup.name_bgroup, bgroupId: master.id_bgroup }
+  }
+  if (master?.name_base) {
+    return { className: master.name_base, bgroupId: master.id_bgroup }
+  }
+  const img = bitem.imgurl || ''
+  for (const [re, info] of ORPHAN_CLASS_FROM_IMG) {
+    if (re.test(img)) return { className: info.c, bgroupId: info.bgroup }
+  }
+  return { className: 'Item', bgroupId: undefined }
+}
+
+function buildCatalysts(coe) {
+  return (coe.catalysts?.seq || []).map((c) => ({
+    id: String(c.id_catalyst),
+    name: c.name_catalyst,
+    tags: String(c.tags || '')
+      .split('|')
+      .map((t) => t.trim())
+      .filter(Boolean),
+  }))
+}
+
+function buildSocketables(coe, lang) {
+  const modById = Object.fromEntries((coe.modifiers?.seq || []).map((m) => [m.id_modifier, m]))
+  return (coe.socketables?.seq || []).map((s) => {
+    let mods = {}
+    try {
+      mods = JSON.parse(s.mods || '{}')
+    } catch {
+      mods = {}
+    }
+    const texts = {}
+    for (const [slot, modId] of Object.entries(mods)) {
+      if (modId == null || modId === '' || Array.isArray(modId)) continue
+      const mod = modById[String(modId)]
+      if (!mod) continue
+      const name = lang?.mod?.[String(modId)] || mod.name_modifier
+      if (name) texts[slot] = name
+    }
+    return {
+      id: String(s.id_socketable),
+      stype: s.stype || 'rune',
+      name: s.name_socketable,
+      mods,
+      ...(Object.keys(texts).length ? { texts } : {}),
+      img: s.imgurl || undefined,
+    }
+  })
+}
+
+function resolvePricesDir(srcDir) {
+  const candidates = [path.join(srcDir, 'prices'), path.join(DEFAULT_MIRROR, 'prices')]
+  for (const dir of candidates) {
+    if (!fs.existsSync(dir)) continue
+    const hit = fs.readdirSync(dir).find((f) => f.startsWith('poec_prices') && f.endsWith('.json'))
+    if (hit) return dir
+  }
+  return null
+}
+
+function buildChaosPrices(srcDir) {
+  const pricesDir = resolvePricesDir(srcDir)
+  if (!pricesDir) return {}
+  const file = fs.readdirSync(pricesDir).find((f) => f.startsWith('poec_prices') && f.endsWith('.json'))
+  if (!file) return {}
+  try {
+    const raw = fs.readFileSync(path.join(pricesDir, file), 'utf8')
+    const json = JSON.parse(raw.replace(/^poecp=/, '').replace(/;\s*$/, ''))
+    const leagues = Object.keys(json.data || {})
+    // Prefer Softcore-ish league; skip HC unless that's all we have.
+    const league =
+      leagues.find((n) => /runes of|standard|soft/i.test(n) && !/^hc\b/i.test(n)) ||
+      leagues.find((n) => !/^hc\b/i.test(n)) ||
+      leagues[0]
+    if (!league) return {}
+    const block = json.data[league] || {}
+    const out = {}
+    for (const cat of ['currency', 'essences', 'omens', 'runes', 'talismans', 'catalysts', 'abyss']) {
+      const map = block[cat]
+      if (!map || typeof map !== 'object' || Array.isArray(map)) continue
+      for (const [name, val] of Object.entries(map)) {
+        const n = Number(val)
+        if (Number.isFinite(n) && n > 0) out[name] = n
+      }
+    }
+    // soulcores sometimes array — skip
+    out.__league = league
+    return out
+  } catch (e) {
+    console.warn('chaos prices bake failed:', e.message || e)
+    return {}
+  }
+}
+
+function buildMaxSocketsByClass(coe) {
+  const out = {}
+  for (const g of coe.bgroups?.seq || []) {
+    const n = Number(g.max_sockets)
+    if (g.name_bgroup && Number.isFinite(n) && n > 0) out[g.name_bgroup] = n
+  }
+  return out
+}
+
+function buildDataset(coe, lang, srcDir = resolveSourceDir()) {
   const modifiers = coe.modifiers.seq
   const modById = Object.fromEntries(modifiers.map((m) => [m.id_modifier, m]))
   const mgroupById = Object.fromEntries(coe.mgroups.seq.map((g) => [g.id_mgroup, g]))
@@ -233,8 +387,7 @@ function buildDataset(coe, lang) {
     if (!baseName) continue
 
     const master = baseMasterById[bitem.id_base]
-    const bgroup = master ? bgroupById[master.id_bgroup] : null
-    const className = bgroup?.name_bgroup || master?.name_base || 'Item'
+    const { className, bgroupId } = resolveBaseClass(bitem, master, bgroupById)
     const tags = new Set([baseName, 'default'])
     if (master?.is_jewellery === '1') tags.add('jewellery')
     if (master?.is_martial === '1') tags.add('martial')
@@ -243,7 +396,7 @@ function buildDataset(coe, lang) {
       tags: [...tags],
       c: className,
       coeId: bitem.id_bitem,
-      bgroup: master?.id_bgroup,
+      bgroup: bgroupId,
     }
 
     const modIds = modIdsForBitem(coe, bitem)
@@ -272,6 +425,7 @@ function buildDataset(coe, lang) {
 
         const displayName = tier.alias || lang?.mod?.[modId] || mod.name_modifier || primaryGroup
         const text = formatModText(mod.name_modifier, tier.nvalues)
+        const ranges = parseRanges(tier.nvalues)
 
         mods.push({
           id,
@@ -283,6 +437,7 @@ function buildDataset(coe, lang) {
           t: text,
           w: [[baseName, weight]],
           ...(adds.length ? { a: adds } : {}),
+          ...(ranges.length ? { ranges } : {}),
         })
       })
     }
@@ -312,6 +467,7 @@ function buildDataset(coe, lang) {
 
         const displayName = tier.alias || lang?.mod?.[modId] || mod.name_modifier || primaryGroup
         const text = formatModText(mod.name_modifier, tier.nvalues)
+        const ranges = parseRanges(tier.nvalues)
 
         mods.push({
           id,
@@ -323,6 +479,7 @@ function buildDataset(coe, lang) {
           t: text,
           w: [[baseName, weight]],
           ...(adds.length ? { a: adds } : {}),
+          ...(ranges.length ? { ranges } : {}),
           desecrated: true,
         })
       })
@@ -334,6 +491,11 @@ function buildDataset(coe, lang) {
 
   const currencies = buildCurrencies(coe)
   const essences = buildEssences(coe, lang)
+  const catalysts = buildCatalysts(coe)
+  const socketables = buildSocketables(coe, lang)
+  const chaosPricesRaw = buildChaosPrices(srcDir)
+  const { __league, ...chaosPrices } = chaosPricesRaw
+  const maxSocketsByClass = buildMaxSocketsByClass(coe)
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -344,6 +506,10 @@ function buildDataset(coe, lang) {
     bases,
     currencies,
     essences,
+    catalysts,
+    socketables,
+    maxSocketsByClass,
+    chaosPrices,
   }
 }
 
@@ -518,8 +684,9 @@ function buildEssences(coe, lang) {
 
 function copySourceToBundled(srcDir) {
   fs.mkdirSync(BUNDLED_SOURCE, { recursive: true })
-  for (const sub of ['main', 'lang']) {
-    const from = path.join(srcDir, sub)
+  for (const sub of ['main', 'lang', 'prices']) {
+    let from = path.join(srcDir, sub)
+    if (!fs.existsSync(from) && sub === 'prices') from = path.join(DEFAULT_MIRROR, 'prices')
     if (!fs.existsSync(from)) continue
     const to = path.join(BUNDLED_SOURCE, sub)
     fs.mkdirSync(to, { recursive: true })
@@ -541,11 +708,14 @@ function main() {
   if (srcDir !== BUNDLED_SOURCE) {
     console.log(`copying CoE source from ${srcDir} → coe-source/`)
     copySourceToBundled(srcDir)
+  } else {
+    // Bundled main/lang may predate prices — sync from Desktop mirror when present.
+    copySourceToBundled(srcDir)
   }
 
   const coe = parseCoEFile(dataFile, 'poecd=')
   const lang = langFile ? parseCoEFile(langFile, 'poecl=') : {}
-  const dataset = buildDataset(coe, lang)
+  const dataset = buildDataset(coe, lang, srcDir)
 
   fs.mkdirSync(OUT_DIR, { recursive: true })
   const json = `${JSON.stringify(dataset)}\n`
@@ -564,6 +734,10 @@ function main() {
         marksmanModCount: dataset.marksmanMods?.length ?? 0,
         baseCount: Object.keys(dataset.bases).length,
         currencyCount: dataset.currencies.length,
+        essenceCount: dataset.essences?.length ?? 0,
+        catalystCount: dataset.catalysts?.length ?? 0,
+        socketableCount: dataset.socketables?.length ?? 0,
+        priceCount: Object.keys(dataset.chaosPrices || {}).length,
       },
       null,
       2,
@@ -571,7 +745,7 @@ function main() {
     'utf8',
   )
   console.log(
-    `wrote ${(json.length / 1048576).toFixed(2)}MB CoE dataset: ${dataset.mods.length} tier-mods, ${dataset.marksmanMods?.length ?? 0} marksman, ${Object.keys(dataset.bases).length} bases, ${dataset.currencies.length} currencies`,
+    `wrote ${(json.length / 1048576).toFixed(2)}MB CoE dataset: ${dataset.mods.length} tier-mods, ${dataset.marksmanMods?.length ?? 0} marksman, ${Object.keys(dataset.bases).length} bases, ${dataset.currencies.length} currencies, ${dataset.essences?.length ?? 0} essences, ${dataset.catalysts?.length ?? 0} catalysts, ${dataset.socketables?.length ?? 0} socketables, ${Object.keys(dataset.chaosPrices || {}).length} prices`,
   )
 }
 

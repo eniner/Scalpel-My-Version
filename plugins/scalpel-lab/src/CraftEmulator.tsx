@@ -5,27 +5,8 @@ import type { PoeItem } from '@scalpelpoe/plugin-sdk'
 import { inputStyle, selectStyle } from './craft-utils'
 import type { CraftTabProps } from './craft-build-context'
 import { resolveMarksmanEnabled } from './craft-build-context'
-
-const EMULATOR_OMENS = [
-  { id: 'dextral_exaltation', label: 'Dextral Exalt' },
-  { id: 'sinistral_exaltation', label: 'Sinistral Exalt' },
-  { id: 'greater_exaltation', label: 'Greater Exalt' },
-  { id: 'dextral_erasure', label: 'Dextral Erasure' },
-  { id: 'sinistral_erasure', label: 'Sinistral Erasure' },
-  { id: 'whittling', label: 'Whittling' },
-  { id: 'dextral_annulment', label: 'Dextral Annul' },
-  { id: 'sinistral_annulment', label: 'Sinistral Annul' },
-  { id: 'dextral_coronation', label: 'Dextral Regal' },
-  { id: 'sinistral_coronation', label: 'Sinistral Regal' },
-  { id: 'dextral_necromancy', label: 'Dextral Necro' },
-  { id: 'sinistral_necromancy', label: 'Sinistral Necro' },
-  { id: 'abyssal_echoes', label: 'Abyssal Echoes' },
-  { id: 'liege', label: 'Liege' },
-  { id: 'sovereign', label: 'Sovereign' },
-  { id: 'blackblooded', label: 'Blackblooded' },
-  { id: 'dextral_crystallisation', label: 'Dextral Crystal' },
-  { id: 'sinistral_crystallisation', label: 'Sinistral Crystal' },
-] as const
+import { LAB_OMENS, omenIconName } from './craft-omens'
+import { ItemIcon } from './ItemIcon'
 
 type CraftActionResult = Awaited<ReturnType<CraftApi['listActions']>>[number]
 
@@ -41,6 +22,7 @@ interface CraftEmulatorProps extends CraftTabProps {
   virt: CraftItemStateResult | null
   onVirtChange: (state: CraftItemStateResult | null) => void
   onItemChange: (item: PoeItem | null) => void
+  onOpenSimulator?: () => void
 }
 
 const QUICK_ORBS = [
@@ -51,6 +33,10 @@ const QUICK_ORBS = [
   'Orb of Alchemy',
   'Chaos Orb',
   'Exalted Orb',
+  'Greater Exalted Orb',
+  'Perfect Exalted Orb',
+  'Greater Chaos Orb',
+  'Perfect Chaos Orb',
   'Orb of Annulment',
   'Orb of Scouring',
 ]
@@ -89,6 +75,7 @@ export function CraftEmulator({
   onItemChange,
   buildContext,
   onSmartImport,
+  onOpenSimulator,
 }: CraftEmulatorProps): JSX.Element {
   const [history, setHistory] = useState<HistoryStep[]>([])
   const [actions, setActions] = useState<CraftActionResult[]>([])
@@ -275,7 +262,16 @@ export function CraftEmulator({
         <Button disabled={busy || !virt} onClick={reset}>
           Reset
         </Button>
+        {onOpenSimulator ? (
+          <Button disabled={!virt} onClick={onOpenSimulator}>
+            Simulate odds →
+          </Button>
+        ) : null}
       </div>
+      <p style={{ margin: 0, fontSize: 11, opacity: 0.65, lineHeight: 1.45 }}>
+        Emulator applies one craft at a time. For outcome % tables, use <strong>Simulator</strong> (or the button
+        above).
+      </p>
 
       {error ? (
         <div
@@ -458,23 +454,27 @@ export function CraftEmulator({
         <section style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
           <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Active omens</h3>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxHeight: 72, overflow: 'auto' }}>
-            {EMULATOR_OMENS.map((o) => {
+            {LAB_OMENS.map((o) => {
               const on = virt?.activeOmens?.includes(o.id)
               return (
                 <button
                   key={o.id}
                   type="button"
                   disabled={!virt || busy}
-                  title={o.id}
+                  title={omenIconName(o.id)}
                   onClick={() => toggleOmen(o.id)}
                   style={{
                     ...selectStyle,
                     fontSize: 10,
                     padding: '4px 6px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
                     background: on ? 'rgba(200,160,80,0.25)' : selectStyle.background,
                     border: on ? '1px solid rgba(200,160,80,0.5)' : selectStyle.border,
                   }}
                 >
+                  <ItemIcon name={omenIconName(o.id)} size={16} />
                   {o.label}
                 </button>
               )
@@ -533,15 +533,19 @@ export function CraftEmulator({
                   key={id}
                   type="button"
                   disabled={disabled}
-                  title={act?.reason ?? act?.description}
+                  title={act?.reason ?? act?.description ?? name}
                   onClick={() => void apply(id)}
                   style={{
                     ...selectStyle,
                     opacity: disabled ? 0.45 : 1,
                     fontWeight: 500,
                     cursor: disabled ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
                   }}
                 >
+                  <ItemIcon name={name} size={18} />
                   {name.replace(/^Orb of /, '').replace(/ Orb$/, '')}
                 </button>
               )
@@ -573,7 +577,9 @@ export function CraftEmulator({
                   title={a.reason ?? a.description}
                   onClick={() => void apply(a.id)}
                   style={{
-                    display: 'block',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
                     width: '100%',
                     textAlign: 'left',
                     padding: '6px 8px',
@@ -586,8 +592,11 @@ export function CraftEmulator({
                     cursor: disabled ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {a.label}
-                  {!a.applies && a.reason ? ` — ${a.reason}` : ''}
+                  <ItemIcon name={a.label} size={18} />
+                  <span>
+                    {a.label}
+                    {!a.applies && a.reason ? ` — ${a.reason}` : ''}
+                  </span>
                 </button>
               )
             })}

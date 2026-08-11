@@ -29,7 +29,7 @@ export const VENDOR_CATEGORY_ORDER = [
   'kalguuran', 'influencing', 'bestiary', 'trarthan', 'betrayal', 'incursion',
   'domination', 'torment', 'cartography', 'beyond', 'ambush', 'ultimatum',
   'expedition', 'delirium', 'legion', 'blight', 'abyss', 'essence', 'breach',
-  'misc', 'horned',
+  'harbinger', 'misc', 'horned',
 ]
 
 export const MAX_SEARCH_STRING_LENGTH = 248

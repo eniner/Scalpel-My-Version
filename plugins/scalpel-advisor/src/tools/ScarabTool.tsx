@@ -1,5 +1,5 @@
 import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import scarabsRefJson from '../data/scarabs-ref.json'
 import {
   buildVendorGuide,
@@ -13,7 +13,23 @@ import { indexPriceIcons } from '../shared/icons'
 import { ItemName } from '../shared/ItemName'
 import { chaosForId, chaosForName, fmtChaos, idToName, indexPrices } from '../shared/prices'
 import { ToolHeader } from '../shared/ToolChrome'
-import { accentBtnStyle, btnStyle, inputStyle, theme } from '../shared/theme'
+import { inputStyle } from '../shared/theme'
+import {
+  ActionChip,
+  Blurb,
+  FieldLabel,
+  HeroMetric,
+  HeroRow,
+  ListRow,
+  SetupGroup,
+  SplitBody,
+  TabStrip,
+  Workbench,
+  accentBtnStyle,
+  btnStyle,
+  fonts,
+  theme,
+} from '../shared/ui'
 
 const REF = scarabsRefJson as ScarabsRef
 
@@ -28,7 +44,7 @@ export function ScarabTool({
 }): JSX.Element {
   const [tab, setTab] = useState<'farming' | 'vendor'>(view)
   const [prices, setPrices] = useState<Record<string, number | null>>({})
-  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({})
+  const [priceOverrides] = useState<Record<string, number>>({})
   const [remarkableRelics, setRemarkableRelics] = useState(true)
   const [blocked, setBlocked] = useState<Set<string>>(new Set())
   const [boosted, setBoosted] = useState<Set<string>>(new Set())
@@ -36,20 +52,20 @@ export function ScarabTool({
   const [cpd, setCpd] = useState(180)
   const [status, setStatus] = useState('')
   const [priceIcons, setPriceIcons] = useState<Map<string, string>>(() => new Map())
+  const [filter, setFilter] = useState('')
 
   useEffect(() => setTab(view), [view])
 
   const priceFor = useCallback((scarab: Scarab): number | null => prices[scarab.id] ?? null, [prices])
 
   const refresh = useCallback(async () => {
-    setStatus('Fetching prices…')
+    setStatus('Syncing…')
     try {
       await ctx.prices.refresh()
       const { prices: list } = await ctx.prices.getPrices()
       const byName = indexPrices(list)
       setPriceIcons(indexPriceIcons(list))
       setCpd(chaosForName(byName, 'Divine Orb') ?? 180)
-
       const next: Record<string, number | null> = {}
       for (const cat of REF.categories) {
         for (const s of cat.scarabs) {
@@ -57,7 +73,7 @@ export function ScarabTool({
         }
       }
       setPrices(next)
-      setStatus(`Prices · ${ctx.getLeague()}`)
+      setStatus(`${ctx.getLeague()} · ninja`)
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err))
     }
@@ -116,13 +132,12 @@ export function ScarabTool({
     setter(next)
   }
 
-  const sortedCategories = useMemo(
-    () =>
-      [...pool.categories].sort(
-        (a, b) => VENDOR_CATEGORY_ORDER.indexOf(a.category.id) - VENDOR_CATEGORY_ORDER.indexOf(b.category.id),
-      ),
-    [pool.categories],
-  )
+  const sortedCategories = useMemo(() => {
+    const q = filter.trim().toLowerCase()
+    return [...pool.categories]
+      .filter((c) => !q || c.category.name.toLowerCase().includes(q))
+      .sort((a, b) => b.ev - a.ev)
+  }, [pool.categories, filter])
 
   const vendorByCategory = useMemo(() => {
     const map = new Map<string, typeof vendorGuide.rows>()
@@ -134,8 +149,10 @@ export function ScarabTool({
     return map
   }, [vendorGuide.rows])
 
+  const delta = pool.poolEV - pool.baselineEV
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%', overflow: 'hidden' }}>
+    <Workbench>
       <ToolHeader
         toolId="scarab-atlas"
         title="Scarab Atlas"
@@ -144,166 +161,204 @@ export function ScarabTool({
         onRefresh={() => void refresh()}
       />
 
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button
-          type="button"
-          style={tab === 'farming' ? accentBtnStyle : btnStyle}
-          onClick={() => setTab('farming')}
-        >
-          Farming EV
-        </button>
-        <button type="button" style={tab === 'vendor' ? accentBtnStyle : btnStyle} onClick={() => setTab('vendor')}>
-          Vendor Guide
-        </button>
-      </div>
+      <TabStrip
+        tabs={[
+          { id: 'farming', label: 'Pool EV' },
+          { id: 'vendor', label: 'Vendor' },
+        ]}
+        value={tab}
+        onChange={(id) => setTab(id as 'farming' | 'vendor')}
+      />
 
       {tab === 'farming' ? (
-        <>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-              <input
-                type="checkbox"
-                checked={remarkableRelics}
-                onChange={(e) => setRemarkableRelics(e.target.checked)}
-              />
-              Remarkable Relics (weight^0.9)
-            </label>
-            <button type="button" style={btnStyle} onClick={resetBiases}>
-              Reset
-            </button>
-            <button type="button" style={accentBtnStyle} onClick={applyOptimal}>
-              Optimize
-            </button>
-            <span style={{ color: theme.dim, fontSize: 10 }}>
-              Click a category to block (blockable) or invest (1.5x) — boostable categories cycle block → invest.
-            </span>
-          </div>
+        <SplitBody
+          rail={
+            <>
+              <SetupGroup title="Strategy">
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: theme.text }}>
+                  <input
+                    type="checkbox"
+                    checked={remarkableRelics}
+                    onChange={(e) => setRemarkableRelics(e.target.checked)}
+                  />
+                  Remarkable Relics
+                </label>
+                <button type="button" style={accentBtnStyle} onClick={applyOptimal}>
+                  Snap to optimal
+                </button>
+                <button type="button" style={btnStyle} onClick={resetBiases}>
+                  Clear biases
+                </button>
+                <Blurb>
+                  Optimal wants {optimal.blocks.length} blocks, {optimal.boosts.length} boosts,{' '}
+                  {optimal.investments.length} invests.
+                </Blurb>
+              </SetupGroup>
+              <SetupGroup title="Find category" defaultOpen={false}>
+                <FieldLabel label="Filter">
+                  <input
+                    style={{ ...inputStyle, width: '100%' }}
+                    value={filter}
+                    placeholder="Abyss, Breach…"
+                    onChange={(e) => setFilter(e.target.value)}
+                  />
+                </FieldLabel>
+              </SetupGroup>
+            </>
+          }
+          stage={
+            <>
+              <HeroRow>
+                <HeroMetric label="Your pool" value={fmtChaos(pool.poolEV, cpd)} tone="accent" />
+                <HeroMetric
+                  label="vs baseline"
+                  value={`${delta >= 0 ? '+' : ''}${fmtChaos(delta, cpd)}`}
+                  tone={delta >= 0 ? 'good' : 'warn'}
+                  sub={`baseline ${fmtChaos(pool.baselineEV, cpd)}`}
+                />
+                <HeroMetric
+                  label="Optimal"
+                  value={fmtChaos(optimal.ev, cpd)}
+                  tone="good"
+                  sub={`${fmtChaos(optimal.ev - pool.poolEV, cpd)} left on table`}
+                />
+              </HeroRow>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-            <Stat label="BASELINE EV" value={fmtChaos(pool.baselineEV, cpd)} />
-            <Stat label="CURRENT POOL EV" value={fmtChaos(pool.poolEV, cpd)} color={theme.accent} />
-            <Stat label="OPTIMAL EV" value={fmtChaos(optimal.ev, cpd)} color={theme.green} />
-            <Stat label="BLOCKS / BOOSTS / INVESTS" value={`${optimal.blocks.length} / ${optimal.boosts.length} / ${optimal.investments.length}`} />
-          </div>
-
-          <div style={{ flex: 1, overflow: 'auto', border: `1px solid ${theme.border}`, borderRadius: 6 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ color: theme.dim, textAlign: 'left' }}>
-                  <th style={th}>CATEGORY</th>
-                  <th style={th}>MODIFIER</th>
-                  <th style={th}>CAT EV</th>
-                  <th style={th}>MULT</th>
-                  <th style={th}>BLOCK</th>
-                  <th style={th}>BOOST 2x</th>
-                  <th style={th}>INVEST 1.5x</th>
-                </tr>
-              </thead>
-              <tbody>
+              <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: `1px solid ${theme.border}` }}>
                 {sortedCategories.map(({ category, ev, multiplier, blocked: isBlocked }) => (
-                  <tr key={category.id} style={{ borderTop: `1px solid ${theme.border}`, opacity: isBlocked ? 0.5 : 1 }}>
-                    <td style={td}>{category.name}</td>
-                    <td style={{ ...td, color: theme.dim, fontSize: 10 }}>{category.atlasModifier}</td>
-                    <td style={{ ...td, color: theme.purple }}>{fmtChaos(ev, cpd)}</td>
-                    <td style={td}>{multiplier.toFixed(2)}x</td>
-                    <td style={td}>
-                      {category.atlasModifier === 'blockable' ? (
-                        <input
-                          type="checkbox"
-                          checked={blocked.has(category.id)}
-                          onChange={() => toggle(blocked, setBlocked, category.id)}
+                  <ListRow
+                    key={category.id}
+                    muted={isBlocked}
+                    leading={
+                      <div>
+                        <ItemName
+                          name={category.scarabs[0]?.name ?? category.name}
+                          size={22}
+                          opts={{
+                            priceIcons,
+                            aliases: category.scarabs[0] ? [idToName(category.scarabs[0].id)] : undefined,
+                          }}
+                        >
+                          <span style={{ fontFamily: fonts.display, fontSize: 15, color: theme.ink }}>
+                            {category.name}
+                          </span>
+                        </ItemName>
+                        <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>
+                          {category.atlasModifier} · {multiplier.toFixed(2)}× weight
+                        </div>
+                      </div>
+                    }
+                    trailing={
+                      <>
+                        <span className="sa-num" style={{ color: theme.purple, minWidth: 56, textAlign: 'right' }}>
+                          {fmtChaos(ev, cpd)}
+                        </span>
+                        <ActionChip
+                          label="Block"
+                          tone="warn"
+                          active={blocked.has(category.id)}
+                          disabled={category.atlasModifier !== 'blockable'}
+                          onClick={
+                            category.atlasModifier === 'blockable'
+                              ? () => toggle(blocked, setBlocked, category.id)
+                              : undefined
+                          }
                         />
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td style={td}>
-                      {category.atlasModifier === 'boostable' ? (
-                        <input
-                          type="checkbox"
-                          checked={boosted.has(category.id)}
-                          onChange={() => toggle(boosted, setBoosted, category.id)}
+                        <ActionChip
+                          label="Boost"
+                          tone="accent"
+                          active={boosted.has(category.id)}
+                          disabled={category.atlasModifier !== 'boostable'}
+                          onClick={
+                            category.atlasModifier === 'boostable'
+                              ? () => toggle(boosted, setBoosted, category.id)
+                              : undefined
+                          }
                         />
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td style={td}>
-                      {category.investmentBoost ? (
-                        <input
-                          type="checkbox"
-                          checked={invested.has(category.id)}
-                          onChange={() => toggle(invested, setInvested, category.id)}
+                        <ActionChip
+                          label="Invest"
+                          tone="good"
+                          active={invested.has(category.id)}
+                          disabled={!category.investmentBoost}
+                          onClick={
+                            category.investmentBoost
+                              ? () => toggle(invested, setInvested, category.id)
+                              : undefined
+                          }
                         />
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                  </tr>
+                      </>
+                    }
+                  />
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+              </div>
+            </>
+          }
+        />
       ) : (
-        <>
-          <div
-            style={{
-              background: theme.panel,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 6,
-              padding: '8px 10px',
-              fontSize: 11,
-              lineHeight: 1.6,
-            }}
-          >
-            <strong>Vendor Recipe:</strong> Sell any 3 scarabs → 1 random scarab worth{' '}
-            <span style={{ color: theme.purple }}>{fmtChaos(vendorGuide.rawBaselineEV, cpd)}</span>. Scarabs priced
-            below <span style={{ color: theme.accent }}>{fmtChaos(vendorGuide.vendorThreshold, cpd)}</span> are
-            profitable to vendor.
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input
-              readOnly
-              style={{ ...inputStyle, width: 420, fontFamily: 'monospace' }}
-              value={vendorGuide.searchString}
-              onFocus={(e) => e.currentTarget.select()}
-            />
-            <span style={{ color: theme.dim, fontSize: 11 }}>
-              {vendorGuide.includedCount}/{vendorGuide.totalVendorable} scarabs, {vendorGuide.searchString.length}/248
-              chars
-              {vendorGuide.missingSignatureCount > 0 ? ` · ${vendorGuide.missingSignatureCount} missing signature` : ''}
-            </span>
-          </div>
-
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+        <SplitBody
+          railWidth={280}
+          rail={
+            <>
+              <SetupGroup title="Recipe">
+                <Blurb>
+                  Three scarabs → one random worth{' '}
+                  <span className="sa-num" style={{ color: theme.purple }}>
+                    {fmtChaos(vendorGuide.rawBaselineEV, cpd)}
+                  </span>
+                  . Vendor under{' '}
+                  <span className="sa-num" style={{ color: theme.accentHot }}>
+                    {fmtChaos(vendorGuide.vendorThreshold, cpd)}
+                  </span>
+                  .
+                </Blurb>
+              </SetupGroup>
+              <SetupGroup title="Trade search">
+                <FieldLabel label="Regex" wide>
+                  <input
+                    readOnly
+                    style={{ ...inputStyle, width: '100%', fontFamily: fonts.mono }}
+                    value={vendorGuide.searchString}
+                    onFocus={(e) => e.currentTarget.select()}
+                  />
+                </FieldLabel>
+                <div style={{ fontSize: 11, color: theme.dim }} className="sa-num">
+                  {vendorGuide.includedCount}/{vendorGuide.totalVendorable} · {vendorGuide.searchString.length}/248
+                </div>
+              </SetupGroup>
+            </>
+          }
+          stage={
+            <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
               {[...REF.categories]
                 .sort((a, b) => VENDOR_CATEGORY_ORDER.indexOf(a.id) - VENDOR_CATEGORY_ORDER.indexOf(b.id))
                 .map((cat) => {
                   const rows = vendorByCategory.get(cat.id) ?? []
+                  if (rows.length === 0) return null
                   return (
-                    <div
-                      key={cat.id}
-                      style={{
-                        background: theme.panel,
-                        border: `1px solid ${theme.border}`,
-                        borderRadius: 6,
-                        padding: '8px 10px',
-                        opacity: rows.length === 0 ? 0.4 : 1,
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600 }}>
-                        <span>{cat.name}</span>
-                        <span style={{ color: theme.dim }}>
-                          {rows.length}/{cat.scarabs.length}
+                    <div key={cat.id} style={{ borderBottom: `1px solid ${theme.border}`, padding: '10px 4px 12px' }}>
+                      <div
+                        style={{
+                          fontFamily: fonts.display,
+                          fontSize: 14,
+                          color: theme.ink,
+                          marginBottom: 6,
+                        }}
+                      >
+                        {cat.name}{' '}
+                        <span style={{ color: theme.muted, fontFamily: fonts.ui, fontSize: 11 }}>
+                          {rows.length} to vendor
                         </span>
                       </div>
                       {rows.map((row) => (
                         <div
                           key={row.scarab.id}
-                          style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 4 }}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr auto auto',
+                            gap: 10,
+                            fontSize: 12,
+                            padding: '3px 0',
+                          }}
                         >
                           <ItemName
                             name={row.scarab.name}
@@ -312,36 +367,19 @@ export function ScarabTool({
                           >
                             {row.scarab.name.replace(/Scarab of /i, '').replace(/ Scarab$/i, '')}
                           </ItemName>
-                          <span>{fmtChaos(row.price, cpd)}</span>
-                          <span style={{ color: theme.green }}>+{fmtChaos(row.profit, cpd)}</span>
+                          <span className="sa-num">{fmtChaos(row.price, cpd)}</span>
+                          <span className="sa-num" style={{ color: theme.green }}>
+                            +{fmtChaos(row.profit, cpd)}
+                          </span>
                         </div>
                       ))}
                     </div>
                   )
                 })}
             </div>
-          </div>
-        </>
+          }
+        />
       )}
-    </div>
+    </Workbench>
   )
 }
-
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div
-      style={{
-        background: theme.panel,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 6,
-        padding: '8px 10px',
-      }}
-    >
-      <div style={{ fontSize: 9, color: theme.dim, letterSpacing: '0.04em' }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: color ?? theme.text }}>{value}</div>
-    </div>
-  )
-}
-
-const th: CSSProperties = { padding: '6px 8px', fontWeight: 500, fontSize: 10 }
-const td: CSSProperties = { padding: '5px 8px' }

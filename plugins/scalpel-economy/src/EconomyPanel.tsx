@@ -1,6 +1,6 @@
 import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
 import { useMemo, useState } from 'react'
-import { categoryLabel, RUNES_OF_ALDUR_ECONOMY } from './economy-categories'
+import { categoriesWithData, categoryLabel } from './economy-categories'
 import { agoText, entryMatchesQuery, groupEntriesByCategory, normSearch } from './economy-prices'
 import { EconomyRow } from './EconomyRow'
 import { useEconomyPrices, useStoredCategory } from './use-economy-prices'
@@ -11,17 +11,22 @@ interface EconomyPanelProps {
 }
 
 export function EconomyPanel({ ctx, compact = false }: EconomyPanelProps): JSX.Element {
-  const { entries, updatedAt, loading, error, refresh } = useEconomyPrices(ctx)
-  const [selectedSlug, setSelectedSlug] = useStoredCategory(ctx)
-  const [query, setQuery] = useState('')
-
+  const { entries, updatedAt, loading, error, refresh, poeVersion } = useEconomyPrices(ctx)
   const byCat = useMemo(() => groupEntriesByCategory(entries), [entries])
+  const categories = useMemo(() => categoriesWithData(poeVersion, byCat.keys()), [poeVersion, byCat])
+  const validSlugs = useMemo(() => new Set(categories.map((c) => c.slug)), [categories])
+  const [selectedSlug, setSelectedSlug] = useStoredCategory(ctx, validSlugs)
+  const [query, setQuery] = useState('')
+  const league = ctx.getLeague() || (poeVersion === 1 ? 'PoE1' : 'PoE2')
+
   const queryNorm = normSearch(query)
 
+  const activeSlug = validSlugs.has(selectedSlug) ? selectedSlug : (categories[0]?.slug ?? 'currency')
+
   const rows = useMemo(() => {
-    const list = byCat.get(selectedSlug) ?? []
+    const list = byCat.get(activeSlug) ?? []
     return list.filter((e) => entryMatchesQuery(e, queryNorm))
-  }, [byCat, queryNorm, selectedSlug])
+  }, [byCat, queryNorm, activeSlug])
 
   return (
     <div
@@ -31,18 +36,18 @@ export function EconomyPanel({ ctx, compact = false }: EconomyPanelProps): JSX.E
       style={{ fontFamily: 'system-ui, sans-serif' }}
     >
       <div className="px-3 pt-3 pb-2 border-b border-white/10 shrink-0">
-        <div className="font-bold text-[12px] text-[#c8a96e] mb-2">Runes of Aldur</div>
+        <div className="font-bold text-[12px] text-[#c8a96e] mb-2">{league}</div>
         <style>{`
           .scalpel-economy-filter::placeholder { color: #6b7280; opacity: 1; }
           .scalpel-economy-filter::-webkit-input-placeholder { color: #6b7280; opacity: 1; }
         `}</style>
         <div className="flex flex-col gap-2">
           <select
-            value={selectedSlug}
+            value={activeSlug}
             onChange={(e) => setSelectedSlug(e.target.value)}
             className="w-full bg-[#12131a] text-[#e2e8f0] border border-white/12 rounded-lg px-2 py-1.5 text-[11px]"
           >
-            {RUNES_OF_ALDUR_ECONOMY.map((cat) => {
+            {categories.map((cat) => {
               const count = byCat.get(cat.slug)?.length ?? 0
               return (
                 <option key={cat.slug} value={cat.slug}>
@@ -70,7 +75,8 @@ export function EconomyPanel({ ctx, compact = false }: EconomyPanelProps): JSX.E
 
       <div className="px-3 py-1.5 text-[10px] text-[#6b7280] border-b border-white/[0.06] shrink-0 flex items-center justify-between gap-2">
         <span>
-          {categoryLabel(selectedSlug)} · {rows.length} items · {loading ? 'refreshing…' : agoText(updatedAt)}
+          {categoryLabel(activeSlug, poeVersion)} · {rows.length} items ·{' '}
+          {loading ? 'refreshing…' : agoText(updatedAt)}
         </span>
         {!compact && (
           <button
@@ -97,7 +103,7 @@ export function EconomyPanel({ ctx, compact = false }: EconomyPanelProps): JSX.E
           </div>
         ) : (
           rows.map((entry, i) => (
-            <EconomyRow key={`${entry.name}-${i}`} entry={entry} zebra={i % 2 === 0} />
+            <EconomyRow key={`${entry.name}-${i}`} entry={entry} zebra={i % 2 === 0} poeVersion={poeVersion} />
           ))
         )}
       </div>

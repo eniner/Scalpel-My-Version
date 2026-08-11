@@ -1,4 +1,4 @@
-import { floorToChaos, type Floor } from '../shared/ledger'
+import { floorToChaos, type Floor } from '../shared/floors'
 
 export type GemColor = 'red' | 'green' | 'blue'
 

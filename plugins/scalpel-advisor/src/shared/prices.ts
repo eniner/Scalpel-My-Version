@@ -1,4 +1,5 @@
 import type { PriceEntry } from '@scalpelpoe/plugin-sdk'
+import type { Floor } from './floors'
 
 export function indexPrices(entries: PriceEntry[]): Map<string, PriceEntry> {
   const map = new Map<string, PriceEntry>()
@@ -7,6 +8,29 @@ export function indexPrices(entries: PriceEntry[]): Map<string, PriceEntry> {
     map.set(e.name.toLowerCase(), e)
   }
   return map
+}
+
+/** Min/max chaos across all poe.ninja rows for a name (SkillGem emits many variants). */
+export function chaosBandForName(
+  entries: PriceEntry[],
+  name: string,
+): { min: number; max: number } | null {
+  const key = name.toLowerCase()
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+  for (const e of entries) {
+    if (e.name.toLowerCase() !== key) continue
+    if (!Number.isFinite(e.chaosValue) || e.chaosValue <= 0) continue
+    if (e.chaosValue < min) min = e.chaosValue
+    if (e.chaosValue > max) max = e.chaosValue
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null
+  return { min, max }
+}
+
+export function chaosFloor(chaos: number | null | undefined, fallback?: Floor | null): Floor | null {
+  if (chaos != null && Number.isFinite(chaos) && chaos > 0) return { chaos }
+  return fallback ?? null
 }
 
 export function divineRate(byName: Map<string, PriceEntry>): number {
@@ -21,11 +45,15 @@ export function mirrorRateDiv(byName: Map<string, PriceEntry>): number {
   return m.chaosValue / cpd
 }
 
-/** Convert kebab currency id to Title Case name. */
+/** Convert kebab currency id to PoE display name (small words stay lowercase mid-string). */
 export function idToName(id: string): string {
+  const small = new Set(['of', 'the', 'and', 'a', 'an', 'to', 'in', 'on', 'for'])
   return id
     .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .map((w, i) => {
+      if (i > 0 && small.has(w)) return w
+      return w.charAt(0).toUpperCase() + w.slice(1)
+    })
     .join(' ')
 }
 
@@ -69,4 +97,24 @@ export function parseUserPrice(input: string, cpd: number, mirrorDiv = 380): num
   if (unit === 'd') return value * cpd
   if (unit === 'm') return value * cpd * mirrorDiv
   return value
+}
+
+/** Last finite point in a poe.ninja cumulative-% graph (typically ~7 days). */
+export function lastGraphPct(graph: Array<number | null> | null | undefined): number | null {
+  if (!graph?.length) return null
+  for (let i = graph.length - 1; i >= 0; i--) {
+    const pct = graph[i]
+    if (typeof pct === 'number' && Number.isFinite(pct)) return pct
+  }
+  return null
+}
+
+/**
+ * Reconstruct absolute chaos at a graph point from current price + cumulative %.
+ * ninja `graph` is % change from an implicit baseline; today ≈ last point.
+ */
+export function historicalChaos(currentChaos: number, todayPct: number, pointPct: number): number {
+  const denom = 1 + todayPct / 100
+  const baseline = denom !== 0 ? currentChaos / denom : currentChaos
+  return baseline * (1 + pointPct / 100)
 }

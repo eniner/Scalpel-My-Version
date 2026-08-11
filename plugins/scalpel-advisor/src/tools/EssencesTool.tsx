@@ -1,5 +1,5 @@
 import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import essencesRefJson from '../data/essences-ref.json'
 import {
   computeEssenceFarm,
@@ -13,6 +13,16 @@ import { ItemName } from '../shared/ItemName'
 import { chaosForId, chaosForName, fmtChaos, fmtSignedChaos, idToName, indexPrices } from '../shared/prices'
 import { ToolHeader } from '../shared/ToolChrome'
 import { inputStyle, theme } from '../shared/theme'
+import {
+  FieldLabel,
+  HeroMetric,
+  HeroRow,
+  ListRow,
+  SetupGroup,
+  SplitBody,
+  Workbench,
+  fonts,
+} from '../shared/ui'
 
 const REF = essencesRefJson as EssencesRef
 
@@ -104,7 +114,7 @@ export function EssencesTool({
       }))
       setVaalOrbPrice((v) => chaosForId(byName, 'vaal-orb') ?? v)
 
-      setStatus(`Prices · ${ctx.getLeague()}`)
+      setStatus(`poe.ninja · ${ctx.getLeague()} (bundled weights)`)
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err))
     }
@@ -164,180 +174,222 @@ export function EssencesTool({
   ) => setScarabs((s) => ({ ...s, [key]: value }))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%', overflow: 'hidden' }}>
+    <Workbench>
       <ToolHeader
         toolId="essences"
-        title="Essence Farming EV"
+        title="Essences"
         onBack={onBack}
         status={status}
         onRefresh={() => void refresh()}
       />
-      <p style={{ margin: 0, color: theme.dim, fontSize: 11 }}>
-        Weighted essence-drop EV with essence-scarab combos, Vaal outcomes, and 3:1 upgrade valuation.
-      </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 8 }}>
-        <ScarabField
-          name="Ascent"
-          qty={scarabs.ascentQty}
-          maxQty={1}
-          price={scarabs.ascentPrice}
-          onQty={(v) => setScarabQty('ascentQty', v)}
-          onPrice={(v) => setScarabPrice('ascentPrice', v)}
-        />
-        <ScarabField
-          name="Essence (+3 monsters)"
-          qty={scarabs.essenceQty}
-          maxQty={5}
-          price={scarabs.essencePrice}
-          onQty={(v) => setScarabQty('essenceQty', v)}
-          onPrice={(v) => setScarabPrice('essencePrice', v)}
-        />
-        <ScarabField
-          name="Calcification"
-          qty={scarabs.calcificationQty}
-          maxQty={1}
-          price={scarabs.calcificationPrice}
-          onQty={(v) => setScarabQty('calcificationQty', v)}
-          onPrice={(v) => setScarabPrice('calcificationPrice', v)}
-        />
-        <ScarabField
-          name="Adversaries (+4 rares)"
-          qty={scarabs.adversariesQty}
-          maxQty={2}
-          price={scarabs.adversariesPrice}
-          onQty={(v) => setScarabQty('adversariesQty', v)}
-          onPrice={(v) => setScarabPrice('adversariesPrice', v)}
-        />
-        <ScarabField
-          name="Stability"
-          qty={scarabs.stabilityQty}
-          maxQty={1}
-          price={scarabs.stabilityPrice}
-          onQty={(v) => setScarabQty('stabilityQty', v)}
-          onPrice={(v) => setScarabPrice('stabilityPrice', v)}
-        />
-      </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-end' }}>
-        <Field label="Rare Monsters / Map">
-          <input
-            style={inputStyle}
-            type="number"
-            min={1}
-            value={rareMonstersPerMap}
-            onChange={(e) => setRareMonstersPerMap(Number(e.target.value) || 1)}
-          />
-        </Field>
-        <Field label="Sec / Map">
-          <input
-            style={inputStyle}
-            type="number"
-            value={timeSec}
-            onChange={(e) => setTimeSec(Number(e.target.value) || 240)}
-          />
-        </Field>
-        <Field label="Valuation">
-          <select
-            style={inputStyle}
-            value={valuation}
-            onChange={(e) => setValuation(e.target.value as EssenceValuationMode)}
-          >
-            <option value="all">All Tiers</option>
-            <option value="shrieking">Shrieking+</option>
-            <option value="deafening">Deafening</option>
-          </select>
-        </Field>
-        <Field label="Vaal Mode">
-          <select style={inputStyle} value={vaalMode} onChange={(e) => setVaalMode(e.target.value as EssenceVaalMode)}>
-            <option value="none">Don't Vaal</option>
-            <option value="all">Vaal All</option>
-            <option value="meds">MEDS Only</option>
-          </select>
-        </Field>
-        <Field label="Vaal Orb Price">
-          <input
-            style={inputStyle}
-            type="number"
-            value={vaalOrbPrice}
-            onChange={(e) => setVaalOrbPrice(Number(e.target.value) || 0)}
-          />
-        </Field>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-          <input type="checkbox" checked={amplifiedEnergies} onChange={(e) => setAmplifiedEnergies(e.target.checked)} />
-          Amplified Energies
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-          <input type="checkbox" checked={prolificEssence} onChange={(e) => setProlificEssence(e.target.checked)} />
-          Prolific Essence
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-          <input type="checkbox" checked={crystalLattice} onChange={(e) => setCrystalLattice(e.target.checked)} />
-          Crystal Lattice
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-          <input type="checkbox" checked={crystalResonance} onChange={(e) => setCrystalResonance(e.target.checked)} />
-          Crystal Resonance
-        </label>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-        <Stat label="ESS / MONSTER" value={result.essPerMonster.toFixed(2)} />
-        <Stat label="TOTAL ESSENCES / MAP" value={result.totalEssences.toFixed(1)} />
-        <Stat label="EV / ESSENCE" value={fmtChaos(result.totalEV, cpd)} color={theme.purple} />
-        <Stat label="VAAL MULT" value={`${result.vaalMultiplier.toFixed(2)}x`} />
-        <Stat label="EV / MAP" value={fmtChaos(result.evPerMap, cpd)} />
-        <Stat label="SCARAB + VAAL COST" value={fmtSignedChaos(-result.totalCost, cpd)} color={theme.red} />
-        <Stat label="NET PROFIT / MAP" value={fmtSignedChaos(result.netProfitPerMap, cpd)} color={theme.green} />
-        <Stat label="NET PROFIT / HOUR" value={fmtSignedChaos(result.netProfitPerHour, cpd)} color={theme.green} />
-      </div>
-
-      <div style={{ flex: 1, overflow: 'auto', border: `1px solid ${theme.border}`, borderRadius: 6 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead>
-            <tr style={{ color: theme.dim, textAlign: 'left' }}>
-              <th style={th}>ESSENCE</th>
-              <th style={th}>TIER</th>
-              <th style={th}>PROB %</th>
-              <th style={th}>PRICE</th>
-              <th style={th}>OVERRIDE</th>
-              <th style={th}>EV CONTRIB</th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.breakdown.map((row) => (
-              <tr key={row.id} style={{ borderTop: `1px solid ${theme.border}` }}>
-                <td style={td}>
-                  <ItemName name={idToName(row.id)} opts={{ priceIcons }} style={{ textTransform: 'capitalize' }}>
-                    {row.essence}
+      <SplitBody
+        railWidth={268}
+        rail={
+          <>
+            <SetupGroup title="Scarabs">
+              <ScarabField
+                name="Ascent"
+                itemName={idToName(SCARAB_IDS.ascentQty)}
+                priceIcons={priceIcons}
+                qty={scarabs.ascentQty}
+                maxQty={1}
+                price={scarabs.ascentPrice}
+                onQty={(v) => setScarabQty('ascentQty', v)}
+                onPrice={(v) => setScarabPrice('ascentPrice', v)}
+              />
+              <ScarabField
+                name="Essence"
+                itemName={idToName(SCARAB_IDS.essenceQty)}
+                priceIcons={priceIcons}
+                qty={scarabs.essenceQty}
+                maxQty={5}
+                price={scarabs.essencePrice}
+                onQty={(v) => setScarabQty('essenceQty', v)}
+                onPrice={(v) => setScarabPrice('essencePrice', v)}
+              />
+              <ScarabField
+                name="Calcification"
+                itemName={idToName(SCARAB_IDS.calcificationQty)}
+                priceIcons={priceIcons}
+                qty={scarabs.calcificationQty}
+                maxQty={1}
+                price={scarabs.calcificationPrice}
+                onQty={(v) => setScarabQty('calcificationQty', v)}
+                onPrice={(v) => setScarabPrice('calcificationPrice', v)}
+              />
+              <ScarabField
+                name="Adversaries"
+                itemName={idToName(SCARAB_IDS.adversariesQty)}
+                priceIcons={priceIcons}
+                qty={scarabs.adversariesQty}
+                maxQty={2}
+                price={scarabs.adversariesPrice}
+                onQty={(v) => setScarabQty('adversariesQty', v)}
+                onPrice={(v) => setScarabPrice('adversariesPrice', v)}
+              />
+              <ScarabField
+                name="Stability"
+                itemName={idToName(SCARAB_IDS.stabilityQty)}
+                priceIcons={priceIcons}
+                qty={scarabs.stabilityQty}
+                maxQty={1}
+                price={scarabs.stabilityPrice}
+                onQty={(v) => setScarabQty('stabilityQty', v)}
+                onPrice={(v) => setScarabPrice('stabilityPrice', v)}
+              />
+            </SetupGroup>
+            <SetupGroup title="Run settings" defaultOpen={false}>
+              <FieldLabel label="Rares / map">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  min={1}
+                  value={rareMonstersPerMap}
+                  onChange={(e) => setRareMonstersPerMap(Number(e.target.value) || 1)}
+                />
+              </FieldLabel>
+              <FieldLabel label="Sec / map">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={timeSec}
+                  onChange={(e) => setTimeSec(Number(e.target.value) || 240)}
+                />
+              </FieldLabel>
+              <FieldLabel label="Valuation">
+                <select
+                  style={{ ...inputStyle, width: '100%' }}
+                  value={valuation}
+                  onChange={(e) => setValuation(e.target.value as EssenceValuationMode)}
+                >
+                  <option value="all">All tiers</option>
+                  <option value="shrieking">Shrieking+</option>
+                  <option value="deafening">Deafening</option>
+                </select>
+              </FieldLabel>
+              <FieldLabel label="Vaal">
+                <select
+                  style={{ ...inputStyle, width: '100%' }}
+                  value={vaalMode}
+                  onChange={(e) => setVaalMode(e.target.value as EssenceVaalMode)}
+                >
+                  <option value="none">Don't vaal</option>
+                  <option value="all">Vaal all</option>
+                  <option value="meds">MEDS only</option>
+                </select>
+              </FieldLabel>
+              <FieldLabel
+                label={
+                  <ItemName name="Vaal Orb" size={14} opts={{ priceIcons }}>
+                    Vaal orb
                   </ItemName>
-                </td>
-                <td style={{ ...td, color: theme.dim, textTransform: 'capitalize' }}>{row.tier}</td>
-                <td style={td}>{(row.probability * 100).toFixed(2)}%</td>
-                <td style={td}>{fmtChaos(row.price, cpd)}</td>
-                <td style={td}>
-                  <input
-                    style={{ ...inputStyle, width: 70 }}
-                    placeholder="—"
-                    value={priceOverrides[row.id] != null ? String(Math.round((priceOverrides[row.id] ?? 0) * 100) / 100) : ''}
-                    onChange={(e) => {
-                      const v = Number(e.target.value)
-                      setPriceOverrides((p) => ({ ...p, [row.id]: Number.isFinite(v) && e.target.value !== '' ? v : null }))
-                    }}
-                  />
-                </td>
-                <td style={{ ...td, color: theme.green }}>{fmtChaos(row.valuedContribution, cpd)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                }
+              >
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={vaalOrbPrice}
+                  onChange={(e) => setVaalOrbPrice(Number(e.target.value) || 0)}
+                />
+              </FieldLabel>
+            </SetupGroup>
+            <SetupGroup title="Atlas keys" defaultOpen={false}>
+              {(
+                [
+                  ['Amplified Energies', amplifiedEnergies, setAmplifiedEnergies],
+                  ['Prolific Essence', prolificEssence, setProlificEssence],
+                  ['Crystal Lattice', crystalLattice, setCrystalLattice],
+                  ['Crystal Resonance', crystalResonance, setCrystalResonance],
+                ] as const
+              ).map(([label, on, set]) => (
+                <label key={label} style={{ display: 'flex', gap: 8, fontSize: 12, color: theme.text }}>
+                  <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} />
+                  {label}
+                </label>
+              ))}
+            </SetupGroup>
+          </>
+        }
+        stage={
+          <>
+            <HeroRow>
+              <HeroMetric label="Net / map" value={fmtSignedChaos(result.netProfitPerMap, cpd)} tone="good" />
+              <HeroMetric label="Net / hour" value={fmtSignedChaos(result.netProfitPerHour, cpd)} tone="good" />
+              <HeroMetric
+                label="EV / map"
+                value={fmtChaos(result.evPerMap, cpd)}
+                tone="ink"
+                sub={`cost −${fmtChaos(result.totalCost, cpd)}`}
+              />
+              <HeroMetric
+                label="Essences / map"
+                value={result.totalEssences.toFixed(1)}
+                tone="accent"
+                sub={`${result.essPerMonster.toFixed(2)} / rare · vaal ×${result.vaalMultiplier.toFixed(2)}`}
+              />
+            </HeroRow>
+
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: `1px solid ${theme.border}` }}>
+              {result.breakdown.map((row) => (
+                <ListRow
+                  key={row.id}
+                  leading={
+                    <div>
+                      <ItemName name={idToName(row.id)} opts={{ priceIcons }}>
+                        <span
+                          style={{
+                            fontFamily: fonts.display,
+                            fontSize: 14,
+                            color: theme.ink,
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {row.essence}
+                        </span>
+                      </ItemName>
+                      <div style={{ fontSize: 10, color: theme.muted, marginTop: 2, textTransform: 'capitalize' }}>
+                        {row.tier} · {(row.probability * 100).toFixed(2)}%
+                      </div>
+                    </div>
+                  }
+                  trailing={
+                    <>
+                      <input
+                        style={{ ...inputStyle, width: 64 }}
+                        placeholder={fmtChaos(row.price, cpd)}
+                        value={
+                          priceOverrides[row.id] != null
+                            ? String(Math.round((priceOverrides[row.id] ?? 0) * 100) / 100)
+                            : ''
+                        }
+                        onChange={(e) => {
+                          const v = Number(e.target.value)
+                          setPriceOverrides((p) => ({
+                            ...p,
+                            [row.id]: Number.isFinite(v) && e.target.value !== '' ? v : null,
+                          }))
+                        }}
+                      />
+                      <span className="sa-num" style={{ color: theme.green, minWidth: 56, textAlign: 'right' }}>
+                        {fmtChaos(row.valuedContribution, cpd)}
+                      </span>
+                    </>
+                  }
+                />
+              ))}
+            </div>
+          </>
+        }
+      />
+    </Workbench>
   )
 }
 
 function ScarabField({
   name,
+  itemName,
+  priceIcons,
   qty,
   maxQty,
   price,
@@ -345,6 +397,8 @@ function ScarabField({
   onPrice,
 }: {
   name: string
+  itemName: string
+  priceIcons: Map<string, string>
   qty: number
   maxQty: number
   price: number
@@ -352,66 +406,26 @@ function ScarabField({
   onPrice: (v: number) => void
 }) {
   return (
-    <div
-      style={{
-        background: theme.panel,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 6,
-        padding: '8px 10px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-      }}
-    >
-      <div style={{ fontSize: 11, fontWeight: 600 }}>{name}</div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <select
-          style={{ ...inputStyle, width: 44 }}
-          value={qty}
-          onChange={(e) => onQty(Number(e.target.value) || 0)}
-        >
-          {Array.from({ length: maxQty + 1 }, (_, i) => i).map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <input
-          style={{ ...inputStyle, width: 60 }}
-          type="number"
-          step="0.1"
-          value={price}
-          onChange={(e) => onPrice(Number(e.target.value) || 0)}
-        />
-      </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 44px 64px', gap: 6, alignItems: 'center' }}>
+      <ItemName name={itemName} size={16} opts={{ priceIcons }}>
+        <span style={{ fontSize: 11, color: theme.dim }}>{name}</span>
+      </ItemName>
+      <select style={{ ...inputStyle, width: 44 }} value={qty} onChange={(e) => onQty(Number(e.target.value) || 0)}>
+        {Array.from({ length: maxQty + 1 }, (_, i) => i).map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+      <input
+        style={{ ...inputStyle, width: 64 }}
+        type="number"
+        step="0.1"
+        value={price}
+        onChange={(e) => onPrice(Number(e.target.value) || 0)}
+      />
     </div>
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: theme.dim }}>
-      {label}
-      {children}
-    </label>
-  )
-}
 
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div
-      style={{
-        background: theme.panel,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 6,
-        padding: '8px 10px',
-      }}
-    >
-      <div style={{ fontSize: 9, color: theme.dim, letterSpacing: '0.04em' }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: color ?? theme.text }}>{value}</div>
-    </div>
-  )
-}
-
-const th: CSSProperties = { padding: '6px 8px', fontWeight: 500, fontSize: 10 }
-const td: CSSProperties = { padding: '5px 8px' }

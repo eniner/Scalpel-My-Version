@@ -11,7 +11,8 @@ import type { ModPoolReport } from './ModCheatSheet.types'
 type ViewMode = 'split' | 'flat'
 type SortKey = 'chance' | 'weight' | 'ilvl' | 'name'
 type PoolSource = 'craft' | 'marksman' | 'desecrated' | 'all'
-type LookupMode = 'base' | 'global'
+type LookupMode = 'base' | 'global' | 'essences' | 'socketables'
+type TierFloorPreset = 0 | 35 | 50
 
 interface ModCheatSheetProps extends CraftTabProps {
   craft: CraftApi
@@ -83,6 +84,9 @@ export function ModCheatSheet({
   const [poolSource, setPoolSource] = useState<PoolSource>('craft')
   const [itemClass, setItemClass] = useState(workingItem?.itemClass ?? '')
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set())
+  const [tierFloor, setTierFloor] = useState<TierFloorPreset>(0)
+  const [catalyst, setCatalyst] = useState('')
+  const [quality, setQuality] = useState(20)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const globalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -159,6 +163,9 @@ export function ModCheatSheet({
         context: poolSource === 'craft' ? context : 'fresh',
         poolSource,
         marksmanEnabled: poolSource === 'craft' || poolSource === 'all' ? marksmanEnabled : undefined,
+        tierFloor,
+        catalyst: catalyst || undefined,
+        quality,
       })
       setReport(result)
       setExpanded(new Set())
@@ -169,7 +176,20 @@ export function ModCheatSheet({
     } finally {
       setBusy(false)
     }
-  }, [baseType, itemLevel, kind, context, workingItem, craft, marksmanEnabled, poolSource, buildContext.marksmanSource])
+  }, [
+    baseType,
+    itemLevel,
+    kind,
+    context,
+    workingItem,
+    craft,
+    marksmanEnabled,
+    poolSource,
+    buildContext.marksmanSource,
+    tierFloor,
+    catalyst,
+    quality,
+  ])
 
   const runGlobalSearch = useCallback(async () => {
     const q = search.trim()
@@ -199,9 +219,23 @@ export function ModCheatSheet({
   }, [craft, search, itemLevel, poolSource, itemClass, kind])
 
   useEffect(() => {
-    if (lookupMode === 'base' && baseType.trim()) void runLookup()
+    if ((lookupMode === 'base' || lookupMode === 'essences' || lookupMode === 'socketables') && baseType.trim()) {
+      void runLookup()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseType, itemLevel, kind, context, marksmanEnabled, poolSource, buildContext.marksmanSource, lookupMode])
+  }, [
+    baseType,
+    itemLevel,
+    kind,
+    context,
+    marksmanEnabled,
+    poolSource,
+    buildContext.marksmanSource,
+    lookupMode,
+    tierFloor,
+    catalyst,
+    quality,
+  ])
 
   useEffect(() => {
     if (lookupMode !== 'global') return
@@ -389,13 +423,27 @@ export function ModCheatSheet({
             </ul>
           ) : null}
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => setLookupMode('base')}
             style={{ ...selectStyle, fontWeight: lookupMode === 'base' ? 700 : 400 }}
           >
             Weights
+          </button>
+          <button
+            type="button"
+            onClick={() => setLookupMode('essences')}
+            style={{ ...selectStyle, fontWeight: lookupMode === 'essences' ? 700 : 400 }}
+          >
+            Essences
+          </button>
+          <button
+            type="button"
+            onClick={() => setLookupMode('socketables')}
+            style={{ ...selectStyle, fontWeight: lookupMode === 'socketables' ? 700 : 400 }}
+          >
+            Socketables
           </button>
           <button
             type="button"
@@ -415,26 +463,64 @@ export function ModCheatSheet({
           onChange={(e) => setSearch(e.target.value)}
           style={{ ...inputStyle, flex: 1, minWidth: 140 }}
         />
-        {(['craft', 'marksman', 'desecrated', 'all'] as const).map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setPoolSource(p)}
-            style={{
-              ...selectStyle,
-              fontSize: 10,
-              padding: '4px 8px',
-              background: poolSource === p ? 'rgba(255,255,255,0.12)' : selectStyle.background,
-            }}
-          >
-            {p === 'all' ? 'All pools' : poolLabel(p)}
-          </button>
-        ))}
         {lookupMode === 'base' ? (
-          <select value={view} onChange={(e) => setView(e.target.value as ViewMode)} style={{ ...selectStyle, fontSize: 10 }}>
-            <option value="split">Split layout</option>
-            <option value="flat">Flat tier list</option>
-          </select>
+          <>
+            {(['craft', 'marksman', 'desecrated', 'all'] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPoolSource(p)}
+                style={{
+                  ...selectStyle,
+                  fontSize: 10,
+                  padding: '4px 8px',
+                  background: poolSource === p ? 'rgba(255,255,255,0.12)' : selectStyle.background,
+                }}
+              >
+                {p === 'all' ? 'All pools' : poolLabel(p)}
+              </button>
+            ))}
+            <select
+              value={tierFloor}
+              onChange={(e) => setTierFloor(Number(e.target.value) as TierFloorPreset)}
+              style={{ ...selectStyle, fontSize: 10 }}
+              title="Hide tiers below Greater/Perfect orb floors"
+            >
+              <option value={0}>Any tier</option>
+              <option value={35}>Greater floor (35)</option>
+              <option value={50}>Perfect floor (50)</option>
+            </select>
+            <select
+              value={catalyst}
+              onChange={(e) => setCatalyst(e.target.value)}
+              style={{ ...selectStyle, fontSize: 10, maxWidth: 140 }}
+              title="Catalyst weight preview"
+            >
+              <option value="">No catalyst</option>
+              {(report?.catalysts ?? []).map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {catalyst ? (
+              <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 4, opacity: 0.8 }}>
+                Q
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={quality}
+                  onChange={(e) => setQuality(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                  style={{ ...inputStyle, width: 48, padding: '4px 6px', fontSize: 10 }}
+                />
+              </label>
+            ) : null}
+            <select value={view} onChange={(e) => setView(e.target.value as ViewMode)} style={{ ...selectStyle, fontSize: 10 }}>
+              <option value="split">Split layout</option>
+              <option value="flat">Flat tier list</option>
+            </select>
+          </>
         ) : null}
       </div>
 
@@ -479,6 +565,79 @@ export function ModCheatSheet({
           </p>
           <div style={{ flex: 1, overflow: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4 }}>
             <GlobalSearchTable hits={globalHits} />
+          </div>
+        </section>
+      ) : null}
+
+      {lookupMode === 'socketables' && report ? (
+        <section style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <p style={{ margin: 0, fontSize: 11, opacity: 0.65 }}>
+            CoE runes / soul cores / talismans
+            {(report as { socketables?: unknown[] }).socketables
+              ? ` · ${(report as { socketables: unknown[] }).socketables.length}`
+              : ''}
+            {(report as { note?: string }).note?.includes('socket') ? '' : ''}
+          </p>
+          <div style={{ flex: 1, overflow: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', opacity: 0.7, position: 'sticky', top: 0, background: 'rgba(20,20,24,0.95)' }}>
+                  <th style={{ padding: '6px 8px' }}>Type</th>
+                  <th style={{ padding: '6px 8px' }}>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                {((report as { socketables?: Array<{ id: string; stype: string; name: string }> }).socketables ?? [])
+                  .filter((s) => matchesSearch(search, s.name, s.stype))
+                  .map((s) => (
+                    <tr key={s.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <td style={{ padding: '6px 8px', opacity: 0.7 }}>{s.stype}</td>
+                      <td style={{ padding: '6px 8px', fontWeight: 600 }}>{s.name}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+            {!(report as { socketables?: unknown[] }).socketables?.length ? (
+              <p style={{ padding: 12, margin: 0, opacity: 0.55, fontSize: 12 }}>
+                No socketables in dataset — rebuild CoE data / relaunch after install:local.
+              </p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {lookupMode === 'essences' && report ? (
+        <section style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <p style={{ margin: 0, fontSize: 11, opacity: 0.65 }}>
+            Essences that force a mod on <strong>{report.baseType}</strong>
+            {report.essencesForBase?.length != null ? ` · ${report.essencesForBase.length}` : ''}
+          </p>
+          <div style={{ flex: 1, overflow: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', opacity: 0.7, position: 'sticky', top: 0, background: 'rgba(20,20,24,0.95)' }}>
+                  <th style={{ padding: '6px 8px' }}>Essence</th>
+                  <th style={{ padding: '6px 8px' }}>Type</th>
+                  <th style={{ padding: '6px 8px' }}>Min iLvl</th>
+                  <th style={{ padding: '6px 8px' }}>Forced mod</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(report.essencesForBase ?? [])
+                  .filter((e) => matchesSearch(search, e.name, e.text, e.modName, e.group))
+                  .map((e) => (
+                    <tr key={e.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: 600 }}>{e.name}</td>
+                      <td style={{ padding: '6px 8px', opacity: 0.7 }}>{e.kind === 'p' ? 'Prefix' : 'Suffix'}</td>
+                      <td style={{ padding: '6px 8px', fontVariantNumeric: 'tabular-nums' }}>{e.minIlvl}</td>
+                      <td style={{ padding: '6px 8px' }}>{e.text}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+            {!report.essencesForBase?.length ? (
+              <p style={{ padding: 12, margin: 0, opacity: 0.55, fontSize: 12 }}>No essences target this base in the CoE dataset.</p>
+            ) : null}
           </div>
         </section>
       ) : null}

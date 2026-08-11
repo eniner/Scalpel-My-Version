@@ -10,7 +10,8 @@ import type { PriceEntry, PriceInfo } from '@shared/types'
 import { getPoeVersion } from '../game-state'
 import { getManifest } from '../manifest'
 import { fetchAndBuildPoe2PriceMap, fetchPoe2PricesFromProxy, type Poe2PriceResult } from './prices.poe2'
-import { enrichPriceEntryIcons } from './icon-cache'
+import { broadcastNewIcons, enrichPriceEntryIcons, harvestIcons } from './icon-cache'
+import { applyIconMapToEntries, fetchPoe1IconMap } from './prices.poe1-icons'
 
 const staticUniquesByVersion: Record<1 | 2, Record<string, string[]>> = {
   1: uniqueInfoPoe1 as Record<string, string[]>,
@@ -243,6 +244,26 @@ const POE1_DENSE_CATEGORY: Record<string, string> = {
   Fossil: 'fossils',
   Resonator: 'resonators',
   Essence: 'essences',
+  UniqueWeapon: 'unique-weapons',
+  UniqueArmour: 'unique-armours',
+  UniqueAccessory: 'unique-accessories',
+  UniqueFlask: 'unique-flasks',
+  UniqueJewel: 'unique-jewels',
+  UniqueMap: 'unique-maps',
+  SkillGem: 'skill-gems',
+  ClusterJewel: 'cluster-jewels',
+  DeliriumOrb: 'delirium-orbs',
+  Omen: 'omens',
+  Tattoo: 'tattoos',
+  Beast: 'beasts',
+  Map: 'maps',
+  Invitation: 'invitations',
+  Memory: 'memories',
+  Vial: 'vials',
+  Artifact: 'artifacts',
+  AllflameEmber: 'allflame-embers',
+  Coffin: 'coffins',
+  KalguuranRune: 'runes',
 }
 function poe1Category(type: string): string {
   return POE1_DENSE_CATEGORY[type] ?? type.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
@@ -365,6 +386,26 @@ export async function refreshPrices(league: string): Promise<void> {
     const freshEntries: PriceEntry[] = []
     processDenseResponse(resp, freshEntries)
     buildUniquesByBaseFromDense(resp)
+    // Dense overviews omit artwork — pull icons from stash overviews, then sheet.
+    const overviewTypes = [
+      ...(resp.currencyOverviews ?? []).map((o) => o.type),
+      ...(resp.itemOverviews ?? []).map((o) => o.type),
+    ]
+    try {
+      const iconMap = await fetchPoe1IconMap(league, overviewTypes, fetchJson)
+      applyIconMapToEntries(freshEntries, iconMap)
+      // Key by name (rarity Unique) — ninja overview icons are per unique/line name.
+      broadcastNewIcons(
+        harvestIcons(
+          1,
+          freshEntries
+            .filter((e) => e.icon)
+            .map((e) => ({ name: e.name, rarity: 'Unique', icon: e.icon })),
+        ),
+      )
+    } catch (iconErr) {
+      console.error('[FilterScalpel] PoE1 economy icon enrichment failed:', iconErr)
+    }
     priceEntries = freshEntries
     enrichPriceEntryIcons(1, priceEntries)
     priceEntriesUpdatedAt = now

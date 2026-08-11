@@ -1,0 +1,42 @@
+﻿idx 863151
+function poec_simRollAffix(mgroup,tag,atype,fossil,numroll,meta,apcat,enforcetag,igcrca,rfmlk,rfmlkt,rfmlkv,hightier,blocklist="|",graveyard=!1,overrideMaxAffs=!1,blocktype=!1,minModLevel=null){crsim_tweight=0;if(crsim_bypass){var usemetas=crsim_bypass.meta_flags}else{var usemetas=crsim_data.meta_flags}
+var blkdata=poec_simGetBlockData(blocktype);var blktags=[];if(meta&&!igcrca){if(usemetas.no_attack){blktags.push("3")}
+if(usemetas.no_caster){blktags.push("13")}}
+blkdata.blktags=blktags;if(rfmlk==!1){rfmlk={};rfmlkt={}}
+if(crsim_bypass){var useaffixes=crsim_bypass.iaffixes;var usemaxaffgrp=crsim_bypass.cmaxaffgrp;var useaffbt=crsim_bypass.iaffbt}else{var useaffixes=crsim_data.iaffixes;var usemaxaffgrp=crsim_data.cmaxaffgrp;var useaffbt=crsim_data.iaffbt}
+if(overrideMaxAffs){usemaxaffgrp=overrideMaxAffs}
+if(useaffbt.prefix>=usemaxaffgrp.prefix){blkdata.blktype.prefix=!0}
+if(useaffbt.suffix>=usemaxaffgrp.suffix){blkdata.blktype.suffix=!0}
+var sfail=!1;if(atype){if(blkdata.blktype[atype]){sfail=!0}else{var tmodpool=poec_simBuildMods(mgroup,tag,atype,fossil,blkdata,apcat,enforcetag,rfmlk,rfmlkt,rfmlkv,hightier,blocklist,graveyard,minModLevel)}}else{if(blkdata.blktype.prefix&&blkdata.blktype.suffix){sfail=!0}else{if(blkdata.blktype.prefix||blkdata.blktype.suffix){if(blkdata.blktype.prefix){var tmodpool=poec_simBuildMods(mgroup,tag,"suffix",fossil,blkdata,apcat,enforcetag,rfmlk,rfmlkt,rfmlkv,hightier,blocklist,graveyard,minModLevel)}else{var tmodpool=poec_simBuildMods(mgroup,tag,"prefix",fossil,blkdata,apcat,enforcetag,rfmlk,rfmlkt,rfmlkv,hightier,blocklist,graveyard,minModLevel)}}else{var tmodp_pre=poec_simBuildMods(mgroup,tag,"prefix",fossil,blkdata,apcat,enforcetag,rfmlk,rfmlkt,rfmlkv,hightier,blocklist,graveyard,minModLevel);var tmodp_suf=poec_simBuildMods(mgroup,tag,"suffix",fossil,blkdata,apcat,enforcetag,rfmlk,rfmlkt,rfmlkv,hightier,blocklist,graveyard,minModLevel);var tmodpool=tmodp_pre.concat(tmodp_suf)}}}
+var aaffs=[];if(sfail||useaffixes.length>=usemaxaffgrp.prefix+usemaxaffgrp.suffix){console.log(sfail);console.log(useaffixes);console.log(usemaxaffgrp);console.log("Cannot roll more affixes, should not happen");aaffs=null}else{var affix=null;for(var m=0;m<numroll;m++){if(m>0){var blktype={"prefix":!1,"suffix":!1};if(useaffbt.prefix>=usemaxaffgrp.prefix){blktype.prefix=!0}
+if(useaffbt.suffix>=usemaxaffgrp.suffix){blktype.suffix=!0}
+var nmodpool=[];let tagblocks=(poecd.modifiers.seq[poecd.modifiers.ind[affix.id]].tgb)?JSON.parse(poecd.modifiers.seq[poecd.modifiers.ind[affix.id]].tgb):[];crsim_tweight=0;for(var i=0;i<tmodpool.length;i++){if(!blktype[tmodpool[i].atype]){var mconflict=!1;for(var zy=0;zy<tmodpool[i].modgroups.length;zy++){for(var zw=0;zw<affix.modgroups.length;zw++){if(tmodpool[i].modgroups[zy]==affix.modgroups[zw]){mconflict=!0}}}
+if(!mconflict&&tmodpool[i].tags){$.each(tagblocks,function(tindex,tagid){if(tmodpool[i].tags.indexOf("|"+tagid+"|"))mconflict=!0})}
+if(!mconflict){var gogo=!0;if(tmodpool[i].amgs){for(var h=0;h<tmodpool[i].amgs.length;h++){if(blkdata.amgs.indexOf("|"+tmodpool[i].amgs[h]+"|")>-1){gogo=!1}}}
+if(gogo){nmodpool.push(tmodpool[i]);crsim_tweight+=tmodpool[i].weight}}}}
+tmodpool=jQuery.parseJSON(JSON.stringify(nmodpool))}
+if(crsim_tweight==0){}else{var rnd=poec_rand(1,crsim_tweight,!0);var simTWeight=0;affix=null;var hitw=0;var hitid=0;var hitindex=0;for(var i=0;i<tmodpool.length;i++){var rs=simTWeight+1;var re=simTWeight+tmodpool[i].weight;if(rnd>=rs&&rnd<=re){affix=tmodpool[i];hitw=tmodpool[i].weight;hitid=tmodpool[i].id;hitindex=i;break}
+simTWeight+=tmodpool[i].weight}
+if(affix){for(var i=hitindex+1;i<tmodpool.length;i++){if(hitid!=tmodpool[i].id){break}else{hitw+=tmodpool[i].weight}}
+affix.rolls=poec_simRollValues(affix.nvalues);affix.bench=0;affix.frac=0;affix.maven=0;affix.chance=hitw/crsim_tweight;aaffs.push(affix);useaffixes.push(affix);useaffbt[affix.atype]++;if(affix.amgs){for(var h=0;h<affix.amgs.length;h++){blkdata.amgs+=affix.amgs[h]+"|"}}}else{console.log("Random number did not fall into mod range, problem")}}}}
+if(crsim_bypass){crsim_bypass.iaffixes=useaffixes;crsim_bypass.iaffbt=useaffbt}else{crsim_data.iaffixes=useaffixes;crsim_data.iaffbt=useaffbt}
+return jQuery.parseJSON(JSON.stringify(aaffs))}
+function poec_simRollValues(nvalues){var nvalues=jQuery.parseJSON(nvalues);var rolls=[];if(nvalues){for(var z=0;z<nvalues.length;z++){if(Array.isArray(nvalues[z])){if(Math.ceil(nvalues[z][0])!=nvalues[z][0]||Math.ceil(nvalues[z][1])!=nvalues[z][1]){rolls.push(Math.round(poec_rand((nvalues[z][0]*100),(nvalues[z][1]*100)+1,!0))/100)}else{rolls.push(poec_rand(nvalues[z][0],nvalues[z][1]+1,!0))}}else{rolls.push(nvalues[z])}}}
+return rolls}
+function poec_simRemoveAffix(tag,atype,mgroup,meta,nonto,apcat,ruleout,nocnoa,fixedset){if(crsim_bypass){var useaffixes=crsim_bypass.iaffixes;var usemetas=crsim_bypass.meta_flags;var useaffbt=crsim_bypass.iaffbt;var usemtypes=crsim_bypass.mtypes}else{var useaffixes=crsim_data.iaffixes;var usemetas=crsim_data.meta_flags;var useaffbt=crsim_data.iaffbt;var usemtypes=crsim_data.mtypes}
+var keep={"prefix":!1,"suffix":!1,"attack":!1,"caster":!1};var raff=null;if(atype){if(atype=="prefix"){keep.suffix=!0}else{keep.prefix=!0}}
+if(meta){if(usemetas.nchg_pre){keep.prefix=!0}
+if(usemetas.nchg_suf){keep.suffix=!0}}
+if(nocnoa){if(usemetas.no_attack){keep.attack=!0}
+if(usemetas.no_caster){keep.caster=!0}}
+var relig=[];var tewght=0;if(fixedset!==null){for(var i=0;i<fixedset.length;i++){var prvweight=poec_simCatToRWeight(1000,apcat,useaffixes[fixedset[i]]);tewght+=prvweight;relig.push({"i":fixedset[i],"w":prvweight})}}else{if(tag){for(var i=0;i<useaffixes.length;i++){var skip=!1;if(ruleout){if(ruleout.indexOf("|"+i+"|")>-1){skip=!0}}
+if(!skip){if(!keep[useaffixes[i].atype]&&useaffixes[i].frac==0){var contok=!0;if(keep.attack||keep.caster){if(keep.attack){if(usemtypes[useaffixes[i].id].strcheck.indexOf("|3|")>-1){contok=!1}}
+if(keep.caster){if(usemtypes[useaffixes[i].id].strcheck.indexOf("|13|")>-1){contok=!1}}}
+if(contok){var prvweight=poec_simCatToRWeight(1000,apcat,useaffixes[i]);if(nonto){if(useaffixes[i].id>0){if(tag=="inf"){if(crsim_infgrps.indexOf("|"+useaffixes[i].mgrp+"|")>-1){}else{tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}else{if(useaffixes[i].maven){if(crsim_mvdata[useaffixes[i].maven].strcheck.indexOf("|"+tag+"|")>-1){}else{tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}else{if(usemtypes[useaffixes[i].id].strcheck.indexOf("|"+tag+"|")>-1){}else{tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}}}else{tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}else{if(tag=="inf"){if(crsim_infgrps.indexOf("|"+useaffixes[i].mgrp+"|")>-1){tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}else{if(useaffixes[i].maven){if(crsim_mvdata[useaffixes[i].maven].strcheck.indexOf("|"+tag+"|")>-1){tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}else{if(usemtypes[useaffixes[i].id].strcheck.indexOf("|"+tag+"|")>-1){tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}}}}}}}}else{if(mgroup){}else{for(var i=0;i<useaffixes.length;i++){var skip=!1;if(ruleout){if(ruleout.indexOf("|"+i+"|")>-1){skip=!0}}
+if(!skip){if(!keep[useaffixes[i].atype]&&useaffixes[i].frac==0){var contok=!0;if(keep.attack||keep.caster){if(keep.attack){if(usemtypes[useaffixes[i].id].strcheck.indexOf("|3|")>-1){contok=!1}}
+if(keep.caster){if(usemtypes[useaffixes[i].id].strcheck.indexOf("|13|")>-1){contok=!1}}}
+if(contok){var prvweight=poec_simCatToRWeight(1000,apcat,useaffixes[i]);tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}}}}}}
+if(relig.length>0){var rnd=poec_rand(1,tewght,!0);var simTWeight=0;var remaff=null;var rchg=0;for(var i=0;i<relig.length;i++){var rs=simTWeight+1;var re=simTWeight+relig[i].w;if(rnd>=rs&&rnd<=re){remaff=relig[i].i;rchg=relig[i].w;break}
+simTWeight+=relig[i].w}
+if(remaff!==null){raff=useaffixes[remaff];raff.chance=rchg/tewght;var rbaff=[];for(var i=0;i<useaffixes.length;i++){if(i!=remaff){rbaff.push(useaffixes[i])}else{useaffbt[useaffixes[i].atype]--}}
+useaffixes=rbaff}else{

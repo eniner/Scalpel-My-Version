@@ -50,8 +50,30 @@ export type { LegacyAppSettings, AppSettings, RuntimeSettings } from './contract
 export type { InstallManifest, Manifest, AuthResult } from './contracts/updates'
 
 export type { HistoryEntry, FilterChange, FilterVersion } from './contracts/history'
+export type {
+  ApplySectionDeltaRequest,
+  ApplySectionDeltaResult,
+  ConditionPreset,
+  FilterMatchRequest,
+  FilterMatchResponse,
+  FilterMatchStep,
+  FilterPreflightIssue,
+  FilterPreflightResult,
+  FilterReapplyPreview,
+  FilterReapplyResult,
+  FilterVersionDiff,
+  MoveConflictPreview,
+  ParsedClipboardItem,
+  SectionDiffTier,
+  StrictnessDiffRequest,
+} from './contracts/filter-section-tools'
 
-export type { FilterSection, FilterSectionTier } from './contracts/filter-sections'
+export type {
+  FilterSection,
+  FilterSectionTier,
+  FilterSectionEffects,
+  FilterContinueParent,
+} from './contracts/filter-sections'
 
 export type {
   LootSimAlert,

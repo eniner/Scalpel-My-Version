@@ -83,6 +83,7 @@ import {
 } from './cheat-sheets'
 import { registerWhiteboardOverlay, toggleWhiteboard } from './whiteboard'
 import { registerTimelessTreeOverlay } from './timeless-tree'
+import { registerFilterSectionEditorOverlay, toggleFilterSectionEditor } from './filter-section-editor'
 import { togglePluginOverlay } from './plugin-overlay'
 import { registerPinnedZoneOverlay, applyPinnedZoneEnabled } from './pinned-zone'
 import { getOverlayAnchor, setMainOverlayGetter, setOnLeaveScalpel, subscribeToPoeMoves } from './windowing'
@@ -322,7 +323,6 @@ app.whenReady().then(() => {
     openDivCards: 'divcards',
     openScarabs: 'scarabs',
     openTimeless: 'timeless',
-    openWarrants: 'warrants',
     openRegex: 'regex',
   }
   const pasteRegexToSearch = (regex: string): void => {
@@ -414,6 +414,13 @@ app.whenReady().then(() => {
       })
       return
     }
+    if (action === 'toggleFilterSectionEditor') {
+      const main = getOverlayWindow()
+      if (main && !main.isDestroyed() && main.isVisible()) hideOverlay()
+      getCheatSheetsOverlay()?.hide()
+      toggleFilterSectionEditor()
+      return
+    }
     if (action.startsWith('plugin-overlay:')) {
       togglePluginOverlay(action.slice('plugin-overlay:'.length))
       return
@@ -454,6 +461,7 @@ app.whenReady().then(() => {
   applyCheatSheetHotkeys(getProfileBackedSetting(store, 'cheatSheets'))
   registerWhiteboardOverlay()
   registerTimelessTreeOverlay()
+  registerFilterSectionEditorOverlay()
   registerRegexRemoteOverlay({
     onAnchorChanged: (anchor) => {
       getRegexRemoteOverlay()?.send('regex-remote:mount-changed', regexRemoteFlushLeft(anchor))

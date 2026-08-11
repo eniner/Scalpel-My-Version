@@ -1,0 +1,202 @@
+{
+  "f0": {
+    "total": 44000,
+    "groups": [
+      {
+        "g": "IncreasedLife",
+        "w": 9000,
+        "tiers": [
+          "1:+(10-19) to maximum Life",
+          "6:+(20-29) to maximum Life",
+          "16:+(30-39) to maximum Life",
+          "24:+(40-59) to maximum Life",
+          "33:+(60-69) to maximum Life",
+          "38:+(70-84) to maximum Life",
+          "46:+(85-99) to maximum Life",
+          "54:+(100-119) to maximum Life",
+          "60:+(120-149) to maximum Life"
+        ]
+      },
+      {
+        "g": "IncreasedMana",
+        "w": 9000,
+        "tiers": [
+          "1:+(10-14) to maximum Mana",
+          "6:+(15-24) to maximum Mana",
+          "16:+(25-34) to maximum Mana",
+          "25:+(35-54) to maximum Mana",
+          "33:+(55-64) to maximum Mana",
+          "38:+(65-79) to maximum Mana",
+          "46:+(80-89) to maximum Mana",
+          "54:+(90-104) to maximum Mana",
+          "60:+(105-124) to maximum Mana"
+        ]
+      },
+      {
+        "g": "BaseLocalDefences",
+        "w": 7000,
+        "tiers": [
+          "1:+(10-17) to maximum Energy Shield",
+          "8:+(18-24) to maximum Energy Shield",
+          "16:+(25-30) to maximum Energy Shield",
+          "25:+(31-35) to maximum Energy Shield",
+          "33:+(36-41) to maximum Energy Shield",
+          "46:+(42-47) to maximum Energy Shield",
+          "54:+(48-60) to maximum Energy Shield"
+        ]
+      },
+      {
+        "g": "DefencesPercent",
+        "w": 7000,
+        "tiers": [
+          "2:(15-26)% increased Energy Shield",
+          "16:(27-42)% increased Energy Shield",
+          "33:(43-55)% increased Energy Shield",
+          "46:(56-67)% increased Energy Shield",
+          "54:(68-79)% increased Energy Shield",
+          "60:(80-91)% increased Energy Shield",
+          "65:(92-100)% increased Energy Shield"
+        ]
+      },
+      {
+        "g": "MovementVelocity",
+        "w": 6000,
+        "tiers": [
+          "1:10% increased Movement Speed",
+          "16:15% increased Movement Speed",
+          "33:20% increased Movement Speed",
+          "46:25% increased Movement Speed",
+          "65:30% increased Movement Speed",
+          "82:35% increased Movement Speed"
+        ]
+      },
+      {
+        "g": "DefencesPercentAndStunThreshold",
+        "w": 6000,
+        "tiers": [
+          "10:(6-13)% increased Energy Shield, +(8-13) to Stun Threshold",
+          "19:(14-20)% increased Energy Shield, +(14-24) to Stun Threshold",
+          "38:(21-26)% increased Energy Shield, +(25-40) to Stun Threshold",
+          "48:(27-32)% increased Energy Shield, +(41-63) to Stun Threshold",
+          "63:(33-38)% increased Energy Shield, +(64-94) to Stun Threshold",
+          "74:(39-42)% increased Energy Shield, +(95-136) to Stun Threshold"
+        ]
+      }
+    ]
+  },
+  "f35": {
+    "total": 21000,
+    "groups": [
+      {
+        "g": "IncreasedLife",
+        "w": 4000,
+        "tiers": [
+          "38:+(70-84) to maximum Life",
+          "46:+(85-99) to maximum Life",
+          "54:+(100-119) to maximum Life",
+          "60:+(120-149) to maximum Life"
+        ]
+      },
+      {
+        "g": "IncreasedMana",
+        "w": 4000,
+        "tiers": [
+          "38:+(65-79) to maximum Mana",
+          "46:+(80-89) to maximum Mana",
+          "54:+(90-104) to maximum Mana",
+          "60:+(105-124) to maximum Mana"
+        ]
+      },
+      {
+        "g": "BaseLocalDefences",
+        "w": 2000,
+        "tiers": [
+          "46:+(42-47) to maximum Energy Shield",
+          "54:+(48-60) to maximum Energy Shield"
+        ]
+      },
+      {
+        "g": "DefencesPercent",
+        "w": 4000,
+        "tiers": [
+          "46:(56-67)% increased Energy Shield",
+          "54:(68-79)% increased Energy Shield",
+          "60:(80-91)% increased Energy Shield",
+          "65:(92-100)% increased Energy Shield"
+        ]
+      },
+      {
+        "g": "MovementVelocity",
+        "w": 3000,
+        "tiers": [
+          "46:25% increased Movement Speed",
+          "65:30% increased Movement Speed",
+          "82:35% increased Movement Speed"
+        ]
+      },
+      {
+        "g": "DefencesPercentAndStunThreshold",
+        "w": 4000,
+        "tiers": [
+          "38:(21-26)% increased Energy Shield, +(25-40) to Stun Threshold",
+          "48:(27-32)% increased Energy Shield, +(41-63) to Stun Threshold",
+          "63:(33-38)% increased Energy Shield, +(64-94) to Stun Threshold",
+          "74:(39-42)% increased Energy Shield, +(95-136) to Stun Threshold"
+        ]
+      }
+    ]
+  },
+  "f50": {
+    "total": 12000,
+    "groups": [
+      {
+        "g": "IncreasedLife",
+        "w": 2000,
+        "tiers": [
+          "54:+(100-119) to maximum Life",
+          "60:+(120-149) to maximum Life"
+        ]
+      },
+      {
+        "g": "IncreasedMana",
+        "w": 2000,
+        "tiers": [
+          "54:+(90-104) to maximum Mana",
+          "60:+(105-124) to maximum Mana"
+        ]
+      },
+      {
+        "g": "BaseLocalDefences",
+        "w": 1000,
+        "tiers": [
+          "54:+(48-60) to maximum Energy Shield"
+        ]
+      },
+      {
+        "g": "DefencesPercent",
+        "w": 3000,
+        "tiers": [
+          "54:(68-79)% increased Energy Shield",
+          "60:(80-91)% increased Energy Shield",
+          "65:(92-100)% increased Energy Shield"
+        ]
+      },
+      {
+        "g": "MovementVelocity",
+        "w": 2000,
+        "tiers": [
+          "65:30% increased Movement Speed",
+          "82:35% increased Movement Speed"
+        ]
+      },
+      {
+        "g": "DefencesPercentAndStunThreshold",
+        "w": 2000,
+        "tiers": [
+          "63:(33-38)% increased Energy Shield, +(64-94) to Stun Threshold",
+          "74:(39-42)% increased Energy Shield, +(95-136) to Stun Threshold"
+        ]
+      }
+    ]
+  }
+}

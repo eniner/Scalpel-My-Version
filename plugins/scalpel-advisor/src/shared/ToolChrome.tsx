@@ -1,6 +1,6 @@
-import type { CSSProperties, ReactNode } from 'react'
-import { TOOL_ICONS } from '../shared/toolIcons'
-import { accentBtnStyle, btnStyle, theme } from '../shared/theme'
+import type { ReactNode } from 'react'
+import { TOOL_ICONS } from './toolIcons'
+import { accentBtnStyle, fonts, ghostBtnStyle, theme } from './theme'
 
 export function ToolIcon({
   toolId,
@@ -22,7 +22,7 @@ export function ToolIcon({
         height: size,
         objectFit: 'contain',
         flexShrink: 0,
-        imageRendering: 'auto',
+        filter: 'saturate(0.92) contrast(1.05)',
       }}
       draggable={false}
     />
@@ -35,7 +35,7 @@ export function ToolHeader({
   onBack,
   status,
   onRefresh,
-  refreshLabel = 'Refresh Prices',
+  refreshLabel = 'Sync prices',
   children,
 }: {
   toolId: string
@@ -47,29 +47,52 @@ export function ToolHeader({
   children?: ReactNode
 }): JSX.Element {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-      <button type="button" style={btnStyle} onClick={onBack}>
-        ← Tools
+    <header
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        flexWrap: 'wrap',
+        paddingBottom: 10,
+        borderBottom: `1px solid ${theme.border}`,
+      }}
+    >
+      <button type="button" style={ghostBtnStyle} onClick={onBack}>
+        ← Atlas
       </button>
-      <ToolIcon toolId={toolId} size={26} />
-      <strong style={{ color: theme.accent, fontSize: 16 }}>{title}</strong>
-      {status != null ? (
-        <span style={{ color: theme.dim, fontSize: 11, flex: 1 }}>{status}</span>
-      ) : (
-        <span style={{ flex: 1 }} />
-      )}
+      <ToolIcon toolId={toolId} size={28} />
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            fontFamily: fonts.display,
+            fontSize: 22,
+            fontWeight: 650,
+            color: theme.ink,
+            letterSpacing: '-0.015em',
+            lineHeight: 1.1,
+          }}
+        >
+          {title}
+        </div>
+        {status != null ? (
+          <div
+            style={{
+              marginTop: 3,
+              fontSize: 11,
+              color: theme.dim,
+              letterSpacing: '0.04em',
+            }}
+          >
+            {status}
+          </div>
+        ) : null}
+      </div>
       {children}
       {onRefresh ? (
         <button type="button" style={accentBtnStyle} onClick={onRefresh}>
           {refreshLabel}
         </button>
       ) : null}
-    </div>
+    </header>
   )
-}
-
-export const toolTitleRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
 }

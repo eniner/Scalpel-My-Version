@@ -3,6 +3,7 @@ import { basename, join } from 'node:path'
 import { app, ipcMain } from 'electron'
 import type Store from 'electron-store'
 import type { AppSettings } from '@shared/types'
+import type { FilterReapplyPreview, FilterReapplyResult } from '@shared/types'
 import { getBaselineByLocalPath, saveBaseline } from '../baselines'
 import { clearIntents, getIntents } from '../filter/intent-recorder'
 import { replayIntents } from '../filter/intent-replay'
@@ -366,6 +367,84 @@ export function register(store: Store<AppSettings>): void {
           alreadyLinked: false,
           candidates: resolved.candidates,
         }
+      } catch (err) {
+        return { ok: false, error: String(err) }
+      }
+    },
+  )
+
+  /** Dry-run: replay recorded section edits onto the matching online upstream (no write, no in-game switch). */
+  ipcMain.handle('preview-filter-reapply', (): FilterReapplyPreview => {
+    const info = findOnlineFilter(store)
+    if ('error' in info) {
+      return { ok: false, error: info.error, intentCount: 0, applied: 0, skipped: 0, conflicts: [] }
+    }
+    try {
+      const intentLog = getIntents()
+      if (intentLog.intents.length === 0) {
+        return {
+          ok: true,
+          onlineFilterName: info.onlineFilterName,
+          intentCount: 0,
+          applied: 0,
+          skipped: 0,
+          conflicts: [],
+        }
+      }
+      const upstreamContent = readFileSync(info.onlineFilePath, 'utf-8')
+      const localContent = applyLocalNameHeader(upstreamContent, info.localFileName)
+      const result = replayIntents(localContent, info.localPath, intentLog, { forceApply: true })
+      return {
+        ok: true,
+        onlineFilterName: info.onlineFilterName,
+        intentCount: intentLog.intents.length,
+        applied: result.stats.applied,
+        skipped: result.stats.skipped,
+        conflicts: result.conflicts.map((c) => ({ description: c.description })),
+      }
+    } catch (err) {
+      return { ok: false, error: String(err), intentCount: 0, applied: 0, skipped: 0, conflicts: [] }
+    }
+  })
+
+  /**
+   * Apply recorded intents onto the online upstream into the local filter.
+   * Does NOT switch the in-game filter (safe from section editor).
+   */
+  ipcMain.handle(
+    'apply-filter-reapply',
+    async (): Promise<FilterReapplyResult> => {
+      const info = findOnlineFilter(store)
+      if ('error' in info) return { ok: false, error: info.error }
+      try {
+        const upstreamContent = readFileSync(info.onlineFilePath, 'utf-8')
+        const localContent = applyLocalNameHeader(upstreamContent, info.localFileName)
+        const intentLog = getIntents()
+
+        let skippedForValidity = 0
+        let applied = 0
+        let skipped = 0
+        const conflicts: Array<{ description: string }> = []
+
+        if (intentLog.intents.length === 0) {
+          writeFileSync(info.localPath, localContent, 'utf-8')
+        } else {
+          const result = replayIntents(localContent, info.localPath, intentLog, { forceApply: true })
+          const { fallbackBlocks } = writeFilterSelective(result.filter, result.modifiedBlocks, result.removedBlocks)
+          skippedForValidity = fallbackBlocks.length
+          applied = result.stats.applied
+          skipped = result.stats.skipped
+          conflicts.push(...result.conflicts.map((c) => ({ description: c.description })))
+        }
+
+        saveBaseline(info.onlineFilterName, upstreamContent, info.onlineFilePath, info.localPath)
+        saveVersion(info.localPath, false, 'Section Reapply')
+        const currentPath = getProfileBackedSetting(store, 'filterPath')
+        if (currentPath === info.localPath) {
+          loadFilter(info.localPath, 'Section Reapply')
+        }
+
+        return { ok: true, applied, skipped, skippedForValidity, conflicts }
       } catch (err) {
         return { ok: false, error: String(err) }
       }

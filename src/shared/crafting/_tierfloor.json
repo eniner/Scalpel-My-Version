@@ -1,0 +1,78 @@
+{
+  "empty": {
+    "floor0": {
+      "total": 44000,
+      "t1": 1000,
+      "E_empty": 44,
+      "n": 44
+    },
+    "floor35": {
+      "total": 21000,
+      "t1": 1000,
+      "E_empty": 21,
+      "n": 21
+    },
+    "floor50": {
+      "total": 12000,
+      "t1": 1000,
+      "E_empty": 12,
+      "n": 12
+    }
+  },
+  "chaosByFloor": {
+    "floor0": {
+      "p": 0.014285714285714285,
+      "E": 70
+    },
+    "floor35": {
+      "p": 0.029411764705882353,
+      "E": 34
+    },
+    "floor50": {
+      "p": 0.05,
+      "E": 20
+    }
+  },
+  "target": {
+    "Chaos Orb": {
+      "p": 0.022727272727272724,
+      "E": 44.00000000000001,
+      "note": "PoE2 Chaos: remove one mod, add one of that affix kind (pooled over which mod is removed)."
+    },
+    "Chaos Orb on 2p2s": {
+      "p": 0.014285714285714285,
+      "E": 70
+    },
+    "Greater Chaos Orb": {
+      "p": 0.047619047619047616,
+      "E": 21,
+      "note": "PoE2 Chaos: remove one mod, add one of that affix kind (pooled over which mod is removed)."
+    },
+    "Greater Chaos Orb on 2p2s": {
+      "p": 0.029411764705882353,
+      "E": 34
+    },
+    "Perfect Chaos Orb": {
+      "p": 0.08333333333333333,
+      "E": 12,
+      "note": "PoE2 Chaos: remove one mod, add one of that affix kind (pooled over which mod is removed)."
+    },
+    "Perfect Chaos Orb on 2p2s": {
+      "p": 0.05,
+      "E": 20
+    }
+  },
+  "seqPerfectE": 27.92592592592593,
+  "seqNote": "Chaos odds: prefix reforge with Life/Mana/hybrid already present (CoE-like mid-craft). Empty-pool shortcut disabled.",
+  "blockedLifeManaMsFloor50": {
+    "tw": 6000,
+    "t1w": 1000,
+    "E": 6
+  },
+  "usedGroupsSanity": [
+    "IncreasedLife",
+    "IncreasedMana",
+    "FireResistance",
+    "ColdResistance"
+  ]
+}

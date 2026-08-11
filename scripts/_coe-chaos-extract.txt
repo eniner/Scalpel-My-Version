@@ -1,0 +1,26 @@
+﻿idx 805921
+case 'chaos':if(aconsts.game=="poe2"){if(crafts.ssaction)crafts.subaction=crafts.ssaction;minLevel=getCurrencyModLevelFilter(usecurrency,filterSimulatorTieredCurrencySubAction(crafts.subaction));if(checkOmensForMethod(usecurrency)){if(checkForActiveOmen("dextral_erasure")&&checkForActiveOmen("sinistral_erasure")){success=!1;throwOmenError(override)}else{let atype=null;if(checkForActiveOmen("dextral_erasure"))atype="suffix";if(checkForActiveOmen("sinistral_erasure"))atype="prefix";let ruleout="|";if(checkForActiveOmen("whittling")){let lowests={};let lowestLvl=99999;$.each(useaffixes,function(index,affix){if(affix.frac)return;if(affix.id&&(atype===null||atype===affix.atype)){let ilvl=parseInt(poecd.tiers[affix.id][usebase][affix.tindex].ilvl);if(lowests[ilvl]==undefined)lowests[ilvl]=[];lowests[ilvl].push(index);if(ilvl<lowestLvl)lowestLvl=ilvl}});$.each(useaffixes,function(index,affix){if(!lowests[lowestLvl].includes(index)){ruleout+=index+"|"}})}
+craftDetail.rem=poec_simRemoveAffix(null,atype,null,!0,!1,!0,ruleout,!0,null);var ret=poec_simRollAffix(null,null,null,null,1,!0,!0,!1,!1,!1,!1,null,!1,"|",!1,!1,!1,minLevel);craftDetail.add=ret;craftDetail.omens=consumeOmens(omensForMethods[usecurrency],override)}}else{craftDetail.rem=poec_simRemoveAffix(null,null,null,!0,!1,!0,!1,!0,null);var ret=poec_simRollAffix(null,null,null,null,1,!0,!0,!1,!1,!1,!1,null,!1,"|",!1,!1,!1,minLevel);craftDetail.add=ret}}else{poec_simRerollItem("rare",null,null,null,!1,!1,!1,!0,null,!1,!1,!1,!1)}
+break;case 'exalted':if(aconsts.game=="poe2"){if(crafts.ssaction)crafts.subaction=crafts.ssaction;minLevel=getCurrencyModLevelFilter(usecurrency,filterSimulatorTieredCurrencySubAction(crafts.subaction))}
+if(checkOmensForMethod(usecurrency)){if(checkForActiveOmen("dextral_exaltation")&&checkForActiveOmen("sinistral_exaltation")){success=!1;throwOmenError(override)}else{var affixType=null;if(checkForActiveOmen("dextral_exaltation"))affixType="prefix";if(checkForActiveOmen("sinistral_exaltation"))affixType="suffix";var numAddAffix=checkForActiveOmen("greater_exaltation")?2:1;var affixesCopy=JSON.parse(JSON.stringify(useaffixes));let homogenisationTags=null;if(checkForActiveOmen("homogenising_exaltation")){homogenisationTags=obtainHomogenisationTags(affixesCopy)}
+if(crsim_bypass){var useaffbt=crsim_bypass.iaffbt}else{var useaffbt=crsim_data.iaffbt}
+var affbtCopy=JSON.parse(JSON.stringify(useaffbt));craftDetail.add=poec_simRollAffix(null,homogenisationTags,null,null,numAddAffix,!0,!1,!1,!1,!1,!1,null,!1,"|",!1,!1,affixType,minLevel);if(craftDetail.add&&craftDetail.add.length<numAddAffix){craftDetail.add=null}
+if(!craftDetail.add||craftDetail.add.length==0){if(crsim_bypass){crsim_bypass.iaffixes=JSON.parse(JSON.stringify(affixesCopy));crsim_bypass.iaffbt=JSON.parse(JSON.stringify(affbtCopy))}else{crsim_data.iaffixes=JSON.parse(JSON.stringify(affixesCopy));crsim_data.iaffbt=JSON.parse(JSON.stringify(affbtCopy))}
+success=!1;let errors="Could not generate mod";if(!override){$("#simIte
+
+
+--- remove affix ---
+ function poec_simRemoveAffix(tag,atype,mgroup,meta,nonto,apcat,ruleout,nocnoa,fixedset){if(crsim_bypass){var useaffixes=crsim_bypass.iaffixes;var usemetas=crsim_bypass.meta_flags;var useaffbt=crsim_bypass.iaffbt;var usemtypes=crsim_bypass.mtypes}else{var useaffixes=crsim_data.iaffixes;var usemetas=crsim_data.meta_flags;var useaffbt=crsim_data.iaffbt;var usemtypes=crsim_data.mtypes}
+var keep={"prefix":!1,"suffix":!1,"attack":!1,"caster":!1};var raff=null;if(atype){if(atype=="prefix"){keep.suffix=!0}else{keep.prefix=!0}}
+if(meta){if(usemetas.nchg_pre){keep.prefix=!0}
+if(usemetas.nchg_suf){keep.suffix=!0}}
+if(nocnoa){if(usemetas.no_attack){keep.attack=!0}
+if(usemetas.no_caster){keep.caster=!0}}
+var relig=[];var tewght=0;if(fixedset!==null){for(var i=0;i<fixedset.length;i++){var prvweight=poec_simCatToRWeight(1000,apcat,useaffixes[fixedset[i]]);tewght+=prvweight;relig.push({"i":fixedset[i],"w":prvweight})}}else{if(tag){for(var i=0;i<useaffixes.length;i++){var skip=!1;if(ruleout){if(ruleout.indexOf("|"+i+"|")>-1){skip=!0}}
+if(!skip){if(!keep[useaffixes[i].atype]&&useaffixes[i].frac==0){var contok=!0;if(keep.attack||keep.caster){if(keep.attack){if(usemtypes[useaffixes[i].id].strcheck.indexOf("|3|")>-1){contok=!1}}
+if(keep.caster){if(usemtypes[useaffixes[i].id].strcheck.indexOf("|13|")>-1){contok=!1}}}
+if(contok){var prvweight=poec_simCatToRWeight(1000,apcat,useaffixes[i]);if(nonto){if(useaffixes[i].id>0){if(tag=="inf"){if(crsim_infgrps.indexOf("|"+useaffixes[i].mgrp+"|")>-1){}else{tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}else{if(useaffixes[i].maven){if(crsim_mvdata[useaffixes[i].maven].strcheck.indexOf("|"+tag+"|")>-1){}else{tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}else{if(usemtypes[useaffixes[i].id].strcheck.indexOf("|"+tag+"|")>-1){}else{tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}}}else{tewght+=prvweight;relig.push({"i":i,"w":prvweight})}}else{if(tag=="inf"){if(crsim_infgrps.indexOf("|"+useaffixes[i].mgrp+"|")>-1){tewght+=prvweight;reli
+
+
+--- add affix ---
+ 

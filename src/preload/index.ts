@@ -145,6 +145,12 @@ export const api = {
     ipcRenderer.invoke('get-filter-block', blockIndex),
   addBaseTypeToTier: (blockIndex: number, baseType: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('add-basetype-to-tier', blockIndex, baseType),
+  removeBaseTypeFromTier: (blockIndex: number, baseType: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('remove-basetype-from-tier', blockIndex, baseType),
+  deleteFilterBlock: (blockIndex: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('delete-filter-block', blockIndex),
+  moveFilterBlock: (fromIndex: number, toIndex: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('move-filter-block', fromIndex, toIndex),
   insertSectionRule: (opts: {
     typePath: string
     tier: string
@@ -152,13 +158,81 @@ export const api = {
     beforeBlockIndex: number
     visibility?: 'Show' | 'Hide' | 'Minimal'
     copyStyleFromIndex?: number
+    cloneConditions?: boolean
   }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('insert-section-rule', opts),
   simulateLootDrops: (
     req: import('@shared/types').LootSimRequest,
   ): Promise<{ ok: boolean; error?: string } & import('@shared/types').LootSimResult> =>
     ipcRenderer.invoke('simulate-loot-drops', req),
+  matchFilterItem: (
+    req: import('@shared/types').FilterMatchRequest,
+  ): Promise<import('@shared/types').FilterMatchResponse> => ipcRenderer.invoke('match-filter-item', req),
+  parseItemText: (text: string): Promise<import('@shared/types').ParsedClipboardItem> =>
+    ipcRenderer.invoke('parse-item-text', text),
+  getLastEvaluatedItem: (): Promise<import('@shared/types').ParsedClipboardItem> =>
+    ipcRenderer.invoke('get-last-evaluated-item'),
+  getRecentEvaluatedItems: (): Promise<import('@shared/types').ParsedClipboardItem[]> =>
+    ipcRenderer.invoke('get-recent-evaluated-items'),
+  preflightFilterCheck: (): Promise<import('@shared/types').FilterPreflightResult> =>
+    ipcRenderer.invoke('preflight-filter-check'),
+  applySectionDelta: (
+    req: import('@shared/types').ApplySectionDeltaRequest,
+  ): Promise<import('@shared/types').ApplySectionDeltaResult> =>
+    ipcRenderer.invoke('apply-section-delta', req),
+  exportFilterIntents: (): Promise<{
+    ok: boolean
+    filterName?: string
+    intentCount?: number
+    json?: string
+    error?: string
+  }> => ipcRenderer.invoke('export-filter-intents'),
+  importFilterIntents: (payload: {
+    json: string
+    mode: 'replace' | 'merge'
+    replay?: boolean
+  }): Promise<{ ok: boolean; error?: string; imported?: number; applied?: number; skipped?: number }> =>
+    ipcRenderer.invoke('import-filter-intents', payload),
+  findFilterConditions: (query: {
+    conditionType?: string
+    valueContains?: string
+    missingAction?: string
+    typePath?: string
+  }): Promise<{
+    ok: boolean
+    error?: string
+    hits: Array<{
+      blockIndex: number
+      typePath?: string
+      tier?: string
+      label: string
+      visibility: string
+      match: string
+    }>
+  }> => ipcRenderer.invoke('find-filter-conditions', query),
+  undoSectionHistory: (typePath: string): Promise<{ ok: boolean; undone: number; error?: string }> =>
+    ipcRenderer.invoke('undo-section-history', typePath),
+  previewBaseTypeMove: (
+    baseType: string,
+    toBlockIndex: number,
+  ): Promise<import('@shared/types').MoveConflictPreview> =>
+    ipcRenderer.invoke('preview-basetype-move', baseType, toBlockIndex),
+  diffFilterFiles: (
+    leftPath: string,
+    rightPath: string,
+  ): Promise<import('@shared/types').FilterVersionDiff> =>
+    ipcRenderer.invoke('diff-filter-files', leftPath, rightPath),
+  diffFilterVsVersion: (
+    versionFilename: string,
+  ): Promise<import('@shared/types').FilterVersionDiff> =>
+    ipcRenderer.invoke('diff-filter-vs-version', versionFilename),
+  previewFilterReapply: (): Promise<import('@shared/types').FilterReapplyPreview> =>
+    ipcRenderer.invoke('preview-filter-reapply'),
+  applyFilterReapply: (): Promise<import('@shared/types').FilterReapplyResult> =>
+    ipcRenderer.invoke('apply-filter-reapply'),
   reloadFilter: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('reload-filter'),
   getUniqueVisibility: (): Promise<Record<string, 'Show' | 'Hide'>> => ipcRenderer.invoke('get-unique-visibility'),
+  getUniqueFilterTiers: (): Promise<Record<string, string | null>> =>
+    ipcRenderer.invoke('get-unique-filter-tiers'),
   lookupBaseType: (
     baseType: string,
     itemClass: string,
@@ -231,6 +305,8 @@ export const api = {
   // History / undo
   getHistory: (): Promise<HistoryEntry[]> => ipcRenderer.invoke('get-history'),
   undoEdit: (itemJson?: string): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('undo-edit', itemJson),
+  undoToEntry: (entryId: number, itemJson?: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('undo-to-entry', entryId, itemJson),
 
   // Filter versions
   listVersions: (): Promise<FilterVersion[]> => ipcRenderer.invoke('list-versions'),
@@ -316,6 +392,14 @@ export const api = {
       return () => ipcRenderer.removeListener('timeless-tree:state', handler)
     },
   },
+
+  filterSectionEditor: {
+    show: (): void => ipcRenderer.send('filter-section-editor:show'),
+    requestClose: (): void => ipcRenderer.send('filter-section-editor:request-close'),
+    setPinned: (pinned: boolean): Promise<{ ok: boolean; pinned: boolean }> =>
+      ipcRenderer.invoke('filter-section-editor:set-pinned', pinned),
+  },
+
   onRegexRemoteMountChanged: (cb: (flush: boolean) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, flush: boolean): void => cb(flush)
     ipcRenderer.on('regex-remote:mount-changed', handler)
@@ -469,14 +553,52 @@ export const api = {
       notes?: string
       statPriority?: string[]
       similarItems?: boolean
+      upgradeSearch?: boolean
+      statKinds?: string[]
     },
-  ): Promise<{ url: string; queryId: string; total: number; matchedStats?: number }> =>
+  ): Promise<{
+    url: string
+    queryId: string
+    total: number
+    matchedStats?: number
+    unmatchedMods?: string[]
+  }> =>
     ipcRenderer.invoke('plugins:trade-open-search', item),
+  tradePriceCheck: (
+    item: {
+      name: string
+      baseType: string
+      itemClass?: string
+      rarity: string
+      notes?: string
+      statPriority?: string[]
+      similarItems?: boolean
+      upgradeSearch?: boolean
+      statKinds?: string[]
+    },
+  ): Promise<{
+    url: string
+    queryId: string
+    total: number
+    matchedStats?: number
+    unmatchedMods?: string[]
+    pricesDivine: number[]
+    cheapestDivine: number | null
+    estimateDivine: number | null
+    pricedCount: number
+  }> => ipcRenderer.invoke('plugins:trade-price-check', item),
   pricesGet: (opts?: {
     category?: string
   }): Promise<{ prices: import('@shared/types').PriceEntry[]; updatedAt: number | null }> =>
     ipcRenderer.invoke('plugins:prices-get', opts),
   pricesRefresh: (): Promise<void> => ipcRenderer.invoke('plugins:prices-refresh'),
+  ninjaGetCharacterModel: (opts: {
+    account: string
+    league: string
+    name: string
+    modelVersion?: number
+  }): Promise<{ type: string; charModel: unknown; modelVersion: number }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PLUGINS.NINJA_CHARACTER_MODEL, opts),
   onPricesChange: (cb: () => void): (() => void) => {
     const handler = (): void => cb()
     ipcRenderer.send('plugins:prices-watch')
@@ -603,7 +725,20 @@ export const api = {
     limit?: number
     onlineOnly?: boolean
     pricedOnly?: boolean
+    sort?: 'asc' | 'desc'
+    maxAskDivine?: number | null
+    excludeJokeCurrencies?: boolean
+    wantSkills?: string[]
+    skillMatchMode?: 'all' | 'any'
+    wantSupports?: import('@shared/warrants').WantSupportFilter[]
+    supportPresenceMode?: import('@shared/warrants').SupportPresenceMode
+    supportLinkOrder?: import('@shared/warrants').SupportLinkOrder
+    linkSkill?: string | null
   }): Promise<import('@shared/warrants').WarrantScanResult> => ipcRenderer.invoke('warrants-scan', opts),
+  warrantsCatalog: (): Promise<{
+    skills: string[]
+    supports: import('@shared/warrants').WantSupportFilter[]
+  }> => ipcRenderer.invoke('warrants-catalog'),
   checkBulkItem: (itemName: string, baseType: string, itemClass: string, rarity?: string): Promise<boolean> =>
     ipcRenderer.invoke('check-bulk-item', itemName, baseType, itemClass, rarity),
   mapRegexTrade: (params: {
@@ -1131,6 +1266,9 @@ export const api = {
     itemClass?: string,
   ) => ipcRenderer.invoke('plugins:craft-search-bases', pluginId, query, limit, itemClass),
   craftListItemClasses: (pluginId: string) => ipcRenderer.invoke('plugins:craft-list-item-classes', pluginId),
+  craftGetCatalog: (pluginId: string) => ipcRenderer.invoke('plugins:craft-get-catalog', pluginId),
+  craftSequence: (pluginId: string, config: import('@shared/crafting/catalog-types').CraftSequenceConfig) =>
+    ipcRenderer.invoke('plugins:craft-sequence', pluginId, config),
   craftSearchMods: (
     pluginId: string,
     opts: {

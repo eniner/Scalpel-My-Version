@@ -178,6 +178,12 @@ function evaluateCondition(cond: FilterCondition, item: PoeItem): ConditionResul
       return boolMatch(isReplica, values[0]) ? 'pass' : 'fail'
     }
 
+    case 'Vestigial':
+      // Domain of Timeless Conflict “Vestigial” uniques. Default false so unknown
+      // synthetics (Unique Tiers / Dust / search) don't all match NeverSink's
+      // `$tier->vestige` catch-all (Rarity Unique + Vestigial True).
+      return boolMatch(item.vestigial ?? false, values[0]) ? 'pass' : 'fail'
+
     case 'Imbued':
     case 'Foulborn': {
       // Imbued/Foulborn variants are identified by (mutated) mods
@@ -286,8 +292,15 @@ export function evaluateBlock(block: { conditions: FilterCondition[] }, item: Po
 /** Find all blocks that match the item, in file order.
  *  Respects Continue — blocks with Continue keep searching even after matching.
  *  When strictUnknowns is true, blocks with any unknown condition are skipped —
- *  used for breakpoint analysis where we need definitive matches only. */
-export function findMatchingBlocks(filter: FilterFile, item: PoeItem, strictUnknowns = false): MatchResult[] {
+ *  used for breakpoint analysis where we need definitive matches only.
+ *  When includeShadowed is true, keep scanning after the winner so later
+ *  matching rules appear as shadowed (never applied in-game). */
+export function findMatchingBlocks(
+  filter: FilterFile,
+  item: PoeItem,
+  strictUnknowns = false,
+  includeShadowed = false,
+): MatchResult[] {
   const results: MatchResult[] = []
   let firstMatchFound = false
   let keepSearching = true
@@ -309,7 +322,7 @@ export function findMatchingBlocks(filter: FilterFile, item: PoeItem, strictUnkn
 
       if (isFirstMatch) {
         firstMatchFound = true
-        keepSearching = false
+        if (!includeShadowed) keepSearching = false
       }
     }
   }

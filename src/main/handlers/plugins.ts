@@ -51,14 +51,15 @@ export function register(store: Store<AppSettings>, isElevated: () => boolean = 
   ipcMain.handle('plugins:list-installed', (): InstalledPluginIpc[] => {
     return getInstalledPlugins().map((p) => ({
       manifest: p.manifest,
-      entryUrl: pluginEntryUrl(p.manifest.id),
+      // Version query busts Chromium's module cache when unpacked plugins are rewritten on disk.
+      entryUrl: `${pluginEntryUrl(p.manifest.id)}?v=${encodeURIComponent(p.manifest.version)}`,
     }))
   })
 
   ipcMain.handle('plugins:list-unpacked', (): InstalledPluginIpc[] => {
     return getUnpackedPlugins().map((p) => ({
       manifest: p.manifest,
-      entryUrl: pluginEntryUrl(p.manifest.id),
+      entryUrl: `${pluginEntryUrl(p.manifest.id)}?v=${encodeURIComponent(p.manifest.version)}`,
     }))
   })
 
@@ -66,7 +67,10 @@ export function register(store: Store<AppSettings>, isElevated: () => boolean = 
     if (!PLUGIN_ID_PATTERN.test(pluginId)) throw new Error('invalid plugin id')
     const found = getInstalledPlugins().find((p) => p.manifest.id === pluginId)
     if (!found) return null
-    return { manifest: found.manifest, entryUrl: pluginEntryUrl(found.manifest.id) }
+    return {
+      manifest: found.manifest,
+      entryUrl: `${pluginEntryUrl(found.manifest.id)}?v=${encodeURIComponent(found.manifest.version)}`,
+    }
   })
 
   ipcMain.handle('plugins:storage-get', (_evt, pluginId: string, key: string) => {

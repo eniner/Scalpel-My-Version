@@ -1,10 +1,14 @@
 {
   "schemaVersion": 2,
   "source": "coe",
-  "hash": "39d757761ed0f2bcc535c35dcc9a563d9e987dba958bd9a2dc538e208d40ffce",
-  "generatedAt": "2026-07-30T21:24:31.833Z",
+  "hash": "366a64766037c3e026d65e329e06ff2773bdda7591668cca6d3d90ec67f3595b",
+  "generatedAt": "2026-08-10T16:02:29.157Z",
   "modCount": 234668,
   "marksmanModCount": 157,
   "baseCount": 1753,
-  "currencyCount": 131
+  "currencyCount": 131,
+  "essenceCount": 95,
+  "catalystCount": 13,
+  "socketableCount": 287,
+  "priceCount": 384
 }

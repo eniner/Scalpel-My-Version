@@ -16,10 +16,10 @@ import { FilterPanel } from '../features/filter/FilterPanel'
 import { SettingsPanel } from '../features/settings/SettingsPanel'
 import { SocketRecolor } from '../components/SocketRecolor'
 import { DustExplorer } from '../features/dust-explorer'
+import { UniqueTiersExplorer } from '../features/unique-tiers'
 import { DivCardExplorer } from '../features/div-card-explorer'
 import { ScarabAtlas } from '../features/scarab-atlas'
 import { TimelessJewels } from '../features/timeless-jewels'
-import { ScalpelWarrants } from '../features/scalpel-warrants'
 import { RegexTool } from '../features/regex'
 import { ExtraFeaturesPanel } from '../components/extra-features/ExtraFeaturesPanel'
 import { PriceCheck } from '../features/price-check'
@@ -401,15 +401,15 @@ export default function App(): JSX.Element {
         if (v === 'audit') {
           auditPending.current = true
         } else {
-          const valid = ['setup', 'dust', 'divcards', 'scarabs', 'timeless', 'warrants', 'regex'] as const
+          const valid = ['setup', 'dust', 'uniquetiers', 'divcards', 'scarabs', 'timeless', 'regex'] as const
           if (!valid.includes(v as (typeof valid)[number])) return
           // Don't reopen tabs that the active game has disabled (e.g. regex on PoE2).
           const active = getGameFeatures(settings?.poeVersion ?? 1)
           if (v === 'dust' && !active.dustExplorer) return
+          if (v === 'uniquetiers' && !active.uniqueTiers) return
           if (v === 'divcards' && !active.divCards) return
           if (v === 'scarabs' && !active.scarabAtlas) return
           if (v === 'timeless' && !active.timelessJewels) return
-          if (v === 'warrants' && !active.scalpelWarrants) return
           if (v === 'regex' && !active.regexTool) return
           setView(v as View)
           // Optional second arg: the settings sub-tab to focus. Bump a
@@ -659,10 +659,10 @@ export default function App(): JSX.Element {
 
   const isFullHeightView =
     view === 'dust' ||
+    view === 'uniquetiers' ||
     view === 'divcards' ||
     view === 'scarabs' ||
     view === 'timeless' ||
-    view === 'warrants' ||
     view === 'pricecheck' ||
     view === 'item' ||
     view === 'regex' ||
@@ -1035,6 +1035,17 @@ export default function App(): JSX.Element {
                     <DustExplorer onSelectItem={() => setView('item')} onPriceCheckItem={() => setView('pricecheck')} />
                   </div>
                 )}
+                {features.uniqueTiers && (
+                  <div
+                    className="flex-col flex-1 min-h-0"
+                    style={{ display: view === 'uniquetiers' ? 'flex' : 'none' }}
+                  >
+                    <UniqueTiersExplorer
+                      onSelectItem={() => setView('item')}
+                      onPriceCheckItem={() => setView('pricecheck')}
+                    />
+                  </div>
+                )}
                 {features.divCards && (
                   <div className="flex-col flex-1 min-h-0" style={{ display: view === 'divcards' ? 'flex' : 'none' }}>
                     <DivCardExplorer onSelectItem={() => setView('item')} />
@@ -1048,11 +1059,6 @@ export default function App(): JSX.Element {
                 {features.timelessJewels && (
                   <div className="flex-col flex-1 min-h-0" style={{ display: view === 'timeless' ? 'flex' : 'none' }}>
                     <TimelessJewels />
-                  </div>
-                )}
-                {features.scalpelWarrants && (
-                  <div className="flex-col flex-1 min-h-0" style={{ display: view === 'warrants' ? 'flex' : 'none' }}>
-                    <ScalpelWarrants />
                   </div>
                 )}
                 {features.regexTool && poeVersion !== null && settings && (

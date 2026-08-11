@@ -146,6 +146,13 @@ export interface PluginTradeSearchItem {
   statPriority?: string[]
   /** When true, search by slot + stats instead of the guide's exact base type. */
   similarItems?: boolean
+  /**
+   * Upgrade finder: AND stats, apply rolled minimums, never fall back to a
+   * slot-only search. Pass real rolled mod text in `statPriority`.
+   */
+  upgradeSearch?: boolean
+  /** Parallel kinds for `statPriority` (explicit / crafted / rune / …). */
+  statKinds?: string[]
 }
 
 export interface WebPanelApi {
@@ -297,6 +304,22 @@ export interface ModPoolSectionResult {
   groups: ModGroupReportResult[]
 }
 
+export interface ModPoolCatalystResult {
+  id: string
+  name: string
+  tags: string[]
+}
+
+export interface ModPoolEssenceHitResult {
+  id: string
+  name: string
+  kind: 'p' | 's'
+  text: string
+  modName: string
+  minIlvl: number
+  group: string
+}
+
 export interface ModPoolReportResult {
   baseType: string
   itemLevel: number
@@ -310,6 +333,11 @@ export interface ModPoolReportResult {
   groups: ModGroupReportResult[]
   sections: ModPoolSectionResult[]
   note: string
+  catalysts?: ModPoolCatalystResult[]
+  socketables?: Array<{ id: string; stype: string; name: string; mods: Record<string, unknown>; img?: string }>
+  essencesForBase?: ModPoolEssenceHitResult[]
+  catalystApplied?: { name: string; quality: number; tags: string[] } | null
+  tierFloor?: number
 }
 
 export interface TargetCraftResult {
@@ -335,6 +363,8 @@ export interface CraftSimulationResult {
 
 export interface CraftResolveOptsResult {
   marksmanEnabled?: boolean
+  /** Active inventory omens for odds (same ids as emulator). */
+  omens?: string[]
 }
 
 export interface CraftApi {
@@ -378,11 +408,18 @@ export interface CraftApi {
     context?: 'fresh' | 'item'
     poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
     marksmanEnabled?: boolean
+    tierFloor?: number
+    catalyst?: string
+    quality?: number
   }): Promise<ModPoolReportResult>
   /** Autocomplete base types from CoE data. */
   searchBases(query: string, limit?: number, itemClass?: string): Promise<string[]>
   /** List item classes present in the crafting base catalog. */
   listItemClasses(): Promise<string[]>
+  /** Full CoE browse catalog (groups → families → bases). */
+  getCatalog(): Promise<CoeCatalogResult>
+  /** CoE-style multi-step sequence Monte Carlo. */
+  sequence(config: CraftSequenceConfigResult): Promise<CraftSequenceRunResult>
   /** Search mod tiers across all bases (global cheat sheet lookup). */
   searchMods(opts: {
     query: string
@@ -392,6 +429,132 @@ export interface CraftApi {
     kind?: 'all' | 'p' | 's'
     limit?: number
   }): Promise<ModSearchHitResult[]>
+}
+
+export interface CoeCatalogGroupResult {
+  id: string
+  name: string
+  craftable: boolean
+}
+
+export interface CoeCatalogFamilyResult {
+  id: string
+  groupId: string
+  name: string
+  jewellery: boolean
+}
+
+export interface CoeCatalogItemResult {
+  id: string
+  familyId: string
+  name: string
+  dropLevel: number
+  props: Record<string, number | string>
+  requirements: Record<string, number | string>
+  implicits: string[]
+  img?: string
+}
+
+export interface CoeCatalogResult {
+  schemaVersion: number
+  source: 'coe'
+  generatedAt: string
+  groups: CoeCatalogGroupResult[]
+  families: CoeCatalogFamilyResult[]
+  items: CoeCatalogItemResult[]
+}
+
+export type SeqOnSuccessResult = 'continue' | 'goto' | 'stop'
+export type SeqOnFailureResult = 'loop' | 'restart' | 'goto' | 'stop'
+
+export interface CraftSequenceConditionResult {
+  query: string
+  kind?: 'all' | 'p' | 's'
+  countMin?: number
+  /** Require first numeric roll >= this (e.g. 92 for T1 % ES). */
+  minValue?: number
+}
+
+export interface CraftSequenceStepResult {
+  id: string
+  actionId: string
+  omens?: string[]
+  repeatUntilHit?: boolean
+  conditions?: CraftSequenceConditionResult[]
+  requireConditions?: boolean
+  onSuccess?: SeqOnSuccessResult
+  onSuccessGoto?: number
+  onFailure?: SeqOnFailureResult
+  onFailureGoto?: number
+}
+
+export interface CraftSequenceConfigResult {
+  baseType: string
+  itemLevel: number
+  quality?: number
+  catalyst?: string
+  rarity?: 'Normal' | 'Magic' | 'Rare'
+  steps: CraftSequenceStepResult[]
+  targetQuery?: string
+  samples?: number
+  maxTrials?: number
+  /** Chaos-relative price overrides (keys = currency display names). */
+  chaosPrices?: Record<string, number>
+}
+
+export interface CraftSequenceRunResult {
+  samples: number
+  hitRate: number
+  /** Mean applies among successful trials (cost-to-hit), not 1/hitRate. */
+  expectedAttempts: number | null
+  avgApplies: number
+  expectedChaosCost?: number | null
+  appliesByAction?: Record<string, number>
+  applyCap?: number
+  timedOutRate?: number
+  note: string
+  sampleHitMods?: string[]
+  warnings?: string[]
+}
+
+/** Support gem filter for Mercenary Warrant scans. */
+export type WantSupportFilter = {
+  name: string
+  tier?: number | null
+}
+
+export type SupportPresenceMode = 'all' | 'any'
+export type SupportLinkOrder = 'ignore' | 'ordered' | 'exact'
+
+export type WarrantScanOptions = {
+  limit?: number
+  onlineOnly?: boolean
+  pricedOnly?: boolean
+  sort?: 'asc' | 'desc'
+  maxAskDivine?: number | null
+  excludeJokeCurrencies?: boolean
+  wantSkills?: string[]
+  skillMatchMode?: 'all' | 'any'
+  wantSupports?: WantSupportFilter[]
+  supportPresenceMode?: SupportPresenceMode
+  supportLinkOrder?: SupportLinkOrder
+  linkSkill?: string | null
+}
+
+/** Opaque scan payload from the host Mercenary Warrant scanner. */
+export type WarrantScanResult = Record<string, unknown> & {
+  total: number
+  fetched: number
+  queryId: string
+  league: string
+  groups: unknown[]
+  listings: unknown[]
+  webSearchUrl: string
+}
+
+export type WarrantCatalog = {
+  skills: string[]
+  supports: WantSupportFilter[]
 }
 
 export interface TradeApi {
@@ -404,7 +567,38 @@ export interface TradeApi {
     queryId: string
     total: number
     matchedStats?: number
+    unmatchedMods?: string[]
   }>
+  /**
+   * Same query as `openSearch`, but returns a rough divine estimate from live
+   * listing buyouts (does not open the trade browser).
+   */
+  priceCheck(item: PluginTradeSearchItem): Promise<{
+    url: string
+    queryId: string
+    total: number
+    matchedStats?: number
+    unmatchedMods?: string[]
+    pricesDivine: number[]
+    cheapestDivine: number | null
+    estimateDivine: number | null
+    pricedCount: number
+  }>
+  /**
+   * Scan Mercenary Warrants on the official trade site (PoE1). Uses the host's
+   * authenticated trade path + rate limits; plugins cannot call trade themselves.
+   */
+  scanWarrants(opts?: WarrantScanOptions): Promise<WarrantScanResult>
+  /** Full mercenary.skill_* / support_* catalog from trade stats. */
+  warrantsCatalog(): Promise<WarrantCatalog>
+  /** Send a whisper via the official trade site (requires PoE login in Scalpel). */
+  whisperSeller(queryId: string, listingId: string, league: string): Promise<void>
+  /** Travel to hideout via the official trade site (requires login + instant buyout). */
+  visitHideout(queryId: string, listingId: string, league: string): Promise<void>
+  /** Whether Scalpel has a valid pathofexile.com trade session. */
+  getAuth(): Promise<{ loggedIn: boolean }>
+  /** Open Scalpel's PoE login flow, then refresh auth. */
+  login(): Promise<void>
 }
 
 export interface PricesApi {
@@ -424,6 +618,102 @@ export interface PricesApi {
    * subscription. Returns an unsubscribe function.
    */
   onChange(handler: () => void): () => void
+}
+
+export interface NinjaCharacterModelRequest {
+  /** URL account slug, e.g. `Enin9-6394` (not `Enin9#6394`). */
+  account: string
+  /** League URL segment, e.g. `runesofaldur`. */
+  league: string
+  /** Character name. */
+  name: string
+  /** Optional poe.ninja model schema version; host probes nearby versions when omitted. */
+  modelVersion?: number
+}
+
+export interface NinjaCharacterModelResult {
+  type: string
+  /** Full ninja `charModel` payload (skills, defensiveStats, items, …). */
+  charModel: unknown
+  modelVersion: number
+}
+
+/**
+ * Public poe.ninja PoE2 character profile fetch. Host-proxied because renderer
+ * fetch to ninja is CORS-blocked.
+ */
+export interface NinjaApi {
+  getCharacterModel(opts: NinjaCharacterModelRequest): Promise<NinjaCharacterModelResult>
+}
+
+/**
+ * Host loot-filter editing surface for plugins (e.g. a Filter Section Editor).
+ * Forwards to Scalpel's loaded filter — the same IPC the native editor uses.
+ * Intentionally omits FilterBlade / quick-update flows that switch the in-game filter.
+ */
+export interface FilterApi {
+  getSections(): Promise<{ ok: boolean; error?: string; path?: string; sections: unknown[] }>
+  getBlock(blockIndex: number): Promise<{ ok: boolean; error?: string; block?: unknown; blockIndex?: number }>
+  setTierVisibility(
+    blockIndex: number,
+    visibility: 'Show' | 'Hide' | 'Minimal',
+  ): Promise<{ ok: boolean; error?: string }>
+  saveBlockEdit(blockIndex: number, block: unknown, itemJson?: string): Promise<{ ok: boolean; error?: string }>
+  addBaseTypeToTier(blockIndex: number, baseType: string): Promise<{ ok: boolean; error?: string }>
+  removeBaseTypeFromTier(blockIndex: number, baseType: string): Promise<{ ok: boolean; error?: string }>
+  moveItemTier(
+    baseType: string,
+    fromBlockIndex: number,
+    toBlockIndex: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string }>
+  batchMoveItemTier(
+    baseTypes: string[],
+    fromBlockIndex: number,
+    toBlockIndex: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string }>
+  previewBaseTypeMove(baseType: string, toBlockIndex: number): Promise<unknown>
+  deleteFilterBlock(blockIndex: number): Promise<{ ok: boolean; error?: string }>
+  moveFilterBlock(fromIndex: number, toIndex: number): Promise<{ ok: boolean; error?: string }>
+  insertSectionRule(opts: Record<string, unknown>): Promise<{ ok: boolean; error?: string }>
+  applySectionDelta(req: unknown): Promise<unknown>
+  matchItem(req: unknown): Promise<unknown>
+  parseItemText(text: string): Promise<unknown>
+  getLastEvaluatedItem(): Promise<unknown>
+  getRecentEvaluatedItems(): Promise<unknown[]>
+  simulateLootDrops(req: unknown): Promise<unknown>
+  preflight(): Promise<unknown>
+  findConditions(query: Record<string, unknown>): Promise<unknown>
+  getHistory(): Promise<unknown[]>
+  undoEdit(itemJson?: string): Promise<{ ok: boolean; error?: string }>
+  undoToEntry(entryId: number | string): Promise<{ ok: boolean; error?: string }>
+  undoSectionHistory(typePath: string): Promise<{ ok: boolean; undone: number; error?: string }>
+  listVersions(): Promise<unknown[]>
+  createCheckpoint(label?: string): Promise<{ ok: boolean; error?: string }>
+  restoreVersion(filename: string, itemJson?: string): Promise<{ ok: boolean; error?: string }>
+  deleteVersion(filename: string): Promise<{ ok: boolean; error?: string }>
+  diffFilterFiles(leftPath: string, rightPath: string): Promise<unknown>
+  diffFilterVsVersion(versionFilename: string): Promise<unknown>
+  previewReapply(): Promise<unknown>
+  applyReapply(): Promise<unknown>
+  exportIntents(): Promise<unknown>
+  importIntents(payload: { json: string; mode: 'replace' | 'merge'; replay?: boolean }): Promise<unknown>
+  getChanges(): Promise<unknown[]>
+  reload(): Promise<{ ok: boolean; error?: string }>
+  getSearchableItems(): Promise<unknown>
+  getIconCache(): Promise<unknown>
+  onIconCacheUpdated(handler: (cache: unknown) => void): () => void
+  getSettings(): Promise<unknown>
+  listProfiles(): Promise<unknown>
+  scanFilterDir(dir: string): Promise<unknown>
+  detectActiveGameFilter(filterDirOverride?: string): Promise<unknown>
+  scanSoundFiles(dir: string): Promise<string[]>
+  getSoundDataUrl(dir: string, filename: string): Promise<string | null>
+  batchLookupPrices(names: string[]): Promise<unknown>
+  onChanged(handler: () => void): () => void
+  onZoneChanged(handler: (zone: Zone | null) => void): () => void
+  filterBladeUrl(): Promise<string | null>
 }
 
 export interface ScalpelPluginContext {
@@ -541,6 +831,17 @@ export interface ScalpelPluginContext {
    * hit ninja directly (a renderer fetch would be CORS-blocked).
    */
   readonly prices: PricesApi
+  /**
+   * Fetch a public poe.ninja PoE2 character model (skill DPS, defenses).
+   * Host-proxied; renderer fetch would be CORS-blocked.
+   * Optional on older Scalpel builds that predate this API.
+   */
+  readonly ninja?: NinjaApi
+  /**
+   * Loot filter read/edit API (host-loaded filter). Required for filter-editor
+   * plugins. Omits in-game FilterBlade auto-switch helpers.
+   */
+  readonly filter: FilterApi
   readonly webPanel: WebPanelApi
   /**
    * Read the OS clipboard as plain text. Useful after copyAndEvaluateItem()

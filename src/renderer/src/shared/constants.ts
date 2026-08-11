@@ -37,6 +37,13 @@ function replaceMap<T>(target: Record<string, T>, source: Record<string, T>): vo
 
 export function initIconMap(version: 1 | 2): void {
   replaceMap(iconMap, ICONS_BY_VERSION[version])
+  // PoE2 ninja export omits a few craft currencies still used by CoE / Lab.
+  if (version === 2) {
+    const p1 = itemIconsPoe1 as Record<string, string>
+    for (const key of ['Orb of Alteration', 'Orb of Scouring']) {
+      if (!iconMap[key] && p1[key]) iconMap[key] = p1[key]
+    }
+  }
 }
 
 /** The running game's PoE version, cached once the renderer learns it via IPC.

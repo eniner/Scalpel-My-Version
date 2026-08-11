@@ -39,6 +39,7 @@ export default defineConfig({
           pluginOverlay: resolve(__dirname, 'src/renderer/plugin-overlay.html'),
           pluginAnnotationOverlay: resolve(__dirname, 'src/renderer/plugin-annotation-overlay.html'),
           timelessTree: resolve(__dirname, 'src/renderer/timeless-tree.html'),
+          filterSectionEditor: resolve(__dirname, 'src/renderer/filter-section-editor.html'),
         },
       },
     },

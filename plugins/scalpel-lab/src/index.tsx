@@ -22,6 +22,7 @@ const CHEAT_SHEET_ICON = renderToStaticMarkup(
 const CHEAT_SHEET_WINDOW = { width: 1728, height: 972 }
 
 export default function activate(ctx: ScalpelPluginContext): void {
+  ;(globalThis as { __scalpelLabPluginId?: string }).__scalpelLabPluginId = ctx.pluginId
   ctx.registerTab({
     label: 'Scalpel Lab',
     icon: ICON,

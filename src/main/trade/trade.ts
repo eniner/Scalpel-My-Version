@@ -6,18 +6,9 @@ import { isClusterJewel, isSkillGem, splitRuneTier } from '@shared/poe-item'
 import { recordMainBreadcrumb } from '../diagnostics'
 import { getPoeVersion } from '../game-state'
 import { getOverlayWindow } from '../overlay'
-import { harvestIcons } from './icon-cache'
+import { broadcastNewIcons, harvestIcons } from './icon-cache'
 import { adjustRateLimits, RateLimiter } from './rate-limiter'
 import { normalizeTabletModKey, stripTabletMapScoping } from './stat-matcher/producers/tablets'
-
-/** Forward any newly-harvested name->icon pairs to the overlay so it can merge
- *  them into the in-session iconMap. Without this the renderer would only pick
- *  up new icons on next launch (when it re-reads the on-disk cache at boot). */
-function broadcastNewIcons(added: Record<string, string>): void {
-  if (Object.keys(added).length === 0) return
-  const win = getOverlayWindow()
-  if (win && !win.isDestroyed()) win.webContents.send('icon-cache-updated', added)
-}
 
 /** Tell the overlay when the trade API has locked us out for a specific
  *  duration. Sent as an absolute epoch ms (end-of-penalty) so the renderer's

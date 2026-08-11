@@ -109,7 +109,14 @@ export function TargetOdds({
   }, [onSmartImport])
 
   const currencyOptions = useMemo(
-    () => actions.filter((a) => a.applies || a.id.includes('Chaos') || a.id.includes('Exalt') || a.id.includes('Alteration')),
+    () =>
+      actions.filter(
+        (a) =>
+          a.applies ||
+          /Chaos|Exalt|Alteration|Annul|Fractur|Divine|Alchemy|Regal|Transmutation|Augmentation|Vaal|Essence|desecration/i.test(
+            a.id + a.label,
+          ),
+      ),
     [actions],
   )
 

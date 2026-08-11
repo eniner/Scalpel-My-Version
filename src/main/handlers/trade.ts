@@ -17,7 +17,7 @@ import {
   searchWaystonesByRegex,
   setTradeAuthCookie,
 } from '../trade/trade'
-import { scanMercenaryWarrants } from '../trade/warrants'
+import { scanMercenaryWarrants, getMercenaryWarrantCatalog } from '../trade/warrants'
 import type { WarrantScanResult } from '@shared/warrants'
 
 async function clickTradeButton(
@@ -26,6 +26,7 @@ async function clickTradeButton(
   league: string,
   buttonType: 'direct' | 'whisper',
 ): Promise<string> {
+  // Search page only — `/…/queryId/listingId` 404s on pathofexile.com.
   const tradeUrl = getTradeUrls(getPoeVersion()).webSearch(league, queryId)
 
   // Use a separate session partition but copy the POESESSID cookie from the default session
@@ -343,8 +344,52 @@ export function register(store: Store<AppSettings>): void {
     setAuthCache(false)
   })
 
+  /** Reuse one visible trade browser so Find upgrades / shopping-list links keep
+   *  Scalpel's POESESSID + cf_clearance (system Chrome often CF-loops without them). */
+  let tradeBrowser: BrowserWindow | null = null
+  function openPoeTradeInApp(url: string): void {
+    if (tradeBrowser && !tradeBrowser.isDestroyed()) {
+      tradeBrowser.focus()
+      void tradeBrowser.loadURL(url)
+      return
+    }
+    tradeBrowser = new BrowserWindow({
+      width: 1280,
+      height: 900,
+      title: 'Path of Exile Trade',
+      autoHideMenuBar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        // defaultSession — same jar as poe-login / price-check cookies
+      },
+    })
+    tradeBrowser.webContents.on('page-title-updated', (event) => {
+      event.preventDefault()
+      tradeBrowser?.setTitle('Path of Exile Trade')
+    })
+    tradeBrowser.on('closed', () => {
+      tradeBrowser = null
+    })
+    void tradeBrowser.loadURL(url)
+  }
+
+  function isPoeTradeWebUrl(url: string): boolean {
+    try {
+      const u = new URL(url)
+      if (u.hostname !== 'www.pathofexile.com' && u.hostname !== 'pathofexile.com') return false
+      return u.pathname.includes('/trade2/') || u.pathname.includes('/trade/')
+    } catch {
+      return false
+    }
+  }
+
   ipcMain.handle('open-external', (_event, url: string) => {
-    shell.openExternal(url)
+    if (typeof url === 'string' && isPoeTradeWebUrl(url)) {
+      openPoeTradeInApp(url)
+      return
+    }
+    void shell.openExternal(url)
   })
 
   ipcMain.handle(
@@ -473,10 +518,25 @@ export function register(store: Store<AppSettings>): void {
     'warrants-scan',
     async (
       _event,
-      opts?: { limit?: number; onlineOnly?: boolean; pricedOnly?: boolean },
+      opts?: {
+        limit?: number
+        onlineOnly?: boolean
+        pricedOnly?: boolean
+        sort?: 'asc' | 'desc'
+        maxAskDivine?: number | null
+        excludeJokeCurrencies?: boolean
+        wantSkills?: string[]
+        skillMatchMode?: 'all' | 'any'
+        wantSupports?: import('@shared/warrants').WantSupportFilter[]
+        supportPresenceMode?: import('@shared/warrants').SupportPresenceMode
+        supportLinkOrder?: import('@shared/warrants').SupportLinkOrder
+        linkSkill?: string | null
+      },
     ): Promise<WarrantScanResult> => {
       const league = getProfileBackedSetting(store, 'league')
       return scanMercenaryWarrants(league, opts)
     },
   )
+
+  ipcMain.handle('warrants-catalog', async () => getMercenaryWarrantCatalog())
 }

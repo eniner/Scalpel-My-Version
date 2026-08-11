@@ -1,5 +1,5 @@
 import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import bossesJson from '../data/bosses.json'
 import {
   calculateBossEV,
@@ -14,6 +14,16 @@ import { ItemName } from '../shared/ItemName'
 import { chaosForId, chaosForName, fmtChaos, fmtSignedChaos, idToName, indexPrices } from '../shared/prices'
 import { ToolHeader } from '../shared/ToolChrome'
 import { accentBtnStyle, btnStyle, inputStyle, theme } from '../shared/theme'
+import {
+  Blurb,
+  FieldLabel,
+  HeroMetric,
+  HeroRow,
+  ListRow,
+  SetupGroup,
+  SplitBody,
+  Workbench,
+} from '../shared/ui'
 
 type BossesFile = {
   baseNotes: string
@@ -165,8 +175,10 @@ export function BossProfitTool({
     return g
   }, [cards])
 
+  const topEv = cards[0]
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'hidden' }}>
+    <Workbench>
       <ToolHeader
         toolId="boss-profit"
         title="Boss Profitability"
@@ -174,144 +186,160 @@ export function BossProfitTool({
         status={status}
         onRefresh={() => void refresh()}
       />
-      <p style={{ margin: 0, color: theme.dim, fontSize: 11 }}>
-        Expected value for boss encounters from drop rates and market prices.
-      </p>
-      <div
-        style={{
-          background: '#142033',
-          border: '1px solid #2a4a6a',
-          borderRadius: 6,
-          padding: '6px 10px',
-          fontSize: 11,
-          color: theme.blue,
-        }}
-      >
-        Note: Drop weights may change. Update as more data is available. {DATA.baseNotes}
-      </div>
+      <Blurb>Expected value for boss encounters from drop rates and market prices.</Blurb>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label style={lab}>
-          Simulate runs
-          <input
-            style={inputStyle}
-            type="number"
-            min={1}
-            max={100}
-            value={simRuns}
-            onChange={(e) => setSimRuns(Number(e.target.value) || 10)}
-          />
-        </label>
-        <label style={lab}>
-          Trials
-          <input
-            style={inputStyle}
-            type="number"
-            min={50}
-            max={2000}
-            value={simTrials}
-            onChange={(e) => setSimTrials(Number(e.target.value) || 500)}
-          />
-        </label>
-        <button
-          type="button"
-          style={sortMode === 'ev' ? accentBtnStyle : btnStyle}
-          onClick={() => setSortMode('ev')}
-        >
-          EV
-        </button>
-        <button
-          type="button"
-          style={sortMode === 'hourly' ? accentBtnStyle : btnStyle}
-          onClick={() => setSortMode('hourly')}
-        >
-          Profit/hr
-        </button>
-        <button type="button" style={btnStyle} onClick={recompute} disabled={busy}>
-          {busy ? 'Simulating…' : 'Re-run'}
-        </button>
-        <span style={{ color: theme.dim, fontSize: 10 }}>
-          Chance for profit = % of trials profitable after N runs
-        </span>
-      </div>
+      <SplitBody
+        railWidth={248}
+        rail={
+          <>
+            <SetupGroup title="Simulation">
+              <FieldLabel label="Simulate runs">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={simRuns}
+                  onChange={(e) => setSimRuns(Number(e.target.value) || 10)}
+                />
+              </FieldLabel>
+              <FieldLabel label="Trials">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  min={50}
+                  max={2000}
+                  value={simTrials}
+                  onChange={(e) => setSimTrials(Number(e.target.value) || 500)}
+                />
+              </FieldLabel>
+              <button type="button" style={btnStyle} onClick={recompute} disabled={busy}>
+                {busy ? 'Simulating…' : 'Re-run'}
+              </button>
+            </SetupGroup>
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {RISK_ORDER.map((risk) => {
-          const list = grouped[risk]
-          if (!list.length) return null
-          return (
-            <div key={risk} style={{ marginBottom: 14 }}>
-              <div
-                style={{
-                  color: RISK_COLOR[risk],
-                  fontWeight: 700,
-                  fontSize: 12,
-                  letterSpacing: '0.04em',
-                  marginBottom: 8,
-                }}
+            <SetupGroup title="Sort" defaultOpen={false}>
+              <button
+                type="button"
+                style={sortMode === 'ev' ? accentBtnStyle : btnStyle}
+                onClick={() => setSortMode('ev')}
               >
-                {RISK_LABELS[risk]} {list.length} bosses
-              </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                  gap: 8,
-                }}
+                EV
+              </button>
+              <button
+                type="button"
+                style={sortMode === 'hourly' ? accentBtnStyle : btnStyle}
+                onClick={() => setSortMode('hourly')}
               >
-                {list.map((c) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      background: theme.panel,
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 8,
-                      padding: '10px 12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
-                      <strong style={{ fontSize: 13 }}>
-                        <ItemName name={c.name} opts={{ priceIcons }}>
-                          {c.name}
-                        </ItemName>
-                      </strong>
-                      {c.quantityBonus ? (
-                        <span style={{ color: theme.accent, fontSize: 11 }}>+{c.quantityBonus}%</span>
-                      ) : null}
-                    </div>
-                    <div style={{ fontSize: 11, color: theme.dim, marginTop: 4 }}>
-                      Entry: {fmtChaos(c.entry, cpd)}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 12 }}>
-                      <span style={{ color: theme.blue }}>
-                        {Math.round(c.profitProb * 100)}% chance to profit
-                      </span>
-                      <span style={{ color: c.profit >= 0 ? theme.green : theme.red }}>
-                        EV: {fmtSignedChaos(c.profit, cpd)}
-                      </span>
-                    </div>
+                Profit/hr
+              </button>
+            </SetupGroup>
+
+            <Blurb>
+              Drop weights may change — update as more data is available. {DATA.baseNotes} Chance for profit = % of
+              trials profitable after N runs.
+            </Blurb>
+          </>
+        }
+        stage={
+          <>
+            <HeroRow>
+              <HeroMetric label="Bosses" value={String(cards.length)} sub="tracked" />
+              <HeroMetric
+                label="Top EV"
+                value={topEv ? fmtSignedChaos(topEv.profit, cpd) : '—'}
+                tone={topEv && topEv.profit >= 0 ? 'good' : 'warn'}
+                sub={topEv?.name}
+              />
+              <HeroMetric
+                label="Top profit/hr"
+                value={
+                  topEv
+                    ? fmtDivHr(
+                        sortMode === 'hourly'
+                          ? topEv.profitPerHour
+                          : [...cards].sort((a, b) => b.profitPerHour - a.profitPerHour)[0]?.profitPerHour ?? 0,
+                        cpd,
+                      )
+                    : '—'
+                }
+                tone="accent"
+              />
+            </HeroRow>
+
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+              {RISK_ORDER.map((risk) => {
+                const list = grouped[risk]
+                if (!list.length) return null
+                return (
+                  <div key={risk}>
                     <div
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        marginTop: 6,
+                        color: RISK_COLOR[risk],
+                        fontWeight: 700,
                         fontSize: 11,
-                        color: theme.purple,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        padding: '10px 10px 4px',
+                        borderBottom: `1px solid ${theme.border}`,
                       }}
                     >
-                      <span>{fmtTtk(c.ttkMin)} TTK</span>
-                      <span style={{ color: c.profitPerHour >= 0 ? theme.blue : theme.red }}>
-                        {fmtDivHr(c.profitPerHour, cpd)}
-                      </span>
+                      {RISK_LABELS[risk]} · {list.length}
                     </div>
+                    {list.map((c) => (
+                      <ListRow
+                        key={c.id}
+                        leading={
+                          <div>
+                            <ItemName name={c.name} opts={{ priceIcons }}>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: theme.ink }}>{c.name}</span>
+                            </ItemName>
+                            <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>
+                              Entry {fmtChaos(c.entry, cpd)}
+                              {c.quantityBonus ? ` · +${c.quantityBonus}% qty` : ''}
+                              {' · '}
+                              {Math.round(c.profitProb * 100)}% profit chance
+                            </div>
+                          </div>
+                        }
+                        trailing={
+                          <>
+                            <span className="sa-num" style={{ color: theme.purple, fontSize: 11, minWidth: 48, textAlign: 'right' }}>
+                              {fmtTtk(c.ttkMin)}
+                            </span>
+                            <span
+                              className="sa-num"
+                              style={{
+                                color: c.profit >= 0 ? theme.green : theme.red,
+                                minWidth: 64,
+                                textAlign: 'right',
+                              }}
+                            >
+                              {fmtSignedChaos(c.profit, cpd)}
+                            </span>
+                            <span
+                              className="sa-num"
+                              style={{
+                                color: c.profitPerHour >= 0 ? theme.blue : theme.red,
+                                minWidth: 56,
+                                textAlign: 'right',
+                                fontSize: 11,
+                              }}
+                            >
+                              {fmtDivHr(c.profitPerHour, cpd)}
+                            </span>
+                          </>
+                        }
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
-          )
-        })}
-      </div>
-    </div>
+          </>
+        }
+      />
+    </Workbench>
   )
 }
 
@@ -326,12 +354,4 @@ function fmtDivHr(chaosPerHour: number, cpd: number): string {
   const d = cpd > 0 ? chaosPerHour / cpd : 0
   const sign = d > 0 ? '+' : d < 0 ? '-' : ''
   return `${sign}${Math.abs(d).toFixed(1)}d/hr`
-}
-
-const lab: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 2,
-  fontSize: 10,
-  color: theme.dim,
 }

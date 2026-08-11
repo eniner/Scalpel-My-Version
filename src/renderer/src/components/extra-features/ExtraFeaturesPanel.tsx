@@ -23,7 +23,7 @@ interface Props {
   onHideTab: () => void
 }
 
-type AppMacroAction = 'toggleRegexRemote' | 'toggleWhiteboard'
+type AppMacroAction = 'toggleRegexRemote' | 'toggleWhiteboard' | 'toggleFilterSectionEditor'
 
 export function ExtraFeaturesPanel({
   settings,
@@ -113,6 +113,30 @@ export function ExtraFeaturesPanel({
         bgArt={whiteboardArt}
       >
         <HotkeyField value={macroHotkey('toggleWhiteboard')} onChange={(h) => setMacroHotkey('toggleWhiteboard', h)} />
+      </FeatureCard>
+
+      <FeatureCard
+        icon={
+          <div className="w-full h-full flex items-center justify-center text-accent text-lg font-bold rounded bg-black/40">
+            F
+          </div>
+        }
+        title="Filter Section Editor"
+        blurb="Large sister window to edit NeverSink-style section tiers (Show/Hide, move bases, match debug)."
+      >
+        <div className="flex flex-col gap-1.5">
+          <HotkeyField
+            value={macroHotkey('toggleFilterSectionEditor')}
+            onChange={(h) => setMacroHotkey('toggleFilterSectionEditor', h)}
+          />
+          <button
+            type="button"
+            className="text-[11px] px-3 py-1.5 self-start border border-border rounded"
+            onClick={() => window.api.filterSectionEditor.show()}
+          >
+            Open now
+          </button>
+        </div>
       </FeatureCard>
 
       <FeatureCard

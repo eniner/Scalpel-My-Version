@@ -4,6 +4,16 @@ import { app } from 'electron'
 import bundledPoe1 from '@shared/data/items/item-icons-poe1.json'
 import bundledPoe2 from '@shared/data/items/item-icons-poe2.json'
 import type { PriceEntry } from '@shared/types'
+import { getOverlayWindow } from '../overlay'
+
+/** Forward newly-harvested name→icon pairs to the overlay so it can merge them
+ *  into the in-session iconMap. Without this the renderer only picks up new
+ *  icons on next launch (when it re-reads the on-disk cache at boot). */
+export function broadcastNewIcons(added: Record<string, string>): void {
+  if (Object.keys(added).length === 0) return
+  const win = getOverlayWindow()
+  if (win && !win.isDestroyed()) win.webContents.send('icon-cache-updated', added)
+}
 
 /**
  * Runtime icon cache. Observes trade-fetch responses and persists any icons
@@ -94,7 +104,14 @@ function scheduleWrite(version: 1 | 2): void {
 /** Resolve a bundled or runtime-cached icon URL for an item name. Used to fill
  *  PriceEntry.icon when poe.ninja/proxy payloads omit artwork (EE2 proxy). */
 export function lookupBundledIcon(version: 1 | 2, name: string): string | undefined {
-  return BUNDLED[version][name] ?? loadIconCache(version)[name]
+  const bundled = BUNDLED[version]
+  const cache = loadIconCache(version)
+  const direct = bundled[name] ?? cache[name]
+  if (direct) return direct
+  // Scarab Of X / Scarab of X mismatch — PoE sheet keys use lowercase particles.
+  const soft = name.replace(/(?<=\S\s)(Of|The|And|A|An)\b/g, (m) => m.toLowerCase())
+  if (soft !== name) return bundled[soft] ?? cache[soft]
+  return undefined
 }
 
 /** Fill missing PriceEntry.icon fields from the shipped icon sheet + runtime cache. */

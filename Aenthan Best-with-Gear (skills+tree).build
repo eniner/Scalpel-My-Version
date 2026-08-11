@@ -1,0 +1,653 @@
+{
+  "name": "Aenthan Best-with-Gear (skills+tree)",
+  "ascendancy": "Druid1",
+  "passives": [
+    {
+      "id": "area_attacks37",
+      "weapon_set": 2
+    },
+    {
+      "id": "area_attacks38",
+      "weapon_set": 2
+    },
+    {
+      "id": "area_attacks39",
+      "weapon_set": 2
+    },
+    {
+      "id": "area_attacks4"
+    },
+    {
+      "id": "area_attacks40_",
+      "weapon_set": 2
+    },
+    {
+      "id": "area_attacks5_"
+    },
+    {
+      "id": "area_of_effect1",
+      "weapon_set": 2
+    },
+    {
+      "id": "area_of_effect23",
+      "weapon_set": 2
+    },
+    {
+      "id": "AscendancyDruid1Notable2"
+    },
+    {
+      "id": "AscendancyDruid1Notable6"
+    },
+    {
+      "id": "AscendancyDruid1Notable7"
+    },
+    {
+      "id": "AscendancyDruid1Notable8"
+    },
+    {
+      "id": "AscendancyDruid1Small1"
+    },
+    {
+      "id": "AscendancyDruid1Small6"
+    },
+    {
+      "id": "AscendancyDruid1Small7"
+    },
+    {
+      "id": "AscendancyDruid1Small8"
+    },
+    {
+      "id": "AscendancyDruid1Start"
+    },
+    {
+      "id": "attributes1"
+    },
+    {
+      "id": "attributes13",
+      "weapon_set": 2
+    },
+    {
+      "id": "attributes14",
+      "weapon_set": 2
+    },
+    {
+      "id": "attributes15"
+    },
+    {
+      "id": "attributes16"
+    },
+    {
+      "id": "attributes3"
+    },
+    {
+      "id": "attributes4"
+    },
+    {
+      "id": "attributes50"
+    },
+    {
+      "id": "attributes53",
+      "weapon_set": 2
+    },
+    {
+      "id": "attributes65"
+    },
+    {
+      "id": "attributes78"
+    },
+    {
+      "id": "cast_speed11",
+      "weapon_set": 2
+    },
+    {
+      "id": "cast_speed14",
+      "weapon_set": 2
+    },
+    {
+      "id": "cast_speed16",
+      "weapon_set": 2
+    },
+    {
+      "id": "cast_speed2",
+      "weapon_set": 2
+    },
+    {
+      "id": "cast_speed3",
+      "weapon_set": 2
+    },
+    {
+      "id": "cast_speed31",
+      "weapon_set": 2
+    },
+    {
+      "id": "cast_speed33",
+      "weapon_set": 2
+    },
+    {
+      "id": "cast_speed37"
+    },
+    {
+      "id": "cold_penetration26"
+    },
+    {
+      "id": "cold12"
+    },
+    {
+      "id": "cold13"
+    },
+    {
+      "id": "cold20"
+    },
+    {
+      "id": "cold21"
+    },
+    {
+      "id": "cold30"
+    },
+    {
+      "id": "cold31"
+    },
+    {
+      "id": "cold38"
+    },
+    {
+      "id": "cold7"
+    },
+    {
+      "id": "criticals32_"
+    },
+    {
+      "id": "criticals34"
+    },
+    {
+      "id": "criticals35"
+    },
+    {
+      "id": "criticals40"
+    },
+    {
+      "id": "criticals68"
+    },
+    {
+      "id": "criticals69"
+    },
+    {
+      "id": "criticals70"
+    },
+    {
+      "id": "criticals71"
+    },
+    {
+      "id": "criticals72"
+    },
+    {
+      "id": "criticals74"
+    },
+    {
+      "id": "elemental10"
+    },
+    {
+      "id": "elemental3"
+    },
+    {
+      "id": "elemental33",
+      "weapon_set": 1
+    },
+    {
+      "id": "elemental39"
+    },
+    {
+      "id": "elemental5"
+    },
+    {
+      "id": "elemental6",
+      "weapon_set": 1
+    },
+    {
+      "id": "elemental7"
+    },
+    {
+      "id": "elemental8_"
+    },
+    {
+      "id": "energy_shield_and_armour11"
+    },
+    {
+      "id": "energy_shield_and_armour52"
+    },
+    {
+      "id": "energy_shield_and_armour53"
+    },
+    {
+      "id": "energy_shield_and_armour56_"
+    },
+    {
+      "id": "energy_shield_and_armour6_"
+    },
+    {
+      "id": "energy_shield_and_armour7"
+    },
+    {
+      "id": "energy_shield_and_armour8"
+    },
+    {
+      "id": "energy_shield22"
+    },
+    {
+      "id": "energy_shield29"
+    },
+    {
+      "id": "energy_shield36"
+    },
+    {
+      "id": "energy_shield39"
+    },
+    {
+      "id": "energy_shield9"
+    },
+    {
+      "id": "intelligence41__"
+    },
+    {
+      "id": "intelligence45"
+    },
+    {
+      "id": "intelligence46"
+    },
+    {
+      "id": "intelligence47"
+    },
+    {
+      "id": "intelligence49",
+      "weapon_set": 2
+    },
+    {
+      "id": "intelligence51"
+    },
+    {
+      "id": "intelligence52"
+    },
+    {
+      "id": "intelligence53_"
+    },
+    {
+      "id": "intelligence54"
+    },
+    {
+      "id": "intelligence56"
+    },
+    {
+      "id": "intelligence57"
+    },
+    {
+      "id": "intelligence58"
+    },
+    {
+      "id": "intelligence59"
+    },
+    {
+      "id": "intelligence60"
+    },
+    {
+      "id": "intelligence69"
+    },
+    {
+      "id": "intelligence71"
+    },
+    {
+      "id": "intelligence72"
+    },
+    {
+      "id": "intelligence74"
+    },
+    {
+      "id": "intelligence8"
+    },
+    {
+      "id": "jewel_slot1969"
+    },
+    {
+      "id": "jewel_slot1971"
+    },
+    {
+      "id": "jewel_slot1972"
+    },
+    {
+      "id": "jewel_slot1977"
+    },
+    {
+      "id": "jewel_slot1979"
+    },
+    {
+      "id": "mana_regeneration26",
+      "weapon_set": 2
+    },
+    {
+      "id": "mana_regeneration27",
+      "weapon_set": 2
+    },
+    {
+      "id": "mana_regeneration28_",
+      "weapon_set": 2
+    },
+    {
+      "id": "mana_regeneration29",
+      "weapon_set": 2
+    },
+    {
+      "id": "mana_regeneration30",
+      "weapon_set": 2
+    },
+    {
+      "id": "mana_regeneration31_",
+      "weapon_set": 2
+    },
+    {
+      "id": "melee2"
+    },
+    {
+      "id": "oracle_hierarchy1",
+      "weapon_set": 1
+    },
+    {
+      "id": "oracle_hierarchy4",
+      "weapon_set": 1
+    },
+    {
+      "id": "oracle_hierarchy7",
+      "weapon_set": 1
+    },
+    {
+      "id": "oracle_movement_cooldown1"
+    },
+    {
+      "id": "oracle_slow_crits1"
+    },
+    {
+      "id": "oracle_slow_crits2"
+    },
+    {
+      "id": "oracle_slow_crits3"
+    },
+    {
+      "id": "oracle_totems1",
+      "weapon_set": 1
+    },
+    {
+      "id": "oracle_totems2",
+      "weapon_set": 1
+    },
+    {
+      "id": "oracle_totems5",
+      "weapon_set": 1
+    },
+    {
+      "id": "oracle_totems6",
+      "weapon_set": 1
+    },
+    {
+      "id": "oracle_totems7",
+      "weapon_set": 1
+    },
+    {
+      "id": "oracle_totems8",
+      "weapon_set": 1
+    },
+    {
+      "id": "oracle_totems9",
+      "weapon_set": 1
+    },
+    {
+      "id": "passive_keystone_ancestral_bond"
+    },
+    {
+      "id": "passive_keystone_chaos_inoculation"
+    },
+    {
+      "id": "placeholder2"
+    },
+    {
+      "id": "spell_criticals12_"
+    },
+    {
+      "id": "spell_criticals17_"
+    },
+    {
+      "id": "spell_criticals18"
+    },
+    {
+      "id": "strength11"
+    },
+    {
+      "id": "strength12"
+    },
+    {
+      "id": "strength2"
+    },
+    {
+      "id": "strength44"
+    },
+    {
+      "id": "strength45_"
+    },
+    {
+      "id": "strength46"
+    },
+    {
+      "id": "strength47"
+    },
+    {
+      "id": "strength48"
+    },
+    {
+      "id": "strength53"
+    },
+    {
+      "id": "strength54"
+    },
+    {
+      "id": "strength6"
+    },
+    {
+      "id": "strength89"
+    },
+    {
+      "id": "stun_threshold_from_energy_shield12"
+    },
+    {
+      "id": "stun_threshold_from_energy_shield7"
+    },
+    {
+      "id": "templar598"
+    },
+    {
+      "id": "totems2",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems22",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems23",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems27",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems28"
+    },
+    {
+      "id": "totems29",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems30",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems33_",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems35",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems36",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems37",
+      "weapon_set": 1
+    },
+    {
+      "id": "totems41"
+    },
+    {
+      "id": "totems42"
+    },
+    {
+      "id": "totems7",
+      "weapon_set": 1
+    }
+  ],
+  "inventory_slots": [
+    {
+      "inventory_id": "Boots1",
+      "additional_text": "Rarity: RARE\nPandemonium Span\nSekhema Sandals\nUnique ID: c6c6db8d665ad44edca7b0821639490858464e5645713b786fa44a2178a0ae6e\nItem Level: 82\nSockets: S S\nRune: Perfect Iron Rune\nRune: Perfect Iron Rune\nImplicits: 3\n64% increased Armour, Evasion and Energy Shield\nBonded: +64 to maximum Life\nBonded: +64 to maximum Mana\n35% increased Movement Speed\n97% increased Energy Shield\n18% increased Rarity of Items found\n{desecrated}+60 to maximum Energy Shield"
+    },
+    {
+      "inventory_id": "Gloves1",
+      "additional_text": "Rarity: RARE\nBrimstone Touch\nSirenscale Gloves\nUnique ID: 8027a4993958777f63ae4c5303fb0f492dcb974e08369076fa1801ccd0e4f809\nItem Level: 82\nSockets: S S\nRune: Cadigan's Epiphany\nRune: Sapphire\nImplicits: 1\nDestroys all [Augment Sockets on the item to create a [Jewel Socket\n137% increased Energy Shield\n+47 to maximum Life\n{desecrated}+59 to maximum Energy Shield"
+    },
+    {
+      "inventory_id": "Ring2",
+      "additional_text": "Rarity: RARE\nRune Eye\nGold Ring\nUnique ID: ebee77cc35c29449252660a36df231f09007db5dc0b518dc61cf656a1b6fc4f8\nItem Level: 81\nImplicits: 1\n14% increased Rarity of Items found\n25% increased [Cold Damage\n+82 to maximum Mana\n18% increased Rarity of Items found\n28% increased Cast Speed\n58% increased Mana Regeneration Rate"
+    },
+    {
+      "inventory_id": "BodyArmour1",
+      "additional_text": "Rarity: RARE\nLoath Keep\nVile Robe\nUnique ID: 04c96424a1d5380dfd7b7e3e14594a9750fbc4b996a0cd0a19219b861d60db7f\nItem Level: 82\nSockets: S S S\nRune: Perfect Iron Rune\nRune: Perfect Iron Rune\nRune: Perfect Iron Rune\nImplicits: 3\n60% increased Armour, Evasion and Energy Shield\nBonded: +60 to maximum Life\nBonded: +60 to maximum Mana\n109% increased Energy Shield\n+61 to Spirit\n+45% to Fire Resistance\n+44% to Cold Resistance\n{desecrated}+96 to maximum Energy Shield"
+    },
+    {
+      "inventory_id": "Helm1",
+      "additional_text": "Rarity: RARE\nFoe Dome\nAncestral Tiara\nUnique ID: e266c5e21bd58fb9a27abb1a8989afb8f8a0cafaae79bba11beedd0f7b71cec7\nItem Level: 82\nSockets: S S\nRune: Perfect Iron Rune\nRune: Raven-Touched Shard\nImplicits: 4\n20% increased Armour, Evasion and Energy Shield\nRaven-Touched\nBonded: +20 to maximum Life\nBonded: +20 to maximum Mana\n42% increased Energy Shield\n+36 to maximum Mana\n+45% to Fire Resistance\n+45% to Cold Resistance\n{desecrated}+72 to maximum Energy Shield"
+    },
+    {
+      "inventory_id": "Amulet1",
+      "additional_text": "Rarity: RARE\nPhoenix Charm\nGold Amulet\nUnique ID: 0fe9b0d07568963bfdc0e6f5c8aa87c3f6e6ce07d162b0a3b032d2a02bcf4483\nItem Level: 78\nImplicits: 1\n20% increased Rarity of Items found\n34% increased maximum Energy Shield\n+4 to Level of all Spell Skills\n30% increased Cast Speed\n+31% to Fire Resistance\n{desecrated}17% increased Rarity of Items found"
+    },
+    {
+      "inventory_id": "Weapon1",
+      "additional_text": "Rarity: RARE\nCorpse Bane\nDueling Wand\nUnique ID: 70594c7a4d1e7819e001ed56fd74b1ebb14e2e7d0a6e44543cb59aa1e49907b1\nItem Level: 83\nSockets: S S\nRune: Hedgewitch Assandra's Rune of Wisdom\nRune: Legacy of Lifesprig\nRune: Spellslinger\nImplicits: 3\n+3 to Level of all Spell Skills\nBonded: [Archon recovery period expires 30% faster\nBonded: Leeches 1% of maximum Life when you Cast a Spell\n[Gain 26% of Damage as Extra [Cold Damage\n+5 to Level of all Cold Spell Skills\n{desecrated}50% increased Critical Hit Chance for Spells"
+    },
+    {
+      "inventory_id": "Ring1",
+      "additional_text": "Rarity: RARE\nBehemoth Spiral\nGold Ring\nUnique ID: 73ca735cffea7c075457e31c423ff967ff7cff7fef85def01f196218c4020684\nItem Level: 79\nImplicits: 1\n15% increased Rarity of Items found\n29% increased [Cold Damage\n+141 to maximum Mana\n18% increased Rarity of Items found\n27% increased Cast Speed\n{desecrated}+13% to all Elemental [Resistances"
+    },
+    {
+      "inventory_id": "Belt1",
+      "unique_name": "Mageblood"
+    },
+    {
+      "inventory_id": "Weapon2",
+      "unique_name": "The Whispering Ice"
+    },
+    {
+      "inventory_id": "Offhand1",
+      "additional_text": "Rarity: RARE\nVictory Call\nShrine Sceptre\nUnique ID: 20383f8ef42b61d72e8db544709b6322f7384f088ada09a0ccbcca1059702413\nItem Level: 80\nSockets: S\nRune: Rabbit Idol\nRune: Purity of Lightning\nImplicits: 2\n15% increased Spirit\nBonded: Minions have 30% increased Cooldown Recovery Rate for [Command Skills\n80% increased Spirit\n+25 to maximum Mana\nAllies in your Presence deal 1 to 40 added Attack Lightning Damage\nAllies in your Presence have +8% to all Elemental Resistances\n38% increased Mana Regeneration Rate\n{desecrated}25% reduced Attribute Requirements"
+    }
+  ],
+  "skills": [
+    {
+      "id": "Metadata/Items/Gems/SkillGemSpellTotem",
+      "support_skills": [
+        {
+          "id": "Metadata/Items/Gems/SkillGemGrimPillars"
+        },
+        {
+          "id": "Metadata/Items/Gem/SupportGemAncestralUrgencyThree"
+        },
+        {
+          "id": "Metadata/Items/Gems/SupportGemColdMastery"
+        },
+        {
+          "id": "Metadata/Items/Gem/SupportGemVoranasSiege"
+        },
+        {
+          "id": "Metadata/Items/Gem/SupportGemRakiatasFlow"
+        }
+      ]
+    },
+    {
+      "id": "Metadata/Items/Gem/SkillGemEntangle",
+      "support_skills": [
+        {
+          "id": "Metadata/Items/Gem/SupportGemMorrigansInsight"
+        },
+        {
+          "id": "Metadata/Items/Gem/SupportGemBranchingFissuresTwo"
+        },
+        {
+          "id": "Metadata/Items/Gems/SupportGemMagnifiedEffectTwo"
+        },
+        {
+          "id": "Metadata/Items/Gems/SupportGemArcaneTempoTwo"
+        },
+        {
+          "id": "Metadata/Items/Gems/SupportGemInspirationTwo"
+        }
+      ]
+    },
+    {
+      "id": "Metadata/Items/Gems/SkillGemManaTempest",
+      "support_skills": [
+        {
+          "id": "Metadata/Items/Gem/SupportGemAdvancingStorm"
+        },
+        {
+          "id": "Metadata/Items/Gems/SupportGemIngenuityTwo"
+        },
+        {
+          "id": "Metadata/Items/Gems/SupportGemInspirationTwo"
+        },
+        {
+          "id": "Metadata/Items/Gems/SupportGemLightningMastery"
+        }
+      ]
+    },
+    {
+      "id": "Metadata/Items/Gems/SkillGemPurityOfLightning",
+      "support_skills": [
+        {
+          "id": "Metadata/Items/Gems/SupportGemClarityTwo"
+        },
+        {
+          "id": "Metadata/Items/Gem/SupportGemMysticismTwo"
+        },
+        {
+          "id": "Metadata/Items/Gems/SupportGemLightningMastery"
+        },
+        {
+          "id": "Metadata/Items/Gem/SupportGemHerDeclaration"
+        },
+        {
+          "id": "Metadata/Items/Gem/SupportGemSeraphsHeart"
+        }
+      ]
+    },
+    {
+      "id": "Metadata/Items/Gem/SkillGemElementalConflux",
+      "support_skills": [
+        {
+          "id": "Metadata/Items/Gems/SupportGemColdMastery"
+        },
+        {
+          "id": "Metadata/Items/Gems/SupportGemFastForwardTwo"
+        }
+      ]
+    }
+  ]
+}

@@ -43,6 +43,7 @@ export const IPC_CHANNELS = {
     SIMULATE_LOOT_DROPS: 'simulate-loot-drops',
     RELOAD: 'reload-filter',
     GET_UNIQUE_VISIBILITY: 'get-unique-visibility',
+    GET_UNIQUE_FILTER_TIERS: 'get-unique-filter-tiers',
     MOVE_ITEM_TIER: 'move-item-tier',
     BATCH_MOVE_ITEM_TIER: 'batch-move-item-tier',
     UPDATE_STACK_THRESHOLDS: 'update-stack-thresholds',
@@ -193,6 +194,12 @@ export const IPC_CHANNELS = {
     STATE_EVENT: 'timeless-tree:state',
   },
 
+  FILTER_SECTION_EDITOR: {
+    SHOW: 'filter-section-editor:show',
+    REQUEST_CLOSE: 'filter-section-editor:request-close',
+    SET_PINNED: 'filter-section-editor:set-pinned',
+  },
+
   APP_WINDOW: {
     SET_MODE: 'app-window-mode',
     OPEN_SETTINGS_TAB: 'open-settings-tab',
@@ -261,6 +268,7 @@ export const IPC_CHANNELS = {
     PRICES_WATCH: 'plugins:prices-watch',
     PRICES_UNWATCH: 'plugins:prices-unwatch',
     PRICES_CHANGED_EVENT: 'plugins:prices-changed',
+    NINJA_CHARACTER_MODEL: 'plugins:ninja-character-model',
     TRIGGER_MAIN_HOTKEY: 'plugins:trigger-main-hotkey',
     SHOW_OVERLAY: 'plugins:show-overlay',
     REGISTER_OVERLAY: 'plugins:register-overlay',

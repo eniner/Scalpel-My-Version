@@ -1,3 +1,5 @@
+import { withCatalystWeights } from './catalyst'
+import { candidateModsForTags, resolveModFromLineIndexed } from './mod-index'
 import { textsRoughlyMatch } from './text'
 import type { CraftDataset, CraftItemMod, CraftItemState, CraftMod, GenKind } from './types'
 import { isGroupBlocked, modBindGroups, spawnWeight } from './weights'
@@ -63,6 +65,9 @@ export function getBaseTags(data: CraftDataset, baseType: string): string[] | nu
 }
 
 export function resolveModFromLine(data: CraftDataset, line: string, kind: GenKind): CraftMod | null {
+  const indexed = resolveModFromLineIndexed(data, line, kind)
+  if (indexed) return indexed
+  // Fallback fuzzy scan (clipboard oddities) — rare path.
   let best: CraftMod | null = null
   let bestScore = 0
   for (const mod of data.mods) {
@@ -129,7 +134,11 @@ export function eligibleMods(
   if (kind === 's' && opts.suffixCount >= opts.maxSuffix) return []
   const floor = opts.tierFloor ?? 0
   const out: Array<CraftMod & { weight: number }> = []
-  for (const mod of data.mods) {
+  const candidates = candidateModsForTags(data, tags, kind, opts.baseType)
+  for (const mod of candidates) {
+    // CoE normal crafts only roll compute mgroup 1 — never desecrated (mgroup 10).
+    if (mod.desecrated) continue
+    if (mod.pool === 'marksman') continue
     if (mod.k !== kind) continue
     if (mod.l > ilvl || mod.l < floor) continue
     if (isGroupBlocked(mod, blockedGroups)) continue
@@ -176,7 +185,7 @@ export function allEligibleForExalt(
       tierFloor,
     }))
   }
-  return pool
+  return withCatalystWeights(data, state, pool)
 }
 
 export function itemStateFromPoeItem(

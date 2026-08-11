@@ -1,0 +1,14 @@
+{
+  "hitAllE": 44.00000000000001,
+  "hitPE": 44.00000000000001,
+  "groupThenTierPrefixT1E": 44.00000000000001,
+  "flatPrefixOnlyE": 44,
+  "flatAllPoolE": 109.55,
+  "chaosHalfPrefixE": 88,
+  "estimateE": 44.00000000000001,
+  "hybridT1flatPrefixE": 44,
+  "wT1": 1000,
+  "hybridW": 1000,
+  "wP": 44000,
+  "wAll": 109550
+}

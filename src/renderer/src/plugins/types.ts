@@ -39,7 +39,45 @@ export type PluginContextFactoryDeps = {
       rarity: string
       notes?: string
       statPriority?: string[]
-    }) => Promise<{ url: string; queryId: string; total: number; matchedStats?: number }>
+      similarItems?: boolean
+      upgradeSearch?: boolean
+      statKinds?: string[]
+    }) => Promise<{
+      url: string
+      queryId: string
+      total: number
+      matchedStats?: number
+      unmatchedMods?: string[]
+    }>
+    priceCheck: (item: {
+      name: string
+      baseType: string
+      itemClass?: string
+      rarity: string
+      notes?: string
+      statPriority?: string[]
+      similarItems?: boolean
+      upgradeSearch?: boolean
+      statKinds?: string[]
+    }) => Promise<{
+      url: string
+      queryId: string
+      total: number
+      matchedStats?: number
+      unmatchedMods?: string[]
+      pricesDivine: number[]
+      cheapestDivine: number | null
+      estimateDivine: number | null
+      pricedCount: number
+    }>
+    scanWarrants: (opts?: import('../../../plugin-sdk/src/types').WarrantScanOptions) => Promise<
+      import('../../../plugin-sdk/src/types').WarrantScanResult
+    >
+    warrantsCatalog: () => Promise<import('../../../plugin-sdk/src/types').WarrantCatalog>
+    whisperSeller: (queryId: string, listingId: string, league: string) => Promise<void>
+    visitHideout: (queryId: string, listingId: string, league: string) => Promise<void>
+    getAuth: () => Promise<{ loggedIn: boolean }>
+    login: () => Promise<void>
   }
   webPanel: {
     open: (opts: { url: string; title?: string; width?: number; height?: number }) => Promise<void>
@@ -70,6 +108,9 @@ export type PluginContextFactoryDeps = {
       context?: 'fresh' | 'item'
       poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
       marksmanEnabled?: boolean
+      tierFloor?: number
+      catalyst?: string
+      quality?: number
     }) => Promise<{
       baseType: string
       itemLevel: number
@@ -79,6 +120,16 @@ export type PluginContextFactoryDeps = {
       totalWeight: number
       outcomes: Array<{ text: string; group: string; kind: 'p' | 's'; probability: number; weight?: number; ilvl?: number }>
       note: string
+      catalysts?: Array<{ id: string; name: string; tags: string[] }>
+      essencesForBase?: Array<{
+        id: string
+        name: string
+        kind: 'p' | 's'
+        text: string
+        modName: string
+        minIlvl: number
+        group: string
+      }>
     }>
     searchBases: (query: string, limit?: number) => Promise<string[]>
   }
@@ -89,6 +140,16 @@ export type PluginContextFactoryDeps = {
     refresh: () => Promise<void>
     onChange: (handler: () => void) => () => void
   }
+  /** Optional until hosts ship the ninja character API. */
+  ninja?: {
+    getCharacterModel: (opts: {
+      account: string
+      league: string
+      name: string
+      modelVersion?: number
+    }) => Promise<{ type: string; charModel: unknown; modelVersion: number }>
+  }
+  filter: import('../../../plugin-sdk/src/types').FilterApi
   registerTab: (
     pluginId: string,
     opts: {

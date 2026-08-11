@@ -44,9 +44,14 @@ async function main() {
         status: { option: 'any' },
         type: 'Mercenary Warrant',
         stats: [{ type: 'and', filters: [] }],
-        filters: { trade_filters: { disabled: false, filters: { price: { min: 1 } } } },
+        filters: {
+          trade_filters: {
+            disabled: false,
+            filters: { price: { min: 1, max: 50, option: 'divine' } },
+          },
+        },
       },
-      sort: { price: 'desc' },
+      sort: { price: 'asc' },
     }),
   })
   console.log('search', search.status, 'total', search.json.total)

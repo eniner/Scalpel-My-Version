@@ -65,6 +65,8 @@ export function createPluginContext(deps: PluginContextFactoryDeps): ScalpelPlug
     buildPlanner: deps.buildPlanner,
     trade: deps.trade,
     prices: deps.prices,
+    ninja: deps.ninja,
+    filter: deps.filter,
     webPanel: deps.webPanel,
     readClipboardText: () => deps.readClipboardText(),
     craft: deps.craft,

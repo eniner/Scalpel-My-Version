@@ -120,7 +120,12 @@ export function simKeyToOmenMethod(sim: string): string | null {
   if (sim === 'regal') return 'regal'
   if (sim === 'chaos') return 'chaos'
   if (sim === 'exalt') return 'exalt'
-  if (sim.startsWith('essence:')) return 'poe2_perfect_essence'
+  if (sim.startsWith('essence:')) {
+    const name = sim.slice('essence:'.length).toLowerCase()
+    // Crystallisation omens only apply to Perfect essences / alloys (remove-then-add).
+    if (name.includes('perfect') || name.includes('alloy')) return 'poe2_perfect_essence'
+    return null
+  }
   if (sim === 'desecration' || sim.startsWith('desecration:')) return 'desecration'
   return null
 }

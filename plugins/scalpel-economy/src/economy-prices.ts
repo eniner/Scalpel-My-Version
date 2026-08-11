@@ -8,10 +8,15 @@ export function fmtNum(value: number): string {
   return value.toFixed(value >= 1 ? 1 : 2)
 }
 
-export function priceBadge(entry: Pick<PriceEntry, 'chaosValue' | 'divineValue'>): string {
+/** PoE1 chaos orb = "c"; PoE2 exalted = "ex". Divine is "div" on both. */
+export function priceBadge(
+  entry: Pick<PriceEntry, 'chaosValue' | 'divineValue'>,
+  poeVersion: 1 | 2 = 2,
+): string {
   const div = entry.divineValue
   if (div != null && div >= 1) return `${fmtNum(div)} div`
-  return `${fmtNum(entry.chaosValue)} ex`
+  const unit = poeVersion === 1 ? 'c' : 'ex'
+  return `${fmtNum(entry.chaosValue)} ${unit}`
 }
 
 export function groupEntriesByCategory(entries: PriceEntry[]): Map<string, PriceEntry[]> {

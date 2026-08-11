@@ -93,6 +93,8 @@ export interface PoeItem {
   synthesised: boolean
   isSynthetic?: boolean
   fractured: boolean
+  /** PoE1 Vestigial unique (Domain of Timeless Conflict / Crystal of Permutation). */
+  vestigial?: boolean
   transfigured: boolean
   alternateQuality?: boolean
   vaalGem?: boolean
@@ -209,7 +211,13 @@ export interface SearchableItem {
   baseType: string
   itemClass: string
   rarity: 'Unique' | 'Currency' | 'Gem'
-  blocks: Array<{ visibility: 'Show' | 'Hide'; actions: FilterAction[]; continue: boolean }> | null
+  blocks: Array<{
+    visibility: 'Show' | 'Hide'
+    actions: FilterAction[]
+    continue: boolean
+    /** Filter section tier slug (e.g. `t0`, `t1`, `restex`) when the block is tagged. */
+    tier?: string
+  }> | null
   reward?: string
   iconKey?: string
   flags?: { zanaMemory?: boolean }
@@ -219,10 +227,10 @@ export const HIDEABLE_TAB_KEYS = [
   'item',
   'pricecheck',
   'dust',
+  'uniquetiers',
   'divcards',
   'scarabs',
   'timeless',
-  'warrants',
   'regex',
   'extras',
 ] as const

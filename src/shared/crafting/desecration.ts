@@ -1,4 +1,5 @@
 import { pickGroupThenTier } from './group-pool'
+import { candidateModsForTags } from './mod-index'
 import type { OmenEffect } from './omens'
 import { modBindGroups, pickWeighted, spawnWeight } from './weights'
 import { buildItemTags, countByKind, usedGroups } from './pool'
@@ -135,9 +136,8 @@ function desecratedPool(
   const tags = buildItemTags(data, state)
   const blocked = usedGroups(state.mods)
   const out: Array<CraftMod & { weight: number }> = []
-  for (const mod of data.mods) {
+  for (const mod of candidateModsForTags(data, tags, kind, state.baseType)) {
     if (!mod.desecrated) continue
-    if (mod.k !== kind) continue
     if (mod.l < minModLevel && mod.l < state.itemLevel) continue
     if (mod.l > state.itemLevel) continue
     const weight = spawnWeight(mod, tags, state.baseType)
@@ -157,9 +157,9 @@ function regularPool(
 ): Array<CraftMod & { weight: number }> {
   const tags = buildItemTags(data, state)
   const out: Array<CraftMod & { weight: number }> = []
-  for (const mod of data.mods) {
+  for (const mod of candidateModsForTags(data, tags, kind, state.baseType)) {
     if (mod.desecrated) continue
-    if (mod.k !== kind) continue
+    if (mod.pool === 'marksman') continue
     if (mod.l < minModLevel && mod.l < state.itemLevel) continue
     if (mod.l > state.itemLevel) continue
     const weight = spawnWeight(mod, tags, state.baseType)
@@ -196,6 +196,13 @@ function rollDesecCount(rng: () => number): number {
   return 1
 }
 
+/** CoE mtype tags for named desecration omens (Liege / Sovereign / Blackblooded). */
+const NAMED_DESEC_ATTR: Record<NonNullable<OmenEffect['desecNamed']>, string> = {
+  liege: 'amanamu_mod',
+  sovereign: 'ulaman_mod',
+  blackblooded: 'kurgal_mod',
+}
+
 export function rollDesecrationChoices(
   data: CraftDataset,
   state: CraftItemState,
@@ -208,9 +215,21 @@ export function rollDesecrationChoices(
   const picks: CraftItemMod[] = []
   const desecTarget = rollDesecCount(rng)
   const desecPool = desecratedPool(data, state, kind, minModLevel)
+  const namedTag = omen.desecNamed ? NAMED_DESEC_ATTR[omen.desecNamed] : null
+  const namedPool = namedTag ? desecPool.filter((m) => m.a?.includes(namedTag)) : []
 
-  for (let i = 0; i < desecTarget && picks.length < 3; i++) {
-    const mod = pickFromPool(desecPool, blocked, rng)
+  // Guarantee a random Amanamu / Ulaman / Kurgal desecrated mod when omen is active.
+  if (namedTag) {
+    const mod = pickFromPool(namedPool.length ? namedPool : desecPool, blocked, rng)
+    if (mod) {
+      picks.push({ ...craftModToItemMod(mod), desecrated: true })
+      for (const g of modBindGroups(mod)) blocked.add(g)
+    }
+  }
+
+  for (let i = picks.length; i < desecTarget && picks.length < 3; i++) {
+    const pool = namedTag && namedPool.length ? namedPool : desecPool
+    const mod = pickFromPool(pool, blocked, rng)
     if (!mod) break
     picks.push({ ...craftModToItemMod(mod), desecrated: true })
     for (const g of modBindGroups(mod)) blocked.add(g)
@@ -223,17 +242,13 @@ export function rollDesecrationChoices(
     for (const g of modBindGroups(mod)) blocked.add(g)
   }
 
-  if (omen.desecNamed && picks.length) {
-    const idx = Math.floor(rng() * picks.length)
-    if (!picks[idx].desecrated) picks[idx] = { ...picks[idx], desecrated: true }
-  }
-
   return picks
 }
 
 export function pickVeiledKind(
   state: CraftItemState,
   forcedKind?: GenKind,
+  rng: () => number = Math.random,
 ): GenKind | null {
   const counts = countByKind(state.mods.filter((m) => !m.veiled))
   if (forcedKind) {
@@ -243,7 +258,7 @@ export function pickVeiledKind(
   }
   if (counts.p >= 3) return 's'
   if (counts.s >= 3) return 'p'
-  return Math.random() < 0.5 ? 'p' : 's'
+  return rng() < 0.5 ? 'p' : 's'
 }
 
 export function makeRevealChoices(
@@ -256,4 +271,38 @@ export function makeRevealChoices(
 
 export function boneById(id: string): BoneDef | undefined {
   return DESECRATION_BONES.find((b) => b.id === id)
+}
+
+export interface RevealPickOpts {
+  /** Prefer a choice that matches any of these conditions. */
+  match?: (mod: CraftItemMod) => boolean
+  /** Prefer desecrated pool lines when scores tie. */
+  preferDesecrated?: boolean
+}
+
+/** Auto-pick index for Sequence / Monte Carlo (prefer condition match, then desecrated, else 0). */
+export function pickRevealIndex(choices: DesecrationRevealChoice, opts?: RevealPickOpts): number {
+  const mods = choices.mods
+  if (!mods.length) return 0
+  const preferDesecrated = opts?.preferDesecrated !== false
+  let best = 0
+  let bestScore = -1
+  for (let i = 0; i < mods.length; i++) {
+    const m = mods[i]
+    let score = 0
+    if (opts?.match?.(m)) score += 100
+    if (preferDesecrated && m.desecrated) score += 10
+    if (score > bestScore) {
+      bestScore = score
+      best = i
+    }
+  }
+  return best
+}
+
+/** True when no choice matches and Abyssal Echoes-style rerolls remain. */
+export function shouldRerollReveal(choices: DesecrationRevealChoice, match?: (mod: CraftItemMod) => boolean): boolean {
+  if (!choices.rerollsLeft || choices.rerollsLeft <= 0) return false
+  if (!match) return false
+  return !choices.mods.some((m) => match(m))
 }

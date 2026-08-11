@@ -1,5 +1,9 @@
 import type { PriceInfo } from '@shared/types'
 import { getGameFeatures } from '@shared/game-features'
+import {
+  UNIQUE_DROP_TIER_COLORS,
+  type UniqueDropTier,
+} from '@shared/economy/unique-drop-tier'
 import { usePoeVersion } from '../../shared/poe-version-context'
 import { IconGlow } from '../../shared/IconGlow'
 import { PriceChip } from '../../shared/PriceChip'
@@ -21,6 +25,7 @@ export function ItemHeader({
   stackSize,
   maxStackSize,
   dustInfo,
+  dropTier,
   areaLevel,
   heistJob,
   onOpenWiki,
@@ -38,6 +43,8 @@ export function ItemHeader({
   stackSize?: number
   maxStackSize?: number
   dustInfo?: { value: number; upTo?: boolean } | null
+  /** Wiki drop-weight tier for PoE1 uniques (T0–T5). */
+  dropTier?: UniqueDropTier | null
   areaLevel?: number
   heistJob?: { skill: string; level: number }
   onOpenWiki?: () => void
@@ -65,8 +72,23 @@ export function ItemHeader({
         />
       )}
       <div className="flex-1 min-w-0">
-        <div className="font-bold text-sm truncate" style={{ color }}>
-          {heroName}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="font-bold text-sm truncate" style={{ color }}>
+            {heroName}
+          </div>
+          {dropTier && (
+            <span
+              className="shrink-0 text-[10px] font-bold px-1.5 py-[1px] rounded"
+              style={{
+                color: UNIQUE_DROP_TIER_COLORS[dropTier],
+                background: 'rgba(255,255,255,0.08)',
+                border: `1px solid ${UNIQUE_DROP_TIER_COLORS[dropTier]}55`,
+              }}
+              title="Drop-weight tier (wiki / Prohibited Library — not price)"
+            >
+              {dropTier}
+            </span>
+          )}
         </div>
         {heroName !== baseType && <div className="text-text-dim text-[11px]">{baseType}</div>}
         {(areaLevel || heistJob) && (

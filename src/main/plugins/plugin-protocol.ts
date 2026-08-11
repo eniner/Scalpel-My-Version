@@ -47,7 +47,11 @@ export function registerScalpelPluginProtocol(): void {
     const inner = await net.fetch(pathToFileURL(filePath).toString())
     return new Response(inner.body, {
       status: inner.status,
-      headers: { 'content-type': 'application/javascript' },
+      headers: {
+        'content-type': 'application/javascript',
+        // Unpacked plugins are edited in place; never serve a stale module body.
+        'cache-control': 'no-store',
+      },
     })
   })
 }

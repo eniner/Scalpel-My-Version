@@ -1,8 +1,27 @@
 import { useEffect, useState } from 'react'
 import type { PluginActivate, RegisterOverlayOptions, ScalpelPluginContext } from '../../../plugin-sdk/src/types'
 import type { PoeItem, Zone } from '@shared/types'
+import { divCardArtMap, iconMap, initIconMap, initPoeVersion, mergeIconCache } from '../shared/constants'
+import { createFilterApi } from './create-filter-api'
 import { importPluginModule } from './import-plugin-module'
 import { resolveLeagueOptions } from '@renderer/shared/league-options'
+
+/** Publish icon maps so pop-out plugins can resolve getItemIcon (Economy, etc.). */
+function publishPluginOverlayIconMaps(poeVersion: 1 | 2): () => void {
+  initPoeVersion(poeVersion)
+  initIconMap(poeVersion)
+  ;(
+    globalThis as unknown as { __scalpel?: { iconMap: typeof iconMap; divCardArtMap: typeof divCardArtMap } }
+  ).__scalpel = {
+    iconMap,
+    divCardArtMap,
+  }
+  void window.api
+    .getIconCache()
+    .then(mergeIconCache)
+    .catch(() => {})
+  return window.api.onIconCacheUpdated(mergeIconCache)
+}
 
 export interface ActivatedPlugin {
   captured: { opts: RegisterOverlayOptions; render: (container: HTMLElement) => (() => void) | void } | null
@@ -18,6 +37,7 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
     let cancelled = false
     let latestItem: PoeItem | null = null
     let latestZone: Zone | null = null
+    let unsubIconCache: (() => void) | undefined
     const unsubItem = window.api.onOverlayData((d) => {
       latestItem = d.item
     })
@@ -29,6 +49,7 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
       if (cancelled || !entry) return
       const state = await window.api.getOverlayState().catch(() => null)
       const poeVersion: 1 | 2 = (state?.poeVersion as 1 | 2) ?? 1
+      unsubIconCache = publishPluginOverlayIconMaps(poeVersion)
       const settings = await window.api.getSettings().catch(() => null)
       let league = settings?.activeProfile?.league ?? ''
       const mod = (await importPluginModule(entry.entryUrl)) as { default?: PluginActivate }
@@ -92,12 +113,27 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
         },
         trade: {
           openSearch: (item) => window.api.tradeOpenSearch(item),
+          priceCheck: (item) => window.api.tradePriceCheck(item),
+          scanWarrants: (opts) =>
+            window.api.warrantsScan(opts) as Promise<import('../../../plugin-sdk/src/types').WarrantScanResult>,
+          warrantsCatalog: () => window.api.warrantsCatalog(),
+          whisperSeller: (queryId, listingId, league) => window.api.whisperSeller(queryId, listingId, league),
+          visitHideout: (queryId, listingId, league) => window.api.visitHideout(queryId, listingId, league),
+          getAuth: async () => {
+            const auth = await window.api.poeCheckAuth()
+            return { loggedIn: Boolean(auth?.loggedIn) }
+          },
+          login: () => window.api.poeLogin(),
         },
         prices: {
           getPrices: (opts) => window.api.pricesGet(opts),
           refresh: () => window.api.pricesRefresh(),
           onChange: (handler) => window.api.onPricesChange(handler),
         },
+        ninja: {
+          getCharacterModel: (opts) => window.api.ninjaGetCharacterModel(opts),
+        },
+        filter: createFilterApi(window.api),
         webPanel: {
           open: (opts) => window.api.pluginWebPanelOpen(pluginId, opts),
           navigate: (url) => window.api.pluginWebPanelNavigate(pluginId, url),
@@ -114,6 +150,8 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
           modPool: (opts) => window.api.craftModPool(pluginId, opts),
           searchBases: (query, limit, itemClass) => window.api.craftSearchBases(pluginId, query, limit, itemClass),
           listItemClasses: () => window.api.craftListItemClasses(pluginId),
+          getCatalog: () => window.api.craftGetCatalog(pluginId),
+          sequence: (config) => window.api.craftSequence(pluginId, config),
           searchMods: (opts) => window.api.craftSearchMods(pluginId, opts),
         },
         openExternal: (url) => window.api.openExternal(url),
@@ -124,10 +162,6 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
           }
         },
       }
-      // Note: subscriptions a plugin opens via ctx (onLogLine/onCurrentItem/...)
-      // are the plugin's to manage per the SDK contract. This window is
-      // persistent (hidden, not destroyed, on close), so they correctly survive
-      // show/hide. We do not collect them here.
       try {
         await mod.default(ctx)
       } catch (err) {
@@ -142,6 +176,7 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
       cancelled = true
       unsubItem()
       unsubZone()
+      unsubIconCache?.()
     }
   }, [pluginId])
 

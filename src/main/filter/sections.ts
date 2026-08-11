@@ -1,5 +1,5 @@
-import type { FilterAction, FilterBlock, FilterFile } from '@shared/types'
-import type { FilterSection, FilterSectionTier } from '@shared/contracts/filter-sections'
+import type { FilterAction, FilterBlock, FilterFile, FilterSection, FilterSectionTier } from '@shared/types'
+import type { FilterContinueParent, FilterSectionEffects } from '@shared/contracts/filter-sections'
 
 export type { FilterSection, FilterSectionTier }
 
@@ -106,6 +106,40 @@ function previewActionsOf(block: FilterBlock): FilterAction[] {
   return block.actions.filter((a) => keep.has(a.type)).map((a) => ({ type: a.type, values: [...a.values] }))
 }
 
+function effectsOf(block: FilterBlock): FilterSectionEffects {
+  const byType = new Map(block.actions.map((a) => [a.type, a]))
+  const effects: FilterSectionEffects = {}
+  const beam = byType.get('PlayEffect')
+  if (beam?.values[0]) effects.beam = beam.values[0]
+  const mm = byType.get('MinimapIcon')
+  if (mm && mm.values.length >= 3) {
+    effects.minimap = { size: mm.values[0], color: mm.values[1], shape: mm.values[2] }
+  }
+  const custom = byType.get('CustomAlertSound') ?? byType.get('CustomAlertSoundOptional')
+  if (custom?.values[0]) {
+    effects.sound = custom.values[0]
+    effects.customSound = true
+  } else {
+    const alert = byType.get('PlayAlertSound') ?? byType.get('PlayAlertSoundPositional')
+    if (alert?.values[0]) effects.sound = alert.values[0]
+  }
+  return effects
+}
+
+function continueParentsBefore(filter: FilterFile, blockIndex: number): FilterContinueParent[] {
+  const parents: FilterContinueParent[] = []
+  for (let i = blockIndex - 1; i >= 0; i--) {
+    const b = filter.blocks[i]
+    const bases = baseTypesOf(b)
+    if (!b.continue || bases.length > 0) break
+    const tag = b.tierTag
+    const label = tag ? `${tag.typePath}/${tag.tier}` : `Continue #${i + 1}`
+    parents.unshift({ blockIndex: i, label, effects: effectsOf(b) })
+    if (parents.length >= 4) break
+  }
+  return parents
+}
+
 function styleFromBlock(block: FilterBlock): { text: string; bg: string; border: string } {
   const byType = new Map(block.actions.map((a) => [a.type, a]))
   return {
@@ -119,33 +153,60 @@ function baseTypesOf(block: FilterBlock): string[] {
   return block.conditions.filter((c) => c.type === 'BaseType').flatMap((c) => c.values)
 }
 
+function makeTier(
+  filter: FilterFile,
+  block: FilterBlock,
+  blockIndex: number,
+  tier: string,
+  label: string,
+  baseTypes: string[],
+): FilterSectionTier {
+  const effects = effectsOf(block)
+  const parents = continueParentsBefore(filter, blockIndex)
+  return {
+    tier,
+    label,
+    blockIndex,
+    visibility: block.visibility,
+    previewLabel: baseTypes[0] ?? label,
+    previewActions: previewActionsOf(block),
+    style: styleFromBlock(block),
+    baseTypes,
+    itemCount: baseTypes.length,
+    continue: block.continue || undefined,
+    effects: Object.keys(effects).length > 0 ? effects : undefined,
+    continueParents: parents.length > 0 ? parents : undefined,
+  }
+}
+
+/** Synthetic `$type` for blocks that have BaseTypes but no NeverSink `$type/$tier` tags. */
+export const UNTAGGED_TYPE_PATH = '__untagged__'
+
 /**
  * Group NeverSink-tagged blocks into FilterBlade-style sections.
- * Untagged / Continue-only decorator rows are skipped.
+ * Untagged blocks with BaseTypes land in a trailing "Untagged" bucket.
+ * Continue-only decorator rows (no BaseType) are skipped as sections but
+ * attached as continueParents on the next BaseType-bearing rule.
  */
 export function buildFilterSections(filter: FilterFile): FilterSection[] {
   const byType = new Map<string, FilterSectionTier[]>()
 
   filter.blocks.forEach((block, blockIndex) => {
-    const tag = block.tierTag
-    if (!tag) return
-    // Skip pure Continue decorator rows with no BaseType — they aren't tier lists.
     const baseTypes = baseTypesOf(block)
+    // Skip pure Continue decorator rows with no BaseType — they aren't tier lists.
     if (block.continue && baseTypes.length === 0) return
 
-    const tier: FilterSectionTier = {
-      tier: tag.tier,
-      label: labelForTier(tag.tier),
-      blockIndex,
-      visibility: block.visibility,
-      previewLabel: baseTypes[0] ?? labelForTier(tag.tier),
-      previewActions: previewActionsOf(block),
-      style: styleFromBlock(block),
-      baseTypes,
-      itemCount: baseTypes.length,
+    const tag = block.tierTag
+    if (!tag) {
+      if (baseTypes.length === 0) return
+      const list = byType.get(UNTAGGED_TYPE_PATH) ?? []
+      list.push(makeTier(filter, block, blockIndex, `block-${blockIndex}`, `Block ${blockIndex + 1}`, baseTypes))
+      byType.set(UNTAGGED_TYPE_PATH, list)
+      return
     }
+
     const list = byType.get(tag.typePath) ?? []
-    list.push(tier)
+    list.push(makeTier(filter, block, blockIndex, tag.tier, labelForTier(tag.tier), baseTypes))
     byType.set(tag.typePath, list)
   })
 
@@ -155,14 +216,13 @@ export function buildFilterSections(filter: FilterFile): FilterSection[] {
     const shownCount = tiers.filter((t) => t.visibility === 'Show').length
     sections.push({
       typePath,
-      title: titleForTypePath(typePath),
+      title: typePath === UNTAGGED_TYPE_PATH ? 'Untagged' : titleForTypePath(typePath),
       tiers,
       shownCount,
       totalCount: tiers.length,
     })
   }
 
-  // Prefer familiar NeverSink top-level groups first, then alpha.
   const PRIORITY = [
     'currency',
     'currency->emotions',
@@ -177,6 +237,8 @@ export function buildFilterSections(filter: FilterFile): FilterSection[] {
     'exoticbases',
   ]
   sections.sort((a, b) => {
+    if (a.typePath === UNTAGGED_TYPE_PATH) return 1
+    if (b.typePath === UNTAGGED_TYPE_PATH) return -1
     const ai = PRIORITY.indexOf(a.typePath)
     const bi = PRIORITY.indexOf(b.typePath)
     if (ai >= 0 || bi >= 0) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)

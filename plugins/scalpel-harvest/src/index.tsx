@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { HarvestPanel } from './HarvestPanel'
 import { HARVEST_ICON } from './icon'
 
-const WINDOW = { width: 920, height: 640 }
+const WINDOW = { width: 1180, height: 720 }
 
 export default function activate(ctx: ScalpelPluginContext): void {
   if (ctx.getPoeVersion() !== 1) return

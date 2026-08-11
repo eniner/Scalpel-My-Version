@@ -54,6 +54,9 @@ export interface OverlaySpec {
    *  must re-evaluate each time the window is shown. Default (false) keeps the
    *  position the window last had. */
   repositionOnShow?: boolean
+  /** When true (or when OverlayState.stayOpenOnPoeBlur is toggled on), skip
+   *  hideAllOnPoeBlur for this overlay so it can stay pinned while alt-tabbing. */
+  stayOpenOnPoeBlur?: boolean
 }
 
 /** Multiply an anchor against a rect, returning a rect in the same coordinate
@@ -269,9 +272,17 @@ export function registerSecondaryOverlay(spec: OverlaySpec): SecondaryOverlay {
     programmaticSettleTimer: null,
     isResizing: false,
     wasVisibleBeforeFocusLoss: false,
+    stayOpenOnPoeBlur: spec.stayOpenOnPoeBlur === true,
   }
   overlays.set(spec.id, state)
   return makeOverlayApi(state)
+}
+
+/** Toggle blur-hide exemption for a registered secondary overlay (pin / keep-open). */
+export function setOverlayStayOpenOnPoeBlur(id: string, stay: boolean): void {
+  const state = overlays.get(id)
+  if (!state) return
+  state.stayOpenOnPoeBlur = stay
 }
 
 function makeOverlayApi(state: OverlayState): SecondaryOverlay {

@@ -57,7 +57,7 @@ describe('buildFilterSections', () => {
     expect(sections[1].title).toBe('Emotions (Delirium)')
   })
 
-  it('skips untagged and empty Continue decorators', () => {
+  it('skips empty Continue decorators and buckets untagged BaseType rules', () => {
     const sections = buildFilterSections(
       filter([
         {
@@ -81,6 +81,8 @@ describe('buildFilterSections', () => {
         },
       ]),
     )
-    expect(sections).toEqual([])
+    expect(sections.map((s) => s.typePath)).toEqual(['__untagged__'])
+    expect(sections[0].title).toBe('Untagged')
+    expect(sections[0].tiers[0].baseTypes).toEqual(['Gold'])
   })
 })

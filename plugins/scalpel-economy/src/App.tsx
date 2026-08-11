@@ -8,14 +8,17 @@ interface AppProps {
 }
 
 export function App({ ctx }: AppProps): JSX.Element {
-  const { refresh, loading } = useEconomyPrices(ctx)
+  const { refresh, loading, poeVersion } = useEconomyPrices(ctx)
+  const league = ctx.getLeague()
+  const gameLabel = poeVersion === 1 ? 'Path of Exile' : 'Path of Exile 2'
 
   return (
     <div className="flex flex-col gap-4 p-4 text-text h-full min-h-0">
       <div>
         <h2 className="text-[15px] font-semibold text-text m-0">Scalpel Economy</h2>
         <p className="text-[12px] text-text-dim mt-1.5 mb-0 leading-relaxed">
-          Live economy prices for Runes of Aldur. Pop out the overlay to keep prices beside PoE while you play.
+          Live economy prices for {league || gameLabel}. Pop out the overlay to keep prices beside the
+          game while you play.
         </p>
       </div>
 
@@ -35,8 +38,10 @@ export function App({ ctx }: AppProps): JSX.Element {
       <div className="text-[11px] text-text-dim leading-relaxed border-t border-white/10 pt-3">
         <strong className="text-text font-medium">Tips</strong>
         <ul className="mt-1.5 mb-0 pl-4 space-y-1">
-          <li>Bind <span className="font-mono">Toggle Scalpel Economy</span> in Settings → Macros.</li>
-          <li>Use the category dropdown for currency, runes, uniques, omens, and more.</li>
+          <li>
+            Bind <span className="font-mono">Toggle Scalpel Economy</span> in Settings → Macros.
+          </li>
+          <li>Use the category dropdown for currency, uniques, fragments, and more.</li>
           <li>Each row shows the item icon and name beside its current price.</li>
         </ul>
       </div>

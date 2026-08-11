@@ -61,8 +61,28 @@ export function calcMaxDust(baseType: string): number | null {
 export function formatTierLabel(tier: string): string {
   const m = tier.match(/^t(\d+)(.*)/)
   if (m) return `T${m[1]}${m[2] ? ` ${m[2]}` : ''}`
-  if (tier === 'exhide') return 'Hidden'
-  if (tier === 'restex') return 'Rest'
+  const known: Record<string, string> = {
+    exhide: 'Hidden',
+    restex: 'Rest',
+    vestige: 'Vestigial',
+    multispecial: 'Multi',
+    multispecialhigh: 'Multi+',
+    hideable: 'Hideable',
+    hideable2: 'Hideable',
+    foulborn: 'Foulborn',
+    overqual: 'Overqual',
+    '5link': '5-Link',
+    '6s': '6-Socket',
+    '2xcorrupteduniques': '2× Corr',
+    '2xabyss': '2× Abyss',
+    '3xabyss': '3× Abyss',
+    '4xabysshelmet': '4× Abyss',
+    exuniqueidols: 'Idols',
+    corrupteduniques: 'Corrupt',
+  }
+  if (known[tier]) return known[tier]
+  // NeverSink one-off exceptions: exuberimpresence → Ex · exkaom → Ex
+  if (/^ex[a-z]/.test(tier) || tier.startsWith('exotic')) return 'Special'
   return tier
 }
 

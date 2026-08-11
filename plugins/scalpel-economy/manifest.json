@@ -1,10 +1,10 @@
 {
   "manifestVersion": 1,
   "id": "scalpel-economy",
-  "version": "1.0.3",
+  "version": "1.1.1",
   "name": "Scalpel Economy",
-  "description": "In-game economy browser for Runes of Aldur — price panel with all PoE2 economy categories",
+  "description": "In-game economy browser for PoE1 and PoE2 - price panel with ninja economy categories",
   "author": "scalpelpoe",
   "scalpelMinVersion": ">=0.9.16-rc1",
-  "poeVersions": [2]
+  "poeVersions": [1, 2]
 }

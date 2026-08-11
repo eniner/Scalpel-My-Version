@@ -7,7 +7,6 @@ const POE1_ONLY_APP_MACROS: ReadonlySet<string> = new Set([
   'openDivCards',
   'openScarabs',
   'openTimeless',
-  'openWarrants',
 ])
 
 export function chatCommandScope(command: string): MacroScope {

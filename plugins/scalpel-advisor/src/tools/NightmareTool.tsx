@@ -1,5 +1,5 @@
 import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import dataJson from '../data/nightmare-bosses.json'
 import { avgFragments, computeNightmareBoss, type NightmareBoss } from '../engines/nightmare'
 import { indexPriceIcons } from '../shared/icons'
@@ -7,6 +7,18 @@ import { ItemName } from '../shared/ItemName'
 import { chaosForId, chaosForName, fmtChaos, fmtSignedChaos, idToName, indexPrices } from '../shared/prices'
 import { ToolHeader } from '../shared/ToolChrome'
 import { inputStyle, theme } from '../shared/theme'
+import {
+  Blurb,
+  FieldLabel,
+  HeroMetric,
+  HeroRow,
+  ListRow,
+  SetupGroup,
+  SplitBody,
+  Workbench,
+  td,
+  th,
+} from '../shared/ui'
 
 const DATA = dataJson as {
   bosses: NightmareBoss[]
@@ -104,7 +116,7 @@ export function NightmareTool({
   const boss = selected?.boss
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'hidden' }}>
+    <Workbench>
       <ToolHeader
         toolId="nightmare"
         title="Nightmare Boss Rush"
@@ -112,248 +124,249 @@ export function NightmareTool({
         status={status}
         onRefresh={() => void refresh()}
       />
-      <p style={{ margin: 0, color: theme.dim, fontSize: 11 }}>
-        EV calculator for Nightmare map boss farming — compare profit/hour across all 5 bosses.
-      </p>
+      <Blurb>EV calculator for Nightmare map boss farming — compare profit/hour across all 5 bosses.</Blurb>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label style={lab}>
-          Map Cost
-          <input
-            style={inputStyle}
-            type="number"
-            value={mapCost}
-            onChange={(e) => setMapCost(Number(e.target.value) || 0)}
-          />
-        </label>
-        <label style={lab}>
-          In Map IIQ %
-          <input
-            style={inputStyle}
-            type="number"
-            value={iiq}
-            onChange={(e) => setIiq(Number(e.target.value) || 0)}
-          />
-        </label>
-        <span style={{ color: theme.dim, fontSize: 12 }}>Avg Frags: {avgFrags.toFixed(2)}</span>
-      </div>
-
-      <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
-        <div
-          style={{
-            width: 260,
-            overflow: 'auto',
-            border: `1px solid ${theme.border}`,
-            borderRadius: 6,
-            padding: 6,
-          }}
-        >
-          {ranked.map((r, i) => (
-            <button
-              key={r.boss.id}
-              type="button"
-              onClick={() => setSelectedId(r.boss.id)}
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                background: r.boss.id === selectedId ? '#1e1a14' : 'transparent',
-                border: 'none',
-                borderRadius: 4,
-                padding: '8px 6px',
-                cursor: 'pointer',
-                color: theme.text,
-                marginBottom: 2,
-              }}
-            >
-              <div style={{ color: r.boss.id === selectedId ? theme.accent : theme.text, fontWeight: 600 }}>
-                {i + 1}. {r.boss.name}
-              </div>
-              <div style={{ fontSize: 10, color: theme.dim }}>
-                EV {fmtChaos(r.totalEv, cpd)} · Cost {fmtChaos(mapCost, cpd)} · {r.timeSec}s/map
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
-                <span style={{ color: theme.green, fontWeight: 600 }}>
-                  {fmtDivHr(r.profitPerHour, cpd)}
-                </span>
-                <span style={{ color: theme.dim, fontSize: 11 }}>
-                  {fmtSignedChaos(r.profitPerMap, cpd)}/map
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {boss && selected ? (
-          <div style={{ flex: 1, overflow: 'auto', border: `1px solid ${theme.border}`, borderRadius: 6, padding: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <strong style={{ fontSize: 15 }}>
-                <ItemName name={boss.name} opts={{ priceIcons }}>
-                  {boss.name}
-                </ItemName>
-              </strong>
-              <label style={lab}>
-                Time / map (sec)
+      <SplitBody
+        railWidth={260}
+        rail={
+          <>
+            <SetupGroup title="Map setup">
+              <FieldLabel label="Map cost">
                 <input
-                  style={inputStyle}
+                  style={{ ...inputStyle, width: '100%' }}
                   type="number"
-                  value={times[boss.id] ?? 180}
-                  onChange={(e) =>
-                    setTimes((t) => ({ ...t, [boss.id]: Number(e.target.value) || 180 }))
-                  }
+                  value={mapCost}
+                  onChange={(e) => setMapCost(Number(e.target.value) || 0)}
                 />
-              </label>
-            </div>
+              </FieldLabel>
+              <FieldLabel label="In-map IIQ %">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={iiq}
+                  onChange={(e) => setIiq(Number(e.target.value) || 0)}
+                />
+              </FieldLabel>
+              <Blurb>Avg frags per map: {avgFrags.toFixed(2)}</Blurb>
+            </SetupGroup>
 
-            <Section title={`Fragments — ${fmtChaos(selected.fragEv, cpd)} EV`}>
-              <div style={{ color: theme.dim, fontSize: 11, marginBottom: 6 }}>
-                {selected.avgFrags.toFixed(2)} avg drops ({iiq}% IIQ)
-              </div>
-              <table style={table}>
-                <thead>
-                  <tr>
-                    <th style={th}>Fragment</th>
-                    <th style={th}>Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {boss.fragments.map((id) => (
-                    <tr key={id}>
-                      <td style={td}>
-                        <ItemName
-                          name={DATA.fragmentNames[id] ?? idToName(id)}
-                          opts={{ priceIcons, aliases: [idToName(id), id] }}
-                        >
-                          {DATA.fragmentNames[id] ?? id}
+            <SetupGroup title="Bosses">
+              {ranked.map((r, i) => (
+                <ListRow
+                  key={r.boss.id}
+                  leading={
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(r.boss.id)}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: 2,
+                        padding: 0,
+                        cursor: 'pointer',
+                        color: r.boss.id === selectedId ? theme.accent : theme.text,
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: 12 }}>
+                        <ItemName name={r.boss.name} size={18} opts={{ priceIcons }}>
+                          {i + 1}. {r.boss.name}
                         </ItemName>
-                      </td>
-                      <td style={td}>
-                        <input
-                          style={{ ...inputStyle, width: 80 }}
-                          type="number"
-                          value={fragPrices[id] ?? 0}
-                          onChange={(e) =>
-                            setFragPrices((p) => ({ ...p, [id]: Number(e.target.value) || 0 }))
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Section>
+                      </div>
+                      <div style={{ fontSize: 10, color: theme.dim, marginTop: 2 }}>
+                        EV {fmtChaos(r.totalEv, cpd)} · {fmtDivHr(r.profitPerHour, cpd)}
+                      </div>
+                    </button>
+                  }
+                  trailing={
+                    <span
+                      className="sa-num"
+                      style={{
+                        fontSize: 10,
+                        color: r.profitPerMap >= 0 ? theme.green : theme.red,
+                      }}
+                    >
+                      {fmtSignedChaos(r.profitPerMap, cpd)}/map
+                    </span>
+                  }
+                  muted={r.boss.id !== selectedId}
+                />
+              ))}
+            </SetupGroup>
+          </>
+        }
+        stage={
+          boss && selected ? (
+            <>
+              <HeroRow>
+                <HeroMetric label="Total EV" value={fmtChaos(selected.totalEv, cpd)} tone="accent" />
+                <HeroMetric
+                  label="Profit / map"
+                  value={fmtSignedChaos(selected.profitPerMap, cpd)}
+                  tone={selected.profitPerMap >= 0 ? 'good' : 'warn'}
+                  sub={`Map cost ${fmtChaos(mapCost, cpd)}`}
+                />
+                <HeroMetric
+                  label="Profit / hour"
+                  value={fmtDivHr(selected.profitPerHour, cpd)}
+                  tone="good"
+                  sub={`${selected.timeSec}s per map`}
+                />
+              </HeroRow>
 
-            <Section title={`Rare Drops — ${fmtChaos(selected.rareEv, cpd)} EV`}>
-              <table style={table}>
-                <thead>
-                  <tr>
-                    <th style={th}>Item</th>
-                    <th style={th}>Rate %</th>
-                    <th style={th}>Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={td}>
-                      <ItemName
-                        name={boss.unique.name}
-                        opts={{
-                          priceIcons,
-                          aliases: [boss.unique.name.replace(/^Unid\s+/i, '')],
-                        }}
-                      >
-                        {boss.unique.name}
-                      </ItemName>
-                    </td>
-                    <td style={td}>
-                      <input
-                        style={{ ...inputStyle, width: 56 }}
-                        type="number"
-                        value={rates[boss.id]?.unique ?? boss.unique.rate}
-                        onChange={(e) =>
-                          setRates((r) => ({
-                            ...r,
-                            [boss.id]: {
-                              ...r[boss.id],
-                              unique: Number(e.target.value) || 0,
-                              gem: r[boss.id]?.gem ?? boss.gem.rate,
-                            },
-                          }))
-                        }
-                      />
-                    </td>
-                    <td style={td}>
-                      <input
-                        style={{ ...inputStyle, width: 80 }}
-                        type="number"
-                        value={uniquePrices[boss.id] ?? 0}
-                        onChange={(e) =>
-                          setUniquePrices((p) => ({ ...p, [boss.id]: Number(e.target.value) || 0 }))
-                        }
-                      />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={td}>
-                      <ItemName name={boss.gem.name} opts={{ priceIcons }}>
-                        {boss.gem.name}
-                      </ItemName>
-                    </td>
-                    <td style={td}>
-                      <input
-                        style={{ ...inputStyle, width: 56 }}
-                        type="number"
-                        value={rates[boss.id]?.gem ?? boss.gem.rate}
-                        onChange={(e) =>
-                          setRates((r) => ({
-                            ...r,
-                            [boss.id]: {
-                              unique: r[boss.id]?.unique ?? boss.unique.rate,
-                              gem: Number(e.target.value) || 0,
-                            },
-                          }))
-                        }
-                      />
-                    </td>
-                    <td style={td}>
-                      <input
-                        style={{ ...inputStyle, width: 80 }}
-                        type="number"
-                        value={gemPrices[boss.id] ?? 0}
-                        onChange={(e) =>
-                          setGemPrices((p) => ({ ...p, [boss.id]: Number(e.target.value) || 0 }))
-                        }
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </Section>
+              <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <strong style={{ fontSize: 15 }}>
+                    <ItemName name={boss.name} opts={{ priceIcons }}>
+                      {boss.name}
+                    </ItemName>
+                  </strong>
+                  <FieldLabel label="Time / map (sec)">
+                    <input
+                      style={{ ...inputStyle, width: 88 }}
+                      type="number"
+                      value={times[boss.id] ?? 180}
+                      onChange={(e) =>
+                        setTimes((t) => ({ ...t, [boss.id]: Number(e.target.value) || 180 }))
+                      }
+                    />
+                  </FieldLabel>
+                </div>
 
-            <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 13 }}>
-              <span>
-                TOTAL EV <strong>{fmtChaos(selected.totalEv, cpd)}</strong>
-              </span>
-              <span style={{ color: theme.green }}>
-                PROFIT / MAP <strong>{fmtSignedChaos(selected.profitPerMap, cpd)}</strong>
-              </span>
-              <span style={{ color: theme.green }}>
-                PROFIT / HOUR <strong>{fmtDivHr(selected.profitPerHour, cpd)}</strong>
-              </span>
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  )
-}
+                <SetupGroup title={`Fragments — ${fmtChaos(selected.fragEv, cpd)} EV`}>
+                  <Blurb>
+                    {selected.avgFrags.toFixed(2)} avg drops ({iiq}% IIQ)
+                  </Blurb>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr>
+                        <th style={th}>Fragment</th>
+                        <th style={th}>Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {boss.fragments.map((id) => (
+                        <tr key={id}>
+                          <td style={td}>
+                            <ItemName
+                              name={DATA.fragmentNames[id] ?? idToName(id)}
+                              opts={{ priceIcons, aliases: [idToName(id), id] }}
+                            >
+                              {DATA.fragmentNames[id] ?? id}
+                            </ItemName>
+                          </td>
+                          <td style={td}>
+                            <input
+                              style={{ ...inputStyle, width: 80 }}
+                              type="number"
+                              value={fragPrices[id] ?? 0}
+                              onChange={(e) =>
+                                setFragPrices((p) => ({ ...p, [id]: Number(e.target.value) || 0 }))
+                              }
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </SetupGroup>
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ color: theme.accent, fontWeight: 600, marginBottom: 4 }}>{title}</div>
-      {children}
-    </div>
+                <SetupGroup title={`Rare drops — ${fmtChaos(selected.rareEv, cpd)} EV`}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr>
+                        <th style={th}>Item</th>
+                        <th style={th}>Rate %</th>
+                        <th style={th}>Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={td}>
+                          <ItemName
+                            name={boss.unique.name}
+                            opts={{
+                              priceIcons,
+                              aliases: [boss.unique.name.replace(/^Unid\s+/i, '')],
+                            }}
+                          >
+                            {boss.unique.name}
+                          </ItemName>
+                        </td>
+                        <td style={td}>
+                          <input
+                            style={{ ...inputStyle, width: 56 }}
+                            type="number"
+                            value={rates[boss.id]?.unique ?? boss.unique.rate}
+                            onChange={(e) =>
+                              setRates((r) => ({
+                                ...r,
+                                [boss.id]: {
+                                  ...r[boss.id],
+                                  unique: Number(e.target.value) || 0,
+                                  gem: r[boss.id]?.gem ?? boss.gem.rate,
+                                },
+                              }))
+                            }
+                          />
+                        </td>
+                        <td style={td}>
+                          <input
+                            style={{ ...inputStyle, width: 80 }}
+                            type="number"
+                            value={uniquePrices[boss.id] ?? 0}
+                            onChange={(e) =>
+                              setUniquePrices((p) => ({ ...p, [boss.id]: Number(e.target.value) || 0 }))
+                            }
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={td}>
+                          <ItemName name={boss.gem.name} opts={{ priceIcons }}>
+                            {boss.gem.name}
+                          </ItemName>
+                        </td>
+                        <td style={td}>
+                          <input
+                            style={{ ...inputStyle, width: 56 }}
+                            type="number"
+                            value={rates[boss.id]?.gem ?? boss.gem.rate}
+                            onChange={(e) =>
+                              setRates((r) => ({
+                                ...r,
+                                [boss.id]: {
+                                  unique: r[boss.id]?.unique ?? boss.unique.rate,
+                                  gem: Number(e.target.value) || 0,
+                                },
+                              }))
+                            }
+                          />
+                        </td>
+                        <td style={td}>
+                          <input
+                            style={{ ...inputStyle, width: 80 }}
+                            type="number"
+                            value={gemPrices[boss.id] ?? 0}
+                            onChange={(e) =>
+                              setGemPrices((p) => ({ ...p, [boss.id]: Number(e.target.value) || 0 }))
+                            }
+                          />
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </SetupGroup>
+              </div>
+            </>
+          ) : (
+            <Blurb>Select a boss to view breakdown.</Blurb>
+          )
+        }
+      />
+    </Workbench>
   )
 }
 
@@ -362,14 +375,3 @@ function fmtDivHr(chaosPerHour: number, cpd: number): string {
   const sign = d > 0 ? '+' : d < 0 ? '-' : ''
   return `${sign}${Math.abs(d).toFixed(1)}d/hr`
 }
-
-const lab: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 2,
-  fontSize: 10,
-  color: theme.dim,
-}
-const table: CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 12 }
-const th: CSSProperties = { textAlign: 'left', color: theme.dim, padding: '4px 6px', fontSize: 10 }
-const td: CSSProperties = { padding: '4px 6px', borderTop: `1px solid ${theme.border}` }

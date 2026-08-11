@@ -10,7 +10,7 @@ describe('describeIntent', () => {
       payload: { value: 'Chaos Orb', fromTier: 't2' },
       timestamp: 1,
     }
-    expect(describeIntent(intent)).toEqual({ description: 'Moved to t1', itemName: 'Chaos Orb' })
+    expect(describeIntent(intent)).toEqual({ description: 'Moved to currency/t1', itemName: 'Chaos Orb' })
   })
 
   it('describes a set-visibility', () => {

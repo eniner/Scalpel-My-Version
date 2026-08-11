@@ -2,7 +2,7 @@ import type { CraftApi, ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
 import type { PoeItem } from '@scalpelpoe/plugin-sdk'
 
 export const CRAFT_HOST_REQUIRED =
-  'Scalpel needs a full restart to load the crafting engine. Quit Scalpel completely (tray + Start menu), then open it again.'
+  'This Scalpel install has no crafting engine (stock Beta builds omit it). Use the monorepo app via `npm run launch` in scalpel-main — do not patch app.asar.'
 
 type HostApi = {
   craftListActions?: (
@@ -45,6 +45,11 @@ type HostApi = {
     itemClass?: string,
   ) => ReturnType<CraftApi['searchBases']>
   craftListItemClasses?: (pluginId: string) => ReturnType<CraftApi['listItemClasses']>
+  craftGetCatalog?: (pluginId: string) => ReturnType<CraftApi['getCatalog']>
+  craftSequence?: (
+    pluginId: string,
+    config: Parameters<CraftApi['sequence']>[0],
+  ) => ReturnType<CraftApi['sequence']>
   craftSearchMods?: (
     pluginId: string,
     opts: Parameters<CraftApi['searchMods']>[0],
@@ -75,6 +80,12 @@ function fromWindowApi(pluginId: string): CraftApi | null {
     modPool: (opts) => api.craftModPool!(pluginId, opts),
     searchBases: (query, limit, itemClass) => api.craftSearchBases!(pluginId, query, limit, itemClass),
     listItemClasses: () => api.craftListItemClasses?.(pluginId) ?? Promise.resolve([]),
+    getCatalog: () =>
+      api.craftGetCatalog?.(pluginId) ??
+      Promise.reject(new Error('Catalog API missing — relaunch via Launch Scalpel.bat to rebuild.')),
+    sequence: (config) =>
+      api.craftSequence?.(pluginId, config) ??
+      Promise.reject(new Error('Sequence API missing — relaunch via Launch Scalpel.bat to rebuild.')),
     searchMods: (opts) => api.craftSearchMods?.(pluginId, opts) ?? Promise.resolve([]),
   }
 }
@@ -95,7 +106,18 @@ function hasCraftApi(craft: Partial<CraftApi> | undefined): craft is CraftApi {
 /** ctx.craft or window.api fallback (handles stale renderer bundles). */
 export function resolveCraft(ctx: ScalpelPluginContext): CraftApi | null {
   if (hasCraftApi(ctx.craft as CraftApi | undefined)) {
-    return ctx.craft as CraftApi
+    const craft = ctx.craft as CraftApi
+    if (!craft.getCatalog || !craft.sequence) {
+      const fallback = fromWindowApi(ctx.pluginId)
+      if (fallback) {
+        return {
+          ...craft,
+          getCatalog: craft.getCatalog ?? fallback.getCatalog,
+          sequence: craft.sequence ?? fallback.sequence,
+        }
+      }
+    }
+    return craft
   }
   return fromWindowApi(ctx.pluginId)
 }

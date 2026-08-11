@@ -101,6 +101,19 @@ export function restoreVersion(filterPath: string, versionFilename: string): { o
   }
 }
 
+/** Read a saved version's filter text (for diff / preview). */
+export function readVersionContent(versionFilename: string): { ok: true; content: string } | { ok: false; error: string } {
+  try {
+    const dir = getVersionsDir()
+    const versionPath = safeVersionPath(dir, versionFilename)
+    if (!versionPath) return { ok: false, error: 'Invalid version filename' }
+    if (!existsSync(versionPath)) return { ok: false, error: 'Version file not found' }
+    return { ok: true, content: readFileSync(versionPath, 'utf-8') }
+  } catch (err) {
+    return { ok: false, error: String(err) }
+  }
+}
+
 /** Delete a specific version */
 export function deleteVersion(versionFilename: string): { ok: boolean; error?: string } {
   try {

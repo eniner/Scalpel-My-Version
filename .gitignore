@@ -45,3 +45,7 @@ scripts/local/
 .vscode/
 *.log
 .zed/
+
+# Clean Electron runtime used when node_modules electron app.asar is hijacked
+.electron-clean/
+

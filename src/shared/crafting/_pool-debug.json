@@ -1,0 +1,193 @@
+{
+  "tags": [],
+  "base": {
+    "tags": [
+      "Sekhema Sandals",
+      "default",
+      "martial",
+      "boots_(int)"
+    ],
+    "c": "Boots",
+    "coeId": "924",
+    "bgroup": "3"
+  },
+  "prefixCount": 44,
+  "prefixWeight": 44000,
+  "groupCount": 6,
+  "top": [
+    {
+      "group": "IncreasedLife",
+      "display": "+# to maximum Life",
+      "gw": 9000,
+      "gc": 0.20454545454545456,
+      "best": "+(120-149) to maximum Life",
+      "tiers": 9
+    },
+    {
+      "group": "IncreasedMana",
+      "display": "+# to maximum Mana",
+      "gw": 9000,
+      "gc": 0.20454545454545456,
+      "best": "+(105-124) to maximum Mana",
+      "tiers": 9
+    },
+    {
+      "group": "BaseLocalDefences",
+      "display": "+# to maximum Energy Shield",
+      "gw": 7000,
+      "gc": 0.1590909090909091,
+      "best": "+(48-60) to maximum Energy Shield",
+      "tiers": 7
+    },
+    {
+      "group": "DefencesPercent",
+      "display": "#% increased Energy Shield",
+      "gw": 7000,
+      "gc": 0.1590909090909091,
+      "best": "(92-100)% increased Energy Shield",
+      "tiers": 7
+    },
+    {
+      "group": "DefencesPercentAndStunThreshold",
+      "display": "#% increased Energy Shield, +# to Stun Threshold",
+      "gw": 6000,
+      "gc": 0.13636363636363635,
+      "best": "(39-42)% increased Energy Shield, +(95-136) to Stun Threshold",
+      "tiers": 6
+    },
+    {
+      "group": "MovementVelocity",
+      "display": "#% increased Movement Speed",
+      "gw": 6000,
+      "gc": 0.13636363636363635,
+      "best": "35% increased Movement Speed",
+      "tiers": 6
+    }
+  ],
+  "esGroups": [
+    {
+      "group": "BaseLocalDefences",
+      "display": "+# to maximum Energy Shield",
+      "gw": 7000,
+      "gc": 0.1590909090909091,
+      "tiers": [
+        {
+          "text": "+(10-17) to maximum Energy Shield",
+          "w": 1000,
+          "ilvl": 1
+        },
+        {
+          "text": "+(18-24) to maximum Energy Shield",
+          "w": 1000,
+          "ilvl": 8
+        },
+        {
+          "text": "+(25-30) to maximum Energy Shield",
+          "w": 1000,
+          "ilvl": 16
+        },
+        {
+          "text": "+(31-35) to maximum Energy Shield",
+          "w": 1000,
+          "ilvl": 25
+        },
+        {
+          "text": "+(36-41) to maximum Energy Shield",
+          "w": 1000,
+          "ilvl": 33
+        },
+        {
+          "text": "+(42-47) to maximum Energy Shield",
+          "w": 1000,
+          "ilvl": 46
+        },
+        {
+          "text": "+(48-60) to maximum Energy Shield",
+          "w": 1000,
+          "ilvl": 54
+        }
+      ]
+    },
+    {
+      "group": "DefencesPercent",
+      "display": "#% increased Energy Shield",
+      "gw": 7000,
+      "gc": 0.1590909090909091,
+      "tiers": [
+        {
+          "text": "(15-26)% increased Energy Shield",
+          "w": 1000,
+          "ilvl": 2
+        },
+        {
+          "text": "(27-42)% increased Energy Shield",
+          "w": 1000,
+          "ilvl": 16
+        },
+        {
+          "text": "(43-55)% increased Energy Shield",
+          "w": 1000,
+          "ilvl": 33
+        },
+        {
+          "text": "(56-67)% increased Energy Shield",
+          "w": 1000,
+          "ilvl": 46
+        },
+        {
+          "text": "(68-79)% increased Energy Shield",
+          "w": 1000,
+          "ilvl": 54
+        },
+        {
+          "text": "(80-91)% increased Energy Shield",
+          "w": 1000,
+          "ilvl": 60
+        },
+        {
+          "text": "(92-100)% increased Energy Shield",
+          "w": 1000,
+          "ilvl": 65
+        }
+      ]
+    },
+    {
+      "group": "DefencesPercentAndStunThreshold",
+      "display": "#% increased Energy Shield, +# to Stun Threshold",
+      "gw": 6000,
+      "gc": 0.13636363636363635,
+      "tiers": [
+        {
+          "text": "(6-13)% increased Energy Shield, +(8-13) to Stun Threshold",
+          "w": 1000,
+          "ilvl": 10
+        },
+        {
+          "text": "(14-20)% increased Energy Shield, +(14-24) to Stun Threshold",
+          "w": 1000,
+          "ilvl": 19
+        },
+        {
+          "text": "(21-26)% increased Energy Shield, +(25-40) to Stun Threshold",
+          "w": 1000,
+          "ilvl": 38
+        },
+        {
+          "text": "(27-32)% increased Energy Shield, +(41-63) to Stun Threshold",
+          "w": 1000,
+          "ilvl": 48
+        },
+        {
+          "text": "(33-38)% increased Energy Shield, +(64-94) to Stun Threshold",
+          "w": 1000,
+          "ilvl": 63
+        },
+        {
+          "text": "(39-42)% increased Energy Shield, +(95-136) to Stun Threshold",
+          "w": 1000,
+          "ilvl": 74
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { CraftDataset } from './types'
-import { createFreshItemState, applyCraftAction } from './apply'
+import { createFreshItemState } from './apply'
 import { computeTargetHit } from './target-hit'
 
 const data = JSON.parse(
@@ -10,18 +10,20 @@ const data = JSON.parse(
 ) as CraftDataset
 
 describe('target hit odds', () => {
-  it('computes life hit chance on chaos for rare ruby ring', () => {
-    let state = createFreshItemState(data, 'Ruby Ring', 79)!
-    const alch = applyCraftAction(data, state, 'currency:Orb of Alchemy', 1)
-    expect(alch.ok).toBe(true)
-    state = alch.state
+  it('computes life hit chance on chaos for blank rare ruby ring', () => {
+    const state = {
+      ...createFreshItemState(data, 'Ruby Ring', 79)!,
+      rarity: 'Rare' as const,
+      mods: [],
+    }
     const result = computeTargetHit(data, {
       state,
       actionId: 'currency:Chaos Orb',
-      targetQuery: 'life',
+      targetQuery: 'maximum Life',
       samples: 2000,
     })
     expect(result.hitPerAttempt).toBeGreaterThan(0)
+    expect(result.hitPerAttempt).toBeLessThan(1)
     expect(result.expectedAttempts).toBeGreaterThan(1)
     expect(result.attemptsTable.length).toBeGreaterThan(0)
   })

@@ -433,6 +433,10 @@ export function parseItemText(text: string): PoeItem | null {
     allLines.some((l) => l.startsWith('Synthesis') || l.startsWith('Synthesised')) ||
     rawBaseType.startsWith('Synthesised ')
   const fractured = allLines.some((l) => l.includes('(fractured)') || l === 'Fractured Item')
+  // Vestigial uniques (Crystal of Permutation / Domain of Timeless Conflict).
+  // Clipboard may emit a property line and/or annotate the derived implicit.
+  const vestigial =
+    allLines.some((l) => l === 'Vestigial') || allLines.some((l) => /\(vestigial\)/i.test(l))
   const uberBlighted = /^Blight-ravaged /i.test(rawBaseType)
   const blighted =
     uberBlighted || allLines.some((l) => l.toLowerCase().includes('blighted map')) || /^Blighted /i.test(rawBaseType)
@@ -651,6 +655,7 @@ export function parseItemText(text: string): PoeItem | null {
     mirrored,
     synthesised,
     fractured,
+    ...(vestigial ? { vestigial: true } : {}),
     transfigured,
     ...(vaalGem ? { vaalGem: true } : {}),
     blighted,

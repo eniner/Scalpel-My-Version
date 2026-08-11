@@ -28,6 +28,7 @@ import { registerClientLogHandlers } from '../handlers/client-log'
 import { registerGameConfigHandlers } from '../handlers/game-config'
 import { registerBuildPlannerHandlers } from '../handlers/build-planner'
 import { registerPluginPriceHandlers } from '../handlers/plugin-prices'
+import { registerNinjaCharacterHandlers } from '../handlers/ninja-character'
 import { registerPluginCaptureHandlers } from '../handlers/plugin-capture'
 import { registerPluginTradeHandlers } from '../handlers/plugin-trade'
 import { registerPluginWebPanelHandlers } from '../handlers/plugin-web-panel'
@@ -63,6 +64,7 @@ export function registerAllIpc(deps: IpcRegistrationDeps): void {
   registerGameConfigHandlers()
   registerBuildPlannerHandlers()
   registerPluginPriceHandlers(store)
+  registerNinjaCharacterHandlers()
   registerPluginCaptureHandlers()
   registerPluginTradeHandlers(store)
   registerPluginWebPanelHandlers()

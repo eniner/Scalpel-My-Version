@@ -5,10 +5,11 @@ import { priceBadge } from './economy-prices'
 interface EconomyRowProps {
   entry: PriceEntry
   zebra: boolean
+  poeVersion?: 1 | 2
 }
 
-export function EconomyRow({ entry, zebra }: EconomyRowProps): JSX.Element {
-  const iconUrl = iconForEntry(entry)
+export function EconomyRow({ entry, zebra, poeVersion = 2 }: EconomyRowProps): JSX.Element {
+  const iconUrl = iconForEntry(entry, poeVersion)
 
   return (
     <div className={`flex items-center gap-2 px-2.5 py-1.5 ${zebra ? 'bg-white/[0.02]' : ''}`}>
@@ -21,14 +22,26 @@ export function EconomyRow({ entry, zebra }: EconomyRowProps): JSX.Element {
               aria-hidden
               className="absolute inset-0 w-full h-full object-contain scale-[1.8] blur-[6px] saturate-[2] opacity-30 pointer-events-none"
             />
-            <img src={iconUrl} alt="" className="relative w-full h-full object-contain" />
+            <img
+              src={iconUrl}
+              alt=""
+              className="relative w-full h-full object-contain"
+              onError={(e) => {
+                const el = e.currentTarget
+                el.style.visibility = 'hidden'
+                const glow = el.previousElementSibling as HTMLElement | null
+                if (glow) glow.style.visibility = 'hidden'
+              }}
+            />
           </div>
         ) : (
           <div className="w-[22px] h-[22px] shrink-0 rounded bg-white/[0.04] border border-white/[0.06]" />
         )}
         <div className="min-w-0 text-[11px] leading-snug text-[#e2e8f0] truncate">{entry.name}</div>
       </div>
-      <div className="shrink-0 font-semibold text-[11px] text-[#a5f3fc] whitespace-nowrap">{priceBadge(entry)}</div>
+      <div className="shrink-0 font-semibold text-[11px] text-[#a5f3fc] whitespace-nowrap">
+        {priceBadge(entry, poeVersion)}
+      </div>
     </div>
   )
 }

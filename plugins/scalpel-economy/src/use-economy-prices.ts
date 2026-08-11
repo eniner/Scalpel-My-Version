@@ -1,15 +1,17 @@
 import type { PriceEntry, ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
 import { useCallback, useEffect, useState } from 'react'
-import { ECONOMY_SLUGS } from './economy-categories'
+import { economySlugsFor } from './economy-categories'
 
 export interface EconomyData {
   entries: PriceEntry[]
   updatedAt: number | null
   loading: boolean
   error: string | null
+  poeVersion: 1 | 2
 }
 
 export function useEconomyPrices(ctx: ScalpelPluginContext): EconomyData & { refresh: () => Promise<void> } {
+  const poeVersion = ctx.getPoeVersion() === 1 ? 1 : 2
   const [entries, setEntries] = useState<PriceEntry[]>([])
   const [updatedAt, setUpdatedAt] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -19,14 +21,15 @@ export function useEconomyPrices(ctx: ScalpelPluginContext): EconomyData & { ref
     try {
       setError(null)
       const { prices, updatedAt: ts } = await ctx.prices.getPrices()
-      setEntries(prices.filter((p) => ECONOMY_SLUGS.has(p.category)))
+      const slugs = economySlugsFor(poeVersion)
+      setEntries(prices.filter((p) => slugs.has(p.category || 'currency')))
       setUpdatedAt(ts)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }
-  }, [ctx])
+  }, [ctx, poeVersion])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -46,25 +49,34 @@ export function useEconomyPrices(ctx: ScalpelPluginContext): EconomyData & { ref
     return off
   }, [ctx, load])
 
-  return { entries, updatedAt, loading, error, refresh }
+  return { entries, updatedAt, loading, error, refresh, poeVersion }
 }
 
-export function useStoredCategory(ctx: ScalpelPluginContext): [string, (slug: string) => void] {
+export function useStoredCategory(
+  ctx: ScalpelPluginContext,
+  validSlugs: Set<string>,
+): [string, (slug: string) => void] {
+  const storageKey = `economySlug:poe${ctx.getPoeVersion() === 1 ? 1 : 2}`
   const [slug, setSlugState] = useState('currency')
 
   useEffect(() => {
     void (async () => {
-      const saved = await ctx.storage.get<string>('economySlug')
-      if (saved) setSlugState(saved)
+      const saved = await ctx.storage.get<string>(storageKey)
+      if (saved && validSlugs.has(saved)) setSlugState(saved)
+      else if (!validSlugs.has('currency') && validSlugs.size > 0) {
+        setSlugState([...validSlugs][0]!)
+      } else {
+        setSlugState('currency')
+      }
     })()
-  }, [ctx])
+  }, [ctx, storageKey, validSlugs])
 
   const setSlug = useCallback(
     (next: string) => {
       setSlugState(next)
-      void ctx.storage.set('economySlug', next)
+      void ctx.storage.set(storageKey, next)
     },
-    [ctx],
+    [ctx, storageKey],
   )
 
   return [slug, setSlug]

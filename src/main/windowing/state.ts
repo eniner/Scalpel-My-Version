@@ -21,6 +21,8 @@ export interface OverlayState {
   // Alt-tab restore memory (PoE blur hides the window if visible; PoE focus
   // restores it from this flag).
   wasVisibleBeforeFocusLoss: boolean
+  /** When true, hideAllOnPoeBlur leaves this overlay visible (user pin). */
+  stayOpenOnPoeBlur: boolean
 }
 
 /** All registered secondary overlays, keyed by spec.id. Shared between the

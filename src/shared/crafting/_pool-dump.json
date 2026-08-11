@@ -1,0 +1,204 @@
+{
+  "emptyTotalW": 44000,
+  "groups": [
+    {
+      "g": "IncreasedLife",
+      "w": 9000,
+      "n": 9,
+      "sample": "+(10-19) to maximum Life"
+    },
+    {
+      "g": "IncreasedMana",
+      "w": 9000,
+      "n": 9,
+      "sample": "+(10-14) to maximum Mana"
+    },
+    {
+      "g": "BaseLocalDefences",
+      "w": 7000,
+      "n": 7,
+      "sample": "+(10-17) to maximum Energy Shield"
+    },
+    {
+      "g": "DefencesPercent",
+      "w": 7000,
+      "n": 7,
+      "sample": "(15-26)% increased Energy Shield"
+    },
+    {
+      "g": "MovementVelocity",
+      "w": 6000,
+      "n": 6,
+      "sample": "10% increased Movement Speed"
+    },
+    {
+      "g": "DefencesPercentAndStunThreshold",
+      "w": 6000,
+      "n": 6,
+      "sample": "(6-13)% increased Energy Shield, +(8-13) to Stun Threshold"
+    }
+  ],
+  "hybridG": "DefencesPercentAndStunThreshold",
+  "flatG": "BaseLocalDefences",
+  "pctG": "DefencesPercent",
+  "msG": "MovementVelocity",
+  "results": [
+    {
+      "name": "life+mana+ms",
+      "E": 27.92592592592593,
+      "prefixOnlyE": 27.92592592592593,
+      "afterRemoveFirst": {
+        "blocked": [
+          "IncreasedMana",
+          "MovementVelocity"
+        ],
+        "poolW": 29000,
+        "t1ishW": 1000,
+        "groups": [
+          [
+            "IncreasedLife",
+            9000
+          ],
+          [
+            "BaseLocalDefences",
+            7000
+          ],
+          [
+            "DefencesPercent",
+            7000
+          ],
+          [
+            "DefencesPercentAndStunThreshold",
+            6000
+          ]
+        ]
+      }
+    },
+    {
+      "name": "life+mana+hybrid",
+      "E": 27.92592592592593,
+      "prefixOnlyE": 27.92592592592593,
+      "afterRemoveFirst": {
+        "blocked": [
+          "IncreasedMana",
+          "DefencesPercentAndStunThreshold"
+        ],
+        "poolW": 29000,
+        "t1ishW": 1000,
+        "groups": [
+          [
+            "IncreasedLife",
+            9000
+          ],
+          [
+            "BaseLocalDefences",
+            7000
+          ],
+          [
+            "DefencesPercent",
+            7000
+          ],
+          [
+            "MovementVelocity",
+            6000
+          ]
+        ]
+      }
+    },
+    {
+      "name": "life+mana+flatES",
+      "E": 27.300000000000004,
+      "prefixOnlyE": 27.300000000000004,
+      "afterRemoveFirst": {
+        "blocked": [
+          "IncreasedMana",
+          "BaseLocalDefences"
+        ],
+        "poolW": 28000,
+        "t1ishW": 1000,
+        "groups": [
+          [
+            "IncreasedLife",
+            9000
+          ],
+          [
+            "DefencesPercent",
+            7000
+          ],
+          [
+            "MovementVelocity",
+            6000
+          ],
+          [
+            "DefencesPercentAndStunThreshold",
+            6000
+          ]
+        ]
+      }
+    },
+    {
+      "name": "life+mana only (2p)",
+      "E": 35,
+      "prefixOnlyE": 35,
+      "afterRemoveFirst": {
+        "blocked": [
+          "IncreasedMana"
+        ],
+        "poolW": 35000,
+        "t1ishW": 1000,
+        "groups": [
+          [
+            "IncreasedLife",
+            9000
+          ],
+          [
+            "BaseLocalDefences",
+            7000
+          ],
+          [
+            "DefencesPercent",
+            7000
+          ],
+          [
+            "MovementVelocity",
+            6000
+          ],
+          [
+            "DefencesPercentAndStunThreshold",
+            6000
+          ]
+        ]
+      }
+    },
+    {
+      "name": "life+mana+hybrid+blockMS",
+      "E": 27.92592592592593,
+      "prefixOnlyE": 27.92592592592593,
+      "afterRemoveFirst": {
+        "blocked": [
+          "IncreasedMana",
+          "DefencesPercentAndStunThreshold",
+          "MovementVelocity"
+        ],
+        "poolW": 23000,
+        "t1ishW": 1000,
+        "groups": [
+          [
+            "IncreasedLife",
+            9000
+          ],
+          [
+            "BaseLocalDefences",
+            7000
+          ],
+          [
+            "DefencesPercent",
+            7000
+          ]
+        ]
+      }
+    }
+  ],
+  "estimateSequenceE": 27.92592592592593,
+  "estimateNote": "Chaos odds: prefix reforge with Life/Mana/hybrid already present (CoE-like mid-craft). Empty-pool shortcut disabled."
+}

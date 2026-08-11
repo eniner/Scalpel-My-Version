@@ -7,7 +7,7 @@
   ],
   "beasts": [
     {
-      "name": "Craicic Croaker",
+      "name": "Craicic Chimeral",
       "classification": "The Deep",
       "count": 36,
       "priceId": "craicic-chimeral"
@@ -290,7 +290,7 @@
     }
   ],
   "weights": {
-    "Craicic Croaker": 36,
+    "Craicic Chimeral": 36,
     "Craicic Maw": 48,
     "Craicic Sand Spitter": 258,
     "Craicic Savage Crab": 222,

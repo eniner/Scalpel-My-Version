@@ -15,6 +15,7 @@ function fakeState(opts: { visible: boolean; wasVisible: boolean }): OverlayStat
     programmaticSettleTimer: null,
     isResizing: false,
     wasVisibleBeforeFocusLoss: opts.wasVisible,
+    stayOpenOnPoeBlur: false,
   }
 }
 
@@ -53,6 +54,7 @@ describe('closeAllOverlaysOnPoeExit', () => {
       programmaticSettleTimer: null,
       isResizing: false,
       wasVisibleBeforeFocusLoss: true,
+      stayOpenOnPoeBlur: false,
     }
     overlays.set('destroyed', destroyed)
 
@@ -69,6 +71,7 @@ describe('closeAllOverlaysOnPoeExit', () => {
       programmaticSettleTimer: null,
       isResizing: false,
       wasVisibleBeforeFocusLoss: true,
+      stayOpenOnPoeBlur: false,
     }
     overlays.set('nowin', noWin)
 

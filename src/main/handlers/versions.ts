@@ -3,7 +3,7 @@ import type Store from 'electron-store'
 import type { AppSettings, PoeItem } from '@shared/types'
 import { evaluateAndSend } from '../evaluation'
 import { getCurrentFilter, loadFilter } from '../filter-state'
-import { clearHistory, getHistory, undoLast } from '../history'
+import { clearHistory, getHistory, undoLast, undoSectionHistory, undoToEntry } from '../history'
 import { reloadFilterInGame } from '../overlay'
 import { getProfileBackedSetting } from '../profiles/profile-settings'
 import { deleteVersion, listVersions, restoreVersion, saveVersion } from '../update/versions'
@@ -51,6 +51,34 @@ export function register(store: Store<AppSettings>): void {
     const filterPath = getProfileBackedSetting(store, 'filterPath')
     if (!filterPath) return { ok: false, error: 'No filter path set' }
     const result = undoLast(filterPath)
+    if (result.ok) {
+      loadFilter(filterPath)
+      const currentFilter = getCurrentFilter()
+      if (currentFilter && itemJson) {
+        const item: PoeItem = JSON.parse(itemJson)
+        evaluateAndSend(item)
+      }
+      reloadFilterInGame()
+    }
+    return result
+  })
+
+  ipcMain.handle('undo-section-history', (_event, typePath: string) => {
+    const filterPath = getProfileBackedSetting(store, 'filterPath')
+    if (!filterPath) return { ok: false, undone: 0, error: 'No filter path set' }
+    if (!typePath) return { ok: false, undone: 0, error: 'typePath required' }
+    const result = undoSectionHistory(filterPath, typePath)
+    if (result.ok) {
+      loadFilter(filterPath)
+      reloadFilterInGame()
+    }
+    return result
+  })
+
+  ipcMain.handle('undo-to-entry', (_event, entryId: number, itemJson?: string) => {
+    const filterPath = getProfileBackedSetting(store, 'filterPath')
+    if (!filterPath) return { ok: false, error: 'No filter path set' }
+    const result = undoToEntry(filterPath, entryId)
     if (result.ok) {
       loadFilter(filterPath)
       const currentFilter = getCurrentFilter()

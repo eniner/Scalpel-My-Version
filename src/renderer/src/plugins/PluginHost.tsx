@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PoeItem, Zone } from '@shared/types'
-import type { PluginActivate, PluginManifest } from '../../../plugin-sdk/src/types'
+import { createFilterApi } from './create-filter-api'
 import { createPluginContext } from './context'
 import { resolveLeagueOptions } from '@renderer/shared/league-options'
 import { importPluginModule } from './import-plugin-module'
@@ -143,6 +143,16 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
         },
         trade: {
           openSearch: (item) => window.api.tradeOpenSearch(item),
+          priceCheck: (item) => window.api.tradePriceCheck(item),
+          scanWarrants: (opts) => window.api.warrantsScan(opts) as Promise<import('../../../plugin-sdk/src/types').WarrantScanResult>,
+          warrantsCatalog: () => window.api.warrantsCatalog(),
+          whisperSeller: (queryId, listingId, league) => window.api.whisperSeller(queryId, listingId, league),
+          visitHideout: (queryId, listingId, league) => window.api.visitHideout(queryId, listingId, league),
+          getAuth: async () => {
+            const auth = await window.api.poeCheckAuth()
+            return { loggedIn: Boolean(auth?.loggedIn) }
+          },
+          login: () => window.api.poeLogin(),
         },
         prices: {
           getPrices: (opts) => window.api.pricesGet(opts),
@@ -153,6 +163,10 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
             return u
           },
         },
+        ninja: {
+          getCharacterModel: (opts) => window.api.ninjaGetCharacterModel(opts),
+        },
+        filter: createFilterApi(window.api),
         webPanel: {
           open: (opts) => window.api.pluginWebPanelOpen(m.id, opts),
           navigate: (url) => window.api.pluginWebPanelNavigate(m.id, url),
@@ -169,6 +183,8 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
           modPool: (opts) => window.api.craftModPool(m.id, opts),
           searchBases: (query, limit, itemClass) => window.api.craftSearchBases(m.id, query, limit, itemClass),
           listItemClasses: () => window.api.craftListItemClasses(m.id),
+          getCatalog: () => window.api.craftGetCatalog(m.id),
+          sequence: (config) => window.api.craftSequence(m.id, config),
           searchMods: (opts) => window.api.craftSearchMods(m.id, opts),
         },
         registerTab: (pluginId, opts) => {

@@ -1,5 +1,5 @@
 import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import {
   BASE_EXTRA_PLOT_CHANCE,
   solveHarvest,
@@ -18,7 +18,18 @@ import { indexPriceIcons } from '../shared/icons'
 import { ItemName } from '../shared/ItemName'
 import { chaosForId, chaosForName, fmtChaos, fmtSignedChaos, idToName, indexPrices } from '../shared/prices'
 import { ToolHeader } from '../shared/ToolChrome'
-import { accentBtnStyle, btnStyle, inputStyle, theme } from '../shared/theme'
+import { accentBtnStyle, inputStyle, theme } from '../shared/theme'
+import {
+  Blurb,
+  FieldLabel,
+  HeroMetric,
+  HeroRow,
+  ListRow,
+  SetupGroup,
+  SplitBody,
+  TabStrip,
+  Workbench,
+} from '../shared/ui'
 
 // ============ Atlas notable → engine-field mapping (harvest.html's ATLAS_NOTABLES) ============
 
@@ -148,7 +159,7 @@ export function HarvestTool({
         cornucopia: chaosForId(byName, HARVEST_SCARAB_IDS.cornucopia) ?? 0,
         awakener: chaosForId(byName, HARVEST_SCARAB_IDS.awakener) ?? 0,
       })
-      setStatus(`Prices · ${ctx.getLeague()}`)
+      setStatus(`poe.ninja · ${ctx.getLeague()} (bundled harvest math)`)
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err))
     }
@@ -255,8 +266,10 @@ export function HarvestTool({
   const best = mode === 'farming' ? topFarming[0] : topCrop[0]
   const mapsPerHour = timeSec > 0 ? 3600 / timeSec : 0
 
+  const results = mode === 'farming' ? topFarming : topCrop
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%', overflow: 'hidden' }}>
+    <Workbench>
       <ToolHeader
         toolId="harvest"
         title="Harvest — Farming EV & Crop Rotation"
@@ -265,224 +278,230 @@ export function HarvestTool({
         onRefresh={() => void refresh()}
       />
 
-      <div style={{ display: 'flex', gap: 4 }}>
-        {(['farming', 'crop'] as Mode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            style={{
-              ...btnStyle,
-              background: mode === m ? theme.accent : btnStyle.background,
-              color: mode === m ? '#111' : theme.text,
-              fontWeight: mode === m ? 600 : 400,
-              borderColor: mode === m ? theme.accent : theme.border,
-            }}
-          >
-            {m === 'farming' ? 'Farming EV' : 'Crop Rotation'}
-          </button>
-        ))}
-      </div>
+      <TabStrip
+        tabs={[
+          { id: 'farming', label: 'Farming EV' },
+          { id: 'crop', label: 'Crop Rotation' },
+        ]}
+        value={mode}
+        onChange={(id) => setMode(id as Mode)}
+      />
 
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingRight: 4 }}>
-        <Section title="Lifeforce Prices (per unit)">
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <PriceInput
-              label="Yellow (Wild)"
-              itemName={idToName(LIFEFORCE_IDS.y)}
-              priceIcons={priceIcons}
-              color={theme.accent}
-              value={lfPrice.y}
-              onChange={(v) => setLfPrice((p) => ({ ...p, y: v }))}
-            />
-            <PriceInput
-              label="Blue (Vivid)"
-              itemName={idToName(LIFEFORCE_IDS.b)}
-              priceIcons={priceIcons}
-              color={theme.blue}
-              value={lfPrice.b}
-              onChange={(v) => setLfPrice((p) => ({ ...p, b: v }))}
-            />
-            <PriceInput
-              label="Red (Primal)"
-              itemName={idToName(LIFEFORCE_IDS.r)}
-              priceIcons={priceIcons}
-              color={theme.red}
-              value={lfPrice.r}
-              onChange={(v) => setLfPrice((p) => ({ ...p, r: v }))}
-            />
-          </div>
-        </Section>
+      <SplitBody
+        railWidth={300}
+        rail={
+          <>
+            <SetupGroup title="Lifeforce prices">
+              <PriceInput
+                label="Yellow (Wild)"
+                itemName={idToName(LIFEFORCE_IDS.y)}
+                priceIcons={priceIcons}
+                color={theme.accent}
+                value={lfPrice.y}
+                onChange={(v) => setLfPrice((p) => ({ ...p, y: v }))}
+              />
+              <PriceInput
+                label="Blue (Vivid)"
+                itemName={idToName(LIFEFORCE_IDS.b)}
+                priceIcons={priceIcons}
+                color={theme.blue}
+                value={lfPrice.b}
+                onChange={(v) => setLfPrice((p) => ({ ...p, b: v }))}
+              />
+              <PriceInput
+                label="Red (Primal)"
+                itemName={idToName(LIFEFORCE_IDS.r)}
+                priceIcons={priceIcons}
+                color={theme.red}
+                value={lfPrice.r}
+                onChange={(v) => setLfPrice((p) => ({ ...p, r: v }))}
+              />
+            </SetupGroup>
 
-        <Section title="Scarabs">
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-            <ScarabToggle
-              label="Doubling"
-              checked={useDoubling}
-              onToggle={() => setUseDoubling((v) => !v)}
-              cost={scarabPrice.doubling}
-              onCostChange={(v) => setScarabPrice((p) => ({ ...p, doubling: v }))}
-              cpd={cpd}
-            />
-            {mode === 'farming' ? (
+            <SetupGroup title="Scarabs">
               <ScarabToggle
-                label="Cornucopia"
-                checked={useCornucopia}
-                onToggle={() => setUseCornucopia((v) => !v)}
-                cost={scarabPrice.cornucopia}
-                onCostChange={(v) => setScarabPrice((p) => ({ ...p, cornucopia: v }))}
+                label="Doubling"
+                itemName={idToName(HARVEST_SCARAB_IDS.doubling)}
+                priceIcons={priceIcons}
+                checked={useDoubling}
+                onToggle={() => setUseDoubling((v) => !v)}
+                cost={scarabPrice.doubling}
+                onCostChange={(v) => setScarabPrice((p) => ({ ...p, doubling: v }))}
                 cpd={cpd}
               />
-            ) : null}
-            <ScarabToggle
-              label="Awakener"
-              checked={useAwakener}
-              onToggle={() => setUseAwakener((v) => !v)}
-              cost={scarabPrice.awakener}
-              onCostChange={(v) => setScarabPrice((p) => ({ ...p, awakener: v }))}
-              cpd={cpd}
-            />
-          </div>
-        </Section>
-
-        <Section title="Map Stats">
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <NumField label="Map Quantity %" value={mapQuantPct} onChange={setMapQuantPct} />
-            <NumField label="Pack Size %" value={packSizePct} onChange={setPackSizePct} />
-            <NumField label="Time / Map (s)" value={timeSec} onChange={setTimeSec} />
-            <span style={{ color: theme.dim, fontSize: 11 }}>
-              Grove sizes: 3-pair {(pairDist[3] * 100).toFixed(0)}% · 4-pair {(pairDist[4] * 100).toFixed(0)}% · 5-pair{' '}
-              {(pairDist[5] * 100).toFixed(0)}%
-            </span>
-          </div>
-        </Section>
-
-        <Section title="Atlas Bonuses">
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-            {(Object.keys(ATLAS_NOTABLES) as AtlasKey[]).map((key) => (
-              <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, maxWidth: 220 }}>
-                <input type="checkbox" checked={atlas[key]} onChange={(e) => setAtlas((a) => ({ ...a, [key]: e.target.checked }))} />
-                <span>
-                  <strong style={{ color: theme.text }}>{ATLAS_NOTABLES[key].label}</strong>
-                  <br />
-                  <span style={{ color: theme.dim }}>{ATLAS_NOTABLES[key].desc}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </Section>
-
-        {mode === 'farming' ? (
-          <Section title="Seed Distribution &amp; Lifeforce / Seed (advanced)">
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <NumField label="T4 Chance %" value={t4ChancePct} onChange={setT4ChancePct} width={64} />
-              <NumField label="T3 Slots" value={t3Slots} onChange={setT3Slots} width={56} />
-              <NumField label="T3 Prob %" value={t3ProbPct} onChange={setT3ProbPct} width={64} />
-              <NumField label="T2 Slots" value={t2Slots} onChange={setT2Slots} width={56} />
-              <NumField label="T2 Prob %" value={t2ProbPct} onChange={setT2ProbPct} width={64} />
-            </div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
-              {(['T1', 'T2', 'T3', 'T4'] as const).map((label, i) => (
-                <NumField
-                  key={label}
-                  label={`LF / ${label} Seed`}
-                  value={lfPerTier[i]}
-                  onChange={(v) =>
-                    setLfPerTier((prev) => {
-                      const next = [...prev] as [number, number, number, number]
-                      next[i] = v
-                      return next
-                    })
-                  }
-                  width={64}
+              {mode === 'farming' ? (
+                <ScarabToggle
+                  label="Cornucopia"
+                  itemName={idToName(HARVEST_SCARAB_IDS.cornucopia)}
+                  priceIcons={priceIcons}
+                  checked={useCornucopia}
+                  onToggle={() => setUseCornucopia((v) => !v)}
+                  cost={scarabPrice.cornucopia}
+                  onCostChange={(v) => setScarabPrice((p) => ({ ...p, cornucopia: v }))}
+                  cpd={cpd}
                 />
-              ))}
-            </div>
-          </Section>
-        ) : null}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            type="button"
-            style={accentBtnStyle}
-            disabled={computing}
-            onClick={() => (mode === 'farming' ? runFarmingOptimize() : runCropOptimize())}
-          >
-            {computing ? 'Optimizing…' : 'Optimize'}
-          </button>
-          {best ? (
-            <span style={{ color: theme.dim, fontSize: 11 }}>
-              Best: Y{best.y} / B{best.b} / R{best.r} reduction · {best.pts} pts
-            </span>
-          ) : (
-            <span style={{ color: theme.dim, fontSize: 11 }}>Set inputs, then Optimize to enumerate reduction configs.</span>
-          )}
-        </div>
-
-        {best ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-            <Stat label="GROSS EV / MAP" value={fmtChaos(best.grossEv, cpd)} />
-            <Stat label="SCARAB COST / MAP" value={fmtSignedChaos(-scarabCostPerMap, cpd)} color={theme.red} />
-            <Stat label="NET EV / MAP" value={fmtSignedChaos(best.netEv, cpd)} color={theme.green} />
-            <Stat label="NET EV / HOUR" value={fmtSignedChaos(best.netEv * mapsPerHour, cpd)} color={theme.green} />
-          </div>
-        ) : null}
-
-        <div style={{ border: `1px solid ${theme.border}`, borderRadius: 6, overflow: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ color: theme.dim, textAlign: 'left' }}>
-                <th style={th}>Y%</th>
-                <th style={th}>B%</th>
-                <th style={th}>R%</th>
-                <th style={th}>PTS</th>
-                <th style={th}>NET EV</th>
-                <th style={th}>NET EV/HR</th>
-                <th style={th}>Y LF</th>
-                <th style={th}>B LF</th>
-                <th style={th}>R LF</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(mode === 'farming' ? topFarming : topCrop).map((row, i) => (
-                <tr key={i} style={{ borderTop: `1px solid ${theme.border}`, background: i === 0 ? '#1e1a14' : 'transparent' }}>
-                  <td style={td}>{row.y}</td>
-                  <td style={td}>{row.b}</td>
-                  <td style={td}>{row.r}</td>
-                  <td style={td}>{row.pts}</td>
-                  <td style={{ ...td, color: theme.green, fontWeight: i === 0 ? 600 : 400 }}>{fmtSignedChaos(row.netEv, cpd)}</td>
-                  <td style={{ ...td, color: theme.green }}>{fmtSignedChaos(row.netEv * mapsPerHour, cpd)}</td>
-                  <td style={td}>{row.lf[0].toFixed(0)}</td>
-                  <td style={td}>{row.lf[1].toFixed(0)}</td>
-                  <td style={td}>{row.lf[2].toFixed(0)}</td>
-                </tr>
-              ))}
-              {(mode === 'farming' ? topFarming : topCrop).length === 0 ? (
-                <tr>
-                  <td style={td} colSpan={9}>
-                    <span style={{ color: theme.dim }}>No results yet — click Optimize.</span>
-                  </td>
-                </tr>
               ) : null}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+              <ScarabToggle
+                label="Awakener"
+                itemName={idToName(HARVEST_SCARAB_IDS.awakener)}
+                priceIcons={priceIcons}
+                checked={useAwakener}
+                onToggle={() => setUseAwakener((v) => !v)}
+                cost={scarabPrice.awakener}
+                onCostChange={(v) => setScarabPrice((p) => ({ ...p, awakener: v }))}
+                cpd={cpd}
+              />
+            </SetupGroup>
+
+            <SetupGroup title="Map stats" defaultOpen={false}>
+              <FieldLabel label="Map Quantity %">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={mapQuantPct}
+                  onChange={(e) => setMapQuantPct(Number(e.target.value) || 0)}
+                />
+              </FieldLabel>
+              <FieldLabel label="Pack Size %">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={packSizePct}
+                  onChange={(e) => setPackSizePct(Number(e.target.value) || 0)}
+                />
+              </FieldLabel>
+              <FieldLabel label="Time / Map (s)">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={timeSec}
+                  onChange={(e) => setTimeSec(Number(e.target.value) || 0)}
+                />
+              </FieldLabel>
+              <Blurb>
+                Grove sizes: 3-pair {(pairDist[3] * 100).toFixed(0)}% · 4-pair {(pairDist[4] * 100).toFixed(0)}% ·
+                5-pair {(pairDist[5] * 100).toFixed(0)}%
+              </Blurb>
+            </SetupGroup>
+
+            <SetupGroup title="Atlas bonuses" defaultOpen={false}>
+              {(Object.keys(ATLAS_NOTABLES) as AtlasKey[]).map((key) => (
+                <label key={key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 11 }}>
+                  <input
+                    type="checkbox"
+                    checked={atlas[key]}
+                    onChange={(e) => setAtlas((a) => ({ ...a, [key]: e.target.checked }))}
+                  />
+                  <span>
+                    <strong style={{ color: theme.text }}>{ATLAS_NOTABLES[key].label}</strong>
+                    <br />
+                    <span style={{ color: theme.dim }}>{ATLAS_NOTABLES[key].desc}</span>
+                  </span>
+                </label>
+              ))}
+            </SetupGroup>
+
+            {mode === 'farming' ? (
+              <SetupGroup title="Seed distribution" defaultOpen={false}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <NumField label="T4 Chance %" value={t4ChancePct} onChange={setT4ChancePct} width={72} />
+                  <NumField label="T3 Slots" value={t3Slots} onChange={setT3Slots} width={72} />
+                  <NumField label="T3 Prob %" value={t3ProbPct} onChange={setT3ProbPct} width={72} />
+                  <NumField label="T2 Slots" value={t2Slots} onChange={setT2Slots} width={72} />
+                  <NumField label="T2 Prob %" value={t2ProbPct} onChange={setT2ProbPct} width={72} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 4 }}>
+                  {(['T1', 'T2', 'T3', 'T4'] as const).map((label, i) => (
+                    <NumField
+                      key={label}
+                      label={`LF / ${label}`}
+                      value={lfPerTier[i]}
+                      onChange={(v) =>
+                        setLfPerTier((prev) => {
+                          const next = [...prev] as [number, number, number, number]
+                          next[i] = v
+                          return next
+                        })
+                      }
+                      width={72}
+                    />
+                  ))}
+                </div>
+              </SetupGroup>
+            ) : null}
+
+            <button
+              type="button"
+              style={{ ...accentBtnStyle, width: '100%' }}
+              disabled={computing}
+              onClick={() => (mode === 'farming' ? runFarmingOptimize() : runCropOptimize())}
+            >
+              {computing ? 'Optimizing…' : 'Optimize reductions'}
+            </button>
+          </>
+        }
+        stage={
+          <>
+            {best ? (
+              <HeroRow>
+                <HeroMetric label="Gross / map" value={fmtChaos(best.grossEv, cpd)} />
+                <HeroMetric
+                  label="Scarab cost"
+                  value={fmtSignedChaos(-scarabCostPerMap, cpd)}
+                  tone="warn"
+                />
+                <HeroMetric label="Net / map" value={fmtSignedChaos(best.netEv, cpd)} tone="good" />
+                <HeroMetric
+                  label="Net / hour"
+                  value={fmtSignedChaos(best.netEv * mapsPerHour, cpd)}
+                  tone="accent"
+                  sub={`Y${best.y} B${best.b} R${best.r} · ${best.pts} pts`}
+                />
+              </HeroRow>
+            ) : (
+              <Blurb>Set lifeforce prices and scarabs in the rail, then Optimize to rank reduction configs.</Blurb>
+            )}
+
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: `1px solid ${theme.border}` }}>
+              {results.length === 0 ? (
+                <div style={{ padding: 16, color: theme.dim, fontSize: 12 }}>No results yet.</div>
+              ) : (
+                results.map((row, i) => (
+                  <ListRow
+                    key={i}
+                    leading={
+                      <div>
+                        <div style={{ fontSize: 13, color: theme.ink, fontWeight: i === 0 ? 650 : 500 }}>
+                          Y{row.y}% · B{row.b}% · R{row.r}%
+                        </div>
+                        <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>
+                          {row.pts} pts · LF {row.lf[0].toFixed(0)} / {row.lf[1].toFixed(0)} / {row.lf[2].toFixed(0)}
+                        </div>
+                      </div>
+                    }
+                    trailing={
+                      <>
+                        <span className="sa-num" style={{ color: theme.green, minWidth: 64, textAlign: 'right' }}>
+                          {fmtSignedChaos(row.netEv, cpd)}
+                        </span>
+                        <span className="sa-num" style={{ color: theme.accent, minWidth: 72, textAlign: 'right' }}>
+                          {fmtSignedChaos(row.netEv * mapsPerHour, cpd)}/hr
+                        </span>
+                      </>
+                    }
+                  />
+                ))
+              )}
+            </div>
+          </>
+        }
+      />
+    </Workbench>
   )
 }
 
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x))
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div>
-      <div style={{ color: theme.accent, fontWeight: 600, fontSize: 12, marginBottom: 6 }}>{title}</div>
-      {children}
-    </div>
-  )
 }
 
 function PriceInput({
@@ -542,6 +561,8 @@ function NumField({
 
 function ScarabToggle({
   label,
+  itemName,
+  priceIcons,
   checked,
   onToggle,
   cost,
@@ -549,6 +570,8 @@ function ScarabToggle({
   cpd,
 }: {
   label: string
+  itemName: string
+  priceIcons: Map<string, string>
   checked: boolean
   onToggle: () => void
   cost: number
@@ -559,7 +582,9 @@ function ScarabToggle({
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
         <input type="checkbox" checked={checked} onChange={onToggle} />
-        {label}
+        <ItemName name={itemName} size={16} opts={{ priceIcons }}>
+          {label}
+        </ItemName>
       </label>
       <input
         style={{ ...inputStyle, width: 70 }}
@@ -573,14 +598,4 @@ function ScarabToggle({
   )
 }
 
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div style={{ background: theme.panel, border: `1px solid ${theme.border}`, borderRadius: 6, padding: '8px 10px' }}>
-      <div style={{ fontSize: 9, color: theme.dim, letterSpacing: '0.04em' }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: color ?? theme.text }}>{value}</div>
-    </div>
-  )
-}
 
-const th: CSSProperties = { padding: '6px 8px', fontWeight: 500, fontSize: 10 }
-const td: CSSProperties = { padding: '5px 8px' }

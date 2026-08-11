@@ -1,6 +1,6 @@
 {
   "name": "scalpel",
-  "version": "1.0.0",
+  "version": "1.0.2-rc6",
   "description": "Path of Exile's First Fourth-Party Tool",
   "author": "Scalpel",
   "license": "AGPL-3.0-only",
@@ -25,11 +25,13 @@
     "build-tier-data": "node scripts/build-tier-data.js",
     "build-crafting-data": "node scripts/build-crafting-data.js",
     "build-coe-crafting-data": "node scripts/build-coe-crafting-data.js",
-    "build-crafting-data:all": "node scripts/build-crafting-data.js && node scripts/build-coe-crafting-data.js",
+    "build-coe-catalog": "node scripts/build-coe-catalog.js",
+    "build-crafting-data:all": "node scripts/build-crafting-data.js && node scripts/build-coe-crafting-data.js && node scripts/build-coe-catalog.js",
     "sync-regex": "node scripts/sync-regex-data.js",
     "sync-prefabs": "node scripts/sync-prefabs.js",
     "dist:win": "npm run build && electron-builder --win --x64",
     "dist:linux": "npm run build && electron-builder --linux AppImage --x64",
+    "package:portable": "node scripts/package-portable-release.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.e2e.json",
     "postinstall": "node scripts/postinstall.js",
     "lint": "biome lint src && node scripts/check-import-aliases.mjs",
@@ -124,7 +126,9 @@
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "allowElevation": false,
-      "createDesktopShortcut": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Scalpel My Version",
       "artifactName": "Scalpel-Setup.${ext}"
     },
     "extraResources": [

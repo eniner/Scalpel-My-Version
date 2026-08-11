@@ -1,0 +1,32 @@
+﻿
+==== fneed 385177 ====
+haostot,0,"."," "));poec_buildShareLink(!1)}
+var poecTotalChaos=0;function poec_getCurrencySpending(fneed){var mfound=-1;for(var i=0;i<poec_methods.length;i++){if(poec_methods[i].id==poec_cMethod){mfound=poec_methods[i];break}}
+if(fneed>1){var term=mfound.plural}else{var term=mfound.name}
+poecTotalChaos=0;let baseImgFolder=(aconsts.game=="poe2")?"ui_poe2/":"ui/";if(poec_cMethod=="transmute"&&aconsts.game=="poe2"){poec_cMethod="poe2_transmute"}
+var strret="<table cellspacing='0' id='currentBreakD
+
+==== fneed 385308 ====
+0;i<poec_methods.length;i++){if(poec_methods[i].id==poec_cMethod){mfound=poec_methods[i];break}}
+if(fneed>1){var term=mfound.plural}else{var term=mfound.name}
+poecTotalChaos=0;let baseImgFolder=(aconsts.game=="poe2")?"ui_poe2/":"ui/";if(poec_cMethod=="transmute"&&aconsts.game=="poe2"){poec_cMethod="poe2_transmute"}
+var strret="<table cellspacing='0' id='currentBreakDownTbl' class='method_"+poec_cMethod+"'>";strret+="<tr class='header line'>";strret+="<td class='label'><div>Avg. spending per succ
+
+==== fneed 386367 ====
+os=poecd.fossils.seq[poecd.fossils.ind[fosses[i]]];strret+=poec_getCurrencyLine("<b>"+number_format(fneed,0,"."," ")+"</b><div class='icon'><img src=\"images/ui/fossil_"+cfos.id_fossil+".png\"></div>"+poecl.fossil[fosses[i]]+" "+term,poecp.data[poec_cLNinja].fossils[cfos.name_fossil],fneed,"f"+cfos.id_fossil,!0,null,cfos.name_fossil+"-fossil")}
+switch(fosses.length){case 1:term="Primitive";break;case 2:term="Potent";break;case 3:term="Powerful";break;case 4:term="Prime";break}
+if(fneed>1){var re
+
+==== 1/( 362744 ====
+/tkweight);var true_roll=weight/tkweight;var end_roll=weight/tweight.total;var tries="~ "+Math.ceil(1/(weight/tweight.total));var true_tries=1/(weight/tweight.total);troll+=weight/tkweight}else{var roll=poec_parsePct(0);var true_roll=0;var end_roll=0;var tries="Γê₧";var true_tries="Γê₧"}
+var modgroups="";for(var zy=0;zy<modgroup.length;zy++){modgroups+="|"+modgroup}
+modgroups=modgroups.substring(1,modgroups.length);affHtml[atype]+="<div class='affix req gable rgaid"+ind+"' affid='"+ind+"' selgrp='"+
+
+==== 1/( 362785 ====
+var end_roll=weight/tweight.total;var tries="~ "+Math.ceil(1/(weight/tweight.total));var true_tries=1/(weight/tweight.total);troll+=weight/tkweight}else{var roll=poec_parsePct(0);var true_roll=0;var end_roll=0;var tries="Γê₧";var true_tries="Γê₧"}
+var modgroups="";for(var zy=0;zy<modgroup.length;zy++){modgroups+="|"+modgroup}
+modgroups=modgroups.substring(1,modgroups.length);affHtml[atype]+="<div class='affix req gable rgaid"+ind+"' affid='"+ind+"' selgrp='"+rmod.g+"' atype='"+atype+"' modgroups='"+
+
+==== 1/( 369098 ====
+Pct(troll)+"</div></div>";if(troll<=0){var ttroll="Γê₧";var end_slam=0}else{var ttroll="~ "+Math.ceil(1/(troll));var end_slam=Math.ceil(1/troll)}
+reqHtml+="<div class='right'><div class='slamtt' sval='"+end_slam+"'>"+ttroll+"</div></div>";reqHtml+="<div class='center rem brdl'><div>&nbsp;</div></div>";reqHtml+="</div>"}else{reqHtml+="<div class='affix final' id='reqAffFinal'>";reqHtml+="<div class='label'><div><a href='javascript:poec_toggleDiag()'>"+applyLang("Final calculation")+"<div class='ico

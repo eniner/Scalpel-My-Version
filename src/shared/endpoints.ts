@@ -15,6 +15,12 @@ export function getTradeUrls(version: 1 | 2): {
   stats: string
   leagues: string
   webSearch: (league: string, queryId: string) => string
+  /**
+   * Browser URL for a search. PoE has no public per-listing path — appending a
+   * fetch result id 404s ("RESOURCE NOT FOUND"). Prefer Whisper / Travel to Hideout
+   * for a specific seller; this opens the parent search so the user can find it.
+   */
+  webListing: (league: string, queryId: string, _listingId?: string) => string
   webExchange: (league: string, queryId: string) => string
 } {
   const prefix = version === 2 ? 'trade2' : 'trade'
@@ -29,6 +35,7 @@ export function getTradeUrls(version: 1 | 2): {
     stats: `${apiBase}/data/stats`,
     leagues: `${apiBase}/data/leagues`,
     webSearch: (l, id) => `${webBase}/search/${webRealm}${enc(l)}/${id}`,
+    webListing: (l, qid, _listingId) => `${webBase}/search/${webRealm}${enc(l)}/${qid}`,
     webExchange: (l, id) => `${webBase}/exchange/${webRealm}${enc(l)}/${id}`,
   }
 }

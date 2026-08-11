@@ -4,6 +4,7 @@ import { searchSignature } from './search-signature'
 import { filterOwnListings } from './exclude-own-listings'
 import { getTradeUrls } from '@shared/endpoints'
 import { getGameFeatures } from '@shared/game-features'
+import { uniqueDropTierFor } from '@shared/economy/unique-drop-tier'
 import {
   RARITY_COLORS,
   INFLUENCE_ICONS,
@@ -69,6 +70,9 @@ export function PriceCheck({
   const color = selectedUnique ? RARITY_COLORS['Unique'] : (RARITY_COLORS[item.rarity] ?? '#c8c8c8')
   const heroIcon = selectedUnique ? (iconMap[selectedUnique] ?? getItemIcon(item)) : getItemIcon(item)
   const heroName = selectedUnique ?? item.name
+  const isUnique = !!selectedUnique || item.rarity === 'Unique'
+  const dropTier =
+    features.uniqueTiers && isUnique ? uniqueDropTierFor(heroName) : null
   const { auth, loggedIn, login } = useAuth()
   // Ids of pseudos the last search dropped because the user is not logged in
   // (Weighted Sum, e.g. added elemental damage on PoE2). Each drives an in-row
@@ -436,6 +440,7 @@ export function PriceCheck({
         stackSize={item.stackSize > 1 ? item.stackSize : undefined}
         maxStackSize={item.maxStackSize}
         dustInfo={getDustInfo(item)}
+        dropTier={dropTier}
         areaLevel={item.monsterLevel}
         heistJob={item.heistJob}
         onOpenWiki={onOpenWiki}

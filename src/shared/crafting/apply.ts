@@ -9,16 +9,19 @@ import {
 } from './desecration'
 import { essenceForcedMod } from './essence'
 import { consumeOmens, resolveOmenEffect, simKeyToOmenMethod, validateOmens } from './omens'
-import { getBaseTags, rollTagsForState } from './pool'
+import { countByKind, getBaseTags, rollTagsForState } from './pool'
 import {
   cloneItemState,
   craftModToItemMod,
+  divineRerollMod,
   makeRng,
   pickRemovableModIndex,
   rollFreshMagic,
   rollMods,
   rollOneExaltMod,
 } from './roll'
+import { resolveCatalyst } from './catalyst'
+import { canApplySocketable, resolveSocketable, socketableEffectText } from './socketable'
 import type {
   CraftApplyOptions,
   CraftApplyResult,
@@ -70,7 +73,7 @@ export function createFreshItemState(
   data: CraftDataset,
   baseType: string,
   itemLevel: number,
-  opts?: { marksmanEnabled?: boolean },
+  opts?: { marksmanEnabled?: boolean; quality?: number; catalyst?: string },
 ): CraftItemState | null {
   const tags = getBaseTags(data, baseType)
   if (!tags) return null
@@ -84,6 +87,10 @@ export function createFreshItemState(
     corrupted: false,
     mods: [],
     activeOmens: [],
+    quality: opts?.quality ?? 20,
+    sockets: 0,
+    socketed: [],
+    ...(opts?.catalyst ? { catalyst: opts.catalyst } : {}),
     ...(opts?.marksmanEnabled ? { marksmanEnabled: true } : {}),
   }
 }
@@ -151,13 +158,14 @@ function applyDesecrationBone(
 
   const omen = resolveOmenEffect(omens, 'desecration')
   const rng = makeRng(seed)
-  const veiledKind = pickVeiledKind(state, omen.addKind)
+  const veiledKind = pickVeiledKind(state, omen.addKind, rng)
   if (!veiledKind) return fail(state, `desecration:${boneId}`, label, 'No open prefix or suffix slot for desecration.')
 
   let next = cloneItemState(state)
-  const counts = countByKind(next.mods)
+  const counts = countByKind(next.mods.filter((m) => !m.veiled))
   if (counts.p + counts.s >= 6) {
     const removeIdx = pickRemovableModIndex(next, rng, { kind: veiledKind, data })
+    if (removeIdx < 0) return fail(state, `desecration:${boneId}`, label, 'No removable modifier (fractured?).')
     next.mods.splice(removeIdx, 1)
   }
 
@@ -195,6 +203,18 @@ export function applyCraftAction(
     const boneId = actionId.slice('desecration:'.length)
     if (boneId !== 'reveal') return applyDesecrationBone(data, state, boneId, seed, opts)
   }
+  if (actionId.startsWith('socketable:')) {
+    const sid = actionId.slice('socketable:'.length)
+    const entry = resolveSocketable(data, sid)
+    const label = entry?.name ?? sid
+    if (!entry) return fail(state, actionId, label, 'Unknown socketable.')
+    const reason = canApplySocketable(data, state, entry)
+    if (reason) return fail(state, actionId, label, reason)
+    const next = cloneItemState(state)
+    next.socketed = [...(next.socketed ?? []), entry.name]
+    const effect = socketableEffectText(entry, next)
+    return ok(next, actionId, label, `Socketed ${entry.name}: ${effect}`)
+  }
 
   const label = labelForActionId(actionId, data)
   const sim = resolveSimActionId(actionId, data)
@@ -218,7 +238,7 @@ export function applyCraftAction(
     const rolled = rollMods(data, next, 1, 1, 1, new Set(), rollTagsForState(next), rng, tierFloor)
     if (!rolled.length) return fail(state, actionId, label, 'No valid modifier could roll on this base.')
     next.rarity = 'Magic'
-    next.mods = rolled.map(craftModToItemMod)
+    next.mods = rolled.map((m) => craftModToItemMod(m, rng))
     return ok(next, actionId, label, `Magic item with ${next.mods[0].text}`, { added: next.mods })
   }
 
@@ -228,7 +248,7 @@ export function applyCraftAction(
     if (next.mods.length === 0) return fail(state, actionId, label, 'Use Transmutation first.')
     const mod = rollOneExaltMod(data, next, rng, tierFloor)
     if (!mod) return fail(state, actionId, label, 'No open prefix or suffix slot for a new mod.')
-    const added = craftModToItemMod(mod)
+    const added = craftModToItemMod(mod, rng)
     next.mods.push(added)
     return ok(next, actionId, label, `Added ${added.text}`, { added: [added] })
   }
@@ -238,15 +258,15 @@ export function applyCraftAction(
     const rolled = rollFreshMagic(data, next, rng, tierFloor)
     if (!rolled.length) return fail(state, actionId, label, 'No valid magic modifiers on this base.')
     const removed = [...next.mods]
-    next.mods = rolled.map(craftModToItemMod)
+    next.mods = rolled.map((m) => craftModToItemMod(m, rng))
     return ok(next, actionId, label, `Rerolled to ${next.mods.length} magic mod(s)`, { added: next.mods, removed })
   }
 
   if (sim === 'regal') {
     if (next.rarity !== 'Magic') return fail(state, actionId, label, 'Only applies to Magic items.')
-    const mod = rollOneExaltMod(data, next, rng, tierFloor, omen?.addKind)
+    const mod = rollOneExaltMod(data, next, rng, tierFloor, omen?.addKind, { homogenise: omen?.homogenise })
     if (!mod) return fail(state, actionId, label, 'No open prefix or suffix slot for regal add.')
-    const added = craftModToItemMod(mod)
+    const added = craftModToItemMod(mod, rng)
     next.rarity = 'Rare'
     next.mods.push(added)
     const out = applyOmenConsume(next, omen?.consume ?? [])
@@ -260,11 +280,12 @@ export function applyCraftAction(
     if (next.rarity !== 'Normal' && next.rarity !== 'Magic') {
       return fail(state, actionId, label, 'Only applies to Normal or Magic items.')
     }
+    // CoE PoE2 alchemy: poec_simRerollItem(..., forcenum=4) — always 4 mods.
     const rolled = rollMods(data, next, 4, 3, 3, new Set(), rollTagsForState(next), rng, tierFloor)
     if (rolled.length < 4) return fail(state, actionId, label, 'Could not roll four rare modifiers on this base.')
     const removed = [...next.mods]
     next.rarity = 'Rare'
-    next.mods = rolled.map(craftModToItemMod)
+    next.mods = rolled.map((m) => craftModToItemMod(m, rng))
     return ok(next, actionId, label, `Rare item with ${next.mods.length} modifiers`, { added: next.mods, removed })
   }
 
@@ -277,13 +298,14 @@ export function applyCraftAction(
       lowestLevel: omen?.removeLowestLevel,
       data,
     })
+    if (removeIdx < 0) return fail(state, actionId, label, 'No removable modifier (fractured?).')
     const removed = [next.mods[removeIdx]]
     next.mods.splice(removeIdx, 1)
     const mod = rollOneExaltMod(data, next, rng, tierFloor)
     if (!mod) {
       return fail(state, actionId, label, 'Removed a mod but nothing could be added — item may be full or blocked.')
     }
-    const added = craftModToItemMod(mod)
+    const added = craftModToItemMod(mod, rng)
     next.mods.push(added)
     const out = applyOmenConsume(next, omen?.consume ?? [])
     return ok(out, actionId, label, `Removed ${removed[0].text} → added ${added.text}`, {
@@ -298,12 +320,12 @@ export function applyCraftAction(
     const addCount = omen?.addCount ?? 1
     const added: CraftItemMod[] = []
     for (let i = 0; i < addCount; i++) {
-      const mod = rollOneExaltMod(data, next, rng, tierFloor, omen?.addKind)
+      const mod = rollOneExaltMod(data, next, rng, tierFloor, omen?.addKind, { homogenise: omen?.homogenise })
       if (!mod) {
         if (i === 0) return fail(state, actionId, label, 'No open prefix or suffix slot.')
         break
       }
-      const itemMod = craftModToItemMod(mod)
+      const itemMod = craftModToItemMod(mod, rng)
       next.mods.push(itemMod)
       added.push(itemMod)
     }
@@ -324,6 +346,10 @@ export function applyCraftAction(
         desecratedOnly: omen?.removeDesecratedOnly,
         data,
       })
+      if (removeIdx < 0) {
+        if (i === 0) return fail(state, actionId, label, 'No removable modifier (fractured?).')
+        break
+      }
       removed.push(next.mods[removeIdx])
       next.mods.splice(removeIdx, 1)
     }
@@ -354,6 +380,7 @@ export function applyCraftAction(
       if (next.rarity !== 'Rare') return fail(state, actionId, label, 'Perfect essences and alloys need a Rare item.')
       if (next.mods.length === 0) return fail(state, actionId, label, 'Item has no modifiers to swap.')
       const removeIdx = pickRemovableModIndex(next, rng, { kind: omen?.removeKind, data })
+      if (removeIdx < 0) return fail(state, actionId, label, 'No removable modifier (fractured?).')
       const removed = [next.mods[removeIdx]]
       next.mods.splice(removeIdx, 1)
       next.mods.push(added)
@@ -373,7 +400,35 @@ export function applyCraftAction(
 
   if (sim === 'divine') {
     if (next.mods.length === 0) return fail(state, actionId, label, 'Item has no modifiers.')
-    return ok(next, actionId, label, 'Divine rerolled numeric values (lines unchanged in emulator).')
+    next.mods = next.mods.map((m) => (m.fractured || m.veiled ? m : divineRerollMod(m, rng)))
+    return ok(next, actionId, label, `Divine rerolled numeric values on ${next.mods.length} modifier(s).`)
+  }
+
+  if (sim === 'catalyst') {
+    const name = actionId.startsWith('currency:') ? actionId.slice('currency:'.length) : label
+    const cat = resolveCatalyst(data, name)
+    if (!cat) return fail(state, actionId, label, `Unknown catalyst "${name}".`)
+    next.catalyst = cat.name
+    if (next.quality == null) next.quality = 20
+    return ok(
+      next,
+      actionId,
+      label,
+      `Applied ${cat.name} catalyst (quality ${next.quality}%). Matching tags: ${cat.tags.join(', ') || 'none'}.`,
+    )
+  }
+
+  if (sim === 'artificer') {
+    if (next.corrupted) return fail(state, actionId, label, 'Cannot socket a corrupted item.')
+    const max = data.maxSocketsByClass?.[next.itemClass] ?? 0
+    if (max <= 0) return fail(state, actionId, label, 'This base cannot have sockets.')
+    const prev = next.sockets ?? 0
+    if (prev >= max) {
+      next.socketed = []
+      return ok(next, actionId, label, `Rerolled sockets (${max}/${max}).`)
+    }
+    next.sockets = prev + 1
+    return ok(next, actionId, label, `Added a socket (${next.sockets}/${max}).`)
   }
 
   if (sim === 'fracture') {
@@ -386,8 +441,30 @@ export function applyCraftAction(
   }
 
   if (sim === 'vaal') {
+    if (next.corrupted) return fail(state, actionId, label, 'Item is already corrupted.')
     next.corrupted = true
-    return ok(next, actionId, label, 'Item corrupted (full Vaal outcomes not modeled).')
+    const roll = rng()
+    // Simplified PoE2-style outcomes for planning (not full Vaal tables).
+    if (roll < 0.25 && next.mods.length > 0) {
+      const idx = Math.floor(rng() * next.mods.length)
+      const [removed] = next.mods.splice(idx, 1)
+      return ok(next, actionId, label, `Corrupted — removed ${removed.text}.`, { removed: [removed] })
+    }
+    if (roll < 0.45) {
+      const mod = rollOneExaltMod(data, next, rng, 0)
+      if (mod) {
+        const added = craftModToItemMod(mod, rng)
+        next.mods.push(added)
+        return ok(next, actionId, label, `Corrupted — added ${added.text}.`, { added: [added] })
+      }
+    }
+    if (roll < 0.55 && next.rarity === 'Normal') {
+      next.rarity = 'Rare'
+      const rolled = rollMods(data, next, 4, 3, 3, new Set(), rollTagsForState(next), rng, 0)
+      next.mods = rolled.map((m) => craftModToItemMod(m, rng))
+      return ok(next, actionId, label, 'Corrupted — became Rare with new modifiers.', { added: next.mods })
+    }
+    return ok(next, actionId, label, 'Corrupted — no other change.')
   }
 
   if (actionId === 'omens:toggle') {

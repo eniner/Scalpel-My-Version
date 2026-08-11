@@ -185,6 +185,20 @@ describe('evaluateBlock', () => {
     const result = evaluateBlock(block, item)
     expect(result.hasUnknowns).toBe(true)
   })
+
+  it('Vestigial defaults false so NeverSink vestige does not match every unique', () => {
+    const block = makeBlock({
+      conditions: [makeCond('Vestigial', ['True']), makeCond('Rarity', ['Unique'])],
+    })
+    expect(evaluateBlock(block, makeItem({ rarity: 'Unique' })).matches).toBe(false)
+    expect(evaluateBlock(block, makeItem({ rarity: 'Unique', vestigial: true })).matches).toBe(true)
+    expect(
+      evaluateBlock(
+        makeBlock({ conditions: [makeCond('Vestigial', ['False']), makeCond('Rarity', ['Unique'])] }),
+        makeItem({ rarity: 'Unique' }),
+      ).matches,
+    ).toBe(true)
+  })
 })
 
 describe('findMatchingBlocks', () => {

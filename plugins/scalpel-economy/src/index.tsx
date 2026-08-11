@@ -8,7 +8,8 @@ import { ECONOMY_ICON } from './icon'
 const ECONOMY_WINDOW = { width: 280, height: 560 }
 
 export default function activate(ctx: ScalpelPluginContext): void {
-  if (ctx.getPoeVersion() !== 2) return
+  const version = ctx.getPoeVersion()
+  if (version !== 1 && version !== 2) return
 
   ctx.registerTab({
     label: 'Economy',

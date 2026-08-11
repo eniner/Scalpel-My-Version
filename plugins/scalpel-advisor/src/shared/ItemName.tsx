@@ -25,6 +25,7 @@ export function ItemIcon({
         height: size,
         objectFit: 'contain',
         flexShrink: 0,
+        display: 'block',
         ...style,
       }}
       draggable={false}
@@ -32,10 +33,10 @@ export function ItemIcon({
   )
 }
 
-/** Icon + label row used in advisor tables. */
+/** Icon + label row used wherever Advisor shows an item name. */
 export function ItemName({
   name,
-  size = 20,
+  size = 22,
   opts,
   children,
   style,
@@ -47,9 +48,18 @@ export function ItemName({
   style?: CSSProperties
 }): JSX.Element {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, ...style }}>
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        minWidth: 0,
+        maxWidth: '100%',
+        ...style,
+      }}
+    >
       <ItemIcon name={name} size={size} opts={opts} />
-      <span style={{ minWidth: 0 }}>{children ?? name}</span>
+      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children ?? name}</span>
     </span>
   )
 }

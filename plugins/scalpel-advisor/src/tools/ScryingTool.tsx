@@ -1,12 +1,22 @@
 import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import scryingRefJson from '../data/scrying-ref.json'
 import { indexPriceIcons } from '../shared/icons'
 import { ItemName } from '../shared/ItemName'
-import { floorToChaos, ledgerGet, leagueDataPath, type Floor } from '../shared/ledger'
+import { floorToChaos, type Floor } from '../shared/floors'
 import { divineRate, fmtChaos, indexPrices, mirrorRateDiv } from '../shared/prices'
 import { ToolHeader } from '../shared/ToolChrome'
-import { btnStyle, inputStyle, theme } from '../shared/theme'
+import { accentBtnStyle, btnStyle, inputStyle, theme } from '../shared/theme'
+import {
+  Blurb,
+  FieldLabel,
+  HeroMetric,
+  HeroRow,
+  ListRow,
+  SetupGroup,
+  SplitBody,
+  Workbench,
+} from '../shared/ui'
 import { buildNameTradeUrl, buildTypeTradeUrl } from '../shared/tradeUrl'
 
 type ScryingArea = {
@@ -67,15 +77,8 @@ export function ScryingTool({
       setPriceIcons(indexPriceIcons(list))
       setCpd(divineRate(byName))
       setMirrorDiv(mirrorRateDiv(byName))
-
-      try {
-        const live = await ledgerGet<ScryingData>(leagueDataPath(league, 'scrying-orbs.json'))
-        setData(live)
-        setStatus(`Live · ${league} · ${live.areas.length} areas`)
-      } catch {
-        setData(REF)
-        setStatus(`Bundled snapshot · ${league} (live fetch failed)`)
-      }
+      setData(REF)
+      setStatus(`bundled map floors · ${league} · ${REF.areas.length} areas (not on poe.ninja)`)
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err))
     }
@@ -144,7 +147,7 @@ export function ScryingTool({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'hidden' }}>
+    <Workbench>
       <ToolHeader
         toolId="scrying"
         title="Scrying Orb Market"
@@ -153,109 +156,112 @@ export function ScryingTool({
         onRefresh={() => void refresh()}
         refreshLabel="Refresh"
       />
-      <p style={{ margin: 0, color: theme.dim, fontSize: 11 }}>
+      <Blurb>
         <ItemName name="Scrying Orb" opts={{ priceIcons }} size={18}>
           Scrying Orb
         </ItemName>{' '}
         prices by map area — cheapest orbs reveal item mods for the least chaos.
-      </p>
+      </Blurb>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
-        <Stat label="ACTIVE LISTINGS" value={String(summary.listings)} />
-        <Stat label="AREAS TRACKED" value={String(summary.areas)} />
-        <Stat
-          label="CHEAPEST"
-          value={summary.cheapest ? `${summary.cheapest.area.mapArea} · ${fmtChaos(summary.cheapest.price, cpd)}` : '—'}
-          color={theme.green}
-        />
-        <Stat
-          label="PRICIEST"
-          value={summary.priciest ? `${summary.priciest.area.mapArea} · ${fmtChaos(summary.priciest.price, cpd)}` : '—'}
-          color={theme.red}
-        />
-        <Stat label="SOLD 24H" value={String(summary.sold24h)} color={theme.blue} />
-      </div>
+      <SplitBody
+        railWidth={248}
+        rail={
+          <>
+            <SetupGroup title="Search">
+              <FieldLabel label="Map area">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="text"
+                  placeholder="e.g. Strand"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </FieldLabel>
+              <Blurb>
+                {filtered.length} / {rows.length} areas
+              </Blurb>
+            </SetupGroup>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: theme.dim }}>
-          Search Map Area
-          <input
-            style={{ ...inputStyle, width: 180 }}
-            type="text"
-            placeholder="e.g. Strand"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
-        <span style={{ color: theme.dim, fontSize: 11 }}>
-          {filtered.length} / {rows.length} areas
-        </span>
-      </div>
+            <SetupGroup title="Sort" defaultOpen={false}>
+              {(
+                [
+                  ['price', 'Price'],
+                  ['mapArea', 'Area'],
+                  ['listings', 'Listings'],
+                  ['volume24h', 'Sold 24h'],
+                ] as [SortKey, string][]
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  style={sort.key === key ? accentBtnStyle : btnStyle}
+                  onClick={() => toggleSort(key)}
+                >
+                  {label}
+                  {sort.key === key ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}
+                </button>
+              ))}
+            </SetupGroup>
+          </>
+        }
+        stage={
+          <>
+            <HeroRow>
+              <HeroMetric label="Active listings" value={String(summary.listings)} />
+              <HeroMetric label="Areas tracked" value={String(summary.areas)} />
+              <HeroMetric
+                label="Cheapest"
+                value={summary.cheapest ? fmtChaos(summary.cheapest.price, cpd) : '—'}
+                tone="good"
+                sub={summary.cheapest?.area.mapArea}
+              />
+              <HeroMetric
+                label="Priciest"
+                value={summary.priciest ? fmtChaos(summary.priciest.price, cpd) : '—'}
+                tone="warn"
+                sub={summary.priciest?.area.mapArea}
+              />
+              <HeroMetric label="Sold 24h" value={String(summary.sold24h)} tone="accent" />
+            </HeroRow>
 
-      <div style={{ flex: 1, overflow: 'auto', border: `1px solid ${theme.border}`, borderRadius: 6 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead>
-            <tr style={{ color: theme.dim, textAlign: 'left', position: 'sticky', top: 0, background: theme.panel }}>
-              <Th label="MAP AREA" sortKey="mapArea" sort={sort} onClick={toggleSort} />
-              <Th label="PRICE" sortKey="price" sort={sort} onClick={toggleSort} />
-              <Th label="LISTINGS" sortKey="listings" sort={sort} onClick={toggleSort} />
-              <Th label="SOLD 24H" sortKey="volume24h" sort={sort} onClick={toggleSort} />
-              <th style={th}>TRADE</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(({ area, price }) => (
-              <tr key={area.mapArea} style={{ borderTop: `1px solid ${theme.border}`, opacity: price == null ? 0.5 : 1 }}>
-                <td style={td}>{area.mapArea}</td>
-                <td style={{ ...td, color: theme.green }}>{fmtChaos(price, cpd)}</td>
-                <td style={td}>{area.listings}</td>
-                <td style={td}>{area.volume24h}</td>
-                <td style={td}>
-                  <button
-                    type="button"
-                    style={{ ...btnStyle, padding: '2px 8px', fontSize: 10 }}
-                    onClick={() => ctx.openExternal(scryingTradeUrl(area, data.tradeDiscriminator, league))}
-                  >
-                    Trade →
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: `1px solid ${theme.border}` }}>
+              {filtered.map(({ area, price }) => (
+                <ListRow
+                  key={area.mapArea}
+                  muted={price == null}
+                  leading={
+                    <ItemName name="Scrying Orb" size={20} opts={{ priceIcons }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: theme.ink }}>{area.mapArea}</div>
+                        <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>
+                          {area.listings} listings · {area.volume24h} sold 24h
+                        </div>
+                      </div>
+                    </ItemName>
+                  }
+                  trailing={
+                    <>
+                      <span
+                        className="sa-num"
+                        style={{ color: price != null ? theme.green : theme.dim, minWidth: 64, textAlign: 'right' }}
+                      >
+                        {fmtChaos(price, cpd)}
+                      </span>
+                      <button
+                        type="button"
+                        style={{ ...btnStyle, padding: '2px 8px', fontSize: 10 }}
+                        onClick={() => ctx.openExternal(scryingTradeUrl(area, data.tradeDiscriminator, league))}
+                      >
+                        Trade →
+                      </button>
+                    </>
+                  }
+                />
+              ))}
+            </div>
+          </>
+        }
+      />
+    </Workbench>
   )
 }
-
-function Th({
-  label,
-  sortKey,
-  sort,
-  onClick,
-}: {
-  label: string
-  sortKey: SortKey
-  sort: { key: SortKey; dir: SortDir }
-  onClick: (key: SortKey) => void
-}) {
-  const active = sort.key === sortKey
-  return (
-    <th style={{ ...th, cursor: 'pointer', userSelect: 'none' }} onClick={() => onClick(sortKey)}>
-      {label}
-      {active ? <span style={{ color: theme.accent }}> {sort.dir === 1 ? '▲' : '▼'}</span> : null}
-    </th>
-  )
-}
-
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div style={{ background: theme.panel, border: `1px solid ${theme.border}`, borderRadius: 6, padding: '8px 10px' }}>
-      <div style={{ fontSize: 9, color: theme.dim, letterSpacing: '0.04em' }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: color ?? theme.text }}>{value}</div>
-    </div>
-  )
-}
-
-const th: CSSProperties = { padding: '6px 8px', fontWeight: 500, fontSize: 10 }
-const td: CSSProperties = { padding: '5px 8px' }

@@ -10,6 +10,8 @@
 export interface GameFeatures {
   /** Thaumaturgic dust explorer + the "Explore" chip shown next to dust values. */
   dustExplorer: boolean
+  /** Unique economy-tier browser (S/A/B/C/D from live ninja prices). PoE1. */
+  uniqueTiers: boolean
   /** Divination card explorer + the "Explore" chip shown on div-card items. */
   divCards: boolean
   /** Socket recolor tool + the "Recolor" chip on items with sockets. */
@@ -20,8 +22,6 @@ export interface GameFeatures {
   scarabAtlas: boolean
   /** Timeless Jewel calculator + skill-tree secondary overlay (PoE1). */
   timelessJewels: boolean
-  /** Scalpel Warrants — Mercenary Warrant market scanner (PoE1). */
-  scalpelWarrants: boolean
   /** Baseline currency for the bulk-exchange "pay with" choice when the item
    *  isn't priced in divines. PoE1's PriceInfo.chaosValue is denominated in
    *  chaos; PoE2 reuses the same field for exalted, so the currency we offer
@@ -42,12 +42,12 @@ import type { GameVariant } from './types'
 const FEATURES_BY_VERSION: Record<GameVariant, GameFeatures> = {
   1: {
     dustExplorer: true,
+    uniqueTiers: true,
     divCards: true,
     socketRecolor: true,
     regexTool: true,
     scarabAtlas: true,
     timelessJewels: true,
-    scalpelWarrants: true,
     bulkBaselineCurrency: 'chaos',
     bulkExchangeBanner: 'faustus',
     leagues: ['Allflame', 'Hardcore Allflame', 'Standard', 'Hardcore'],
@@ -55,12 +55,12 @@ const FEATURES_BY_VERSION: Record<GameVariant, GameFeatures> = {
   },
   2: {
     dustExplorer: false,
+    uniqueTiers: false,
     divCards: false,
     socketRecolor: false,
     regexTool: true,
     scarabAtlas: false,
     timelessJewels: false,
-    scalpelWarrants: false,
     bulkBaselineCurrency: 'exalted',
     bulkExchangeBanner: 'ange',
     leagues: ['Runes of Aldur', 'HC Runes of Aldur', 'Standard', 'Hardcore'],

@@ -106,7 +106,9 @@ export function setOpenSide(side: AppSettings['openSide']): void {
   openSide = side
 }
 
+const RECENT_ITEM_MAX = 24
 let lastEvaluatedItem: PoeItem | null = null
+const recentEvaluatedItems: PoeItem[] = []
 let storeRef: Store<AppSettings> | null = null
 
 /** Lets the IPC layer pass the Store handle into this module so the
@@ -131,8 +133,31 @@ export function reEvaluateLastItem(): void {
   if (lastEvaluatedItem) evaluateAndSend(lastEvaluatedItem)
 }
 
+/** Last item evaluated into the overlay (Ctrl+C capture), if any. */
+export function getLastEvaluatedItem(): PoeItem | null {
+  return lastEvaluatedItem
+}
+
+/** Recent items evaluated (newest last), for the section-editor filmstrip. */
+export function getRecentEvaluatedItems(): PoeItem[] {
+  return [...recentEvaluatedItems]
+}
+
+function pushRecentItem(item: PoeItem): void {
+  const key = `${item.baseType}|${item.name}|${item.rarity}|${item.stackSize}`
+  const last = recentEvaluatedItems[recentEvaluatedItems.length - 1]
+  const lastKey = last ? `${last.baseType}|${last.name}|${last.rarity}|${last.stackSize}` : ''
+  if (key === lastKey) {
+    recentEvaluatedItems[recentEvaluatedItems.length - 1] = item
+    return
+  }
+  recentEvaluatedItems.push(item)
+  while (recentEvaluatedItems.length > RECENT_ITEM_MAX) recentEvaluatedItems.shift()
+}
+
 export function evaluateAndSend(item: PoeItem): void {
   lastEvaluatedItem = item
+  pushRecentItem(item)
   const effective = applyZoneAreaLevel(item)
   const currentFilter = getCurrentFilter()
   if (!currentFilter) return

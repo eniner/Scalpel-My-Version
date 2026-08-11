@@ -71,6 +71,10 @@ export function getUniqueVisibility(): Promise<Record<string, 'Show' | 'Hide'>> 
   return window.api.getUniqueVisibility()
 }
 
+export function getUniqueFilterTiers(): Promise<Record<string, string | null>> {
+  return window.api.getUniqueFilterTiers()
+}
+
 export function moveItemTier(
   baseType: string,
   fromBlockIndex: number,

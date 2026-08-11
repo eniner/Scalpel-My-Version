@@ -1,7 +1,14 @@
 import { resolveSimActionId, labelForActionId } from './actions'
+import { withCatalystWeights } from './catalyst'
 import { tierFloorForCurrency } from './currency-rules'
 import { essenceForcedMod } from './essence'
-import { allEligibleForExalt } from './pool'
+import {
+  allEligibleForExalt,
+  buildItemTags,
+  countByKind,
+  eligibleMods,
+  usedGroups,
+} from './pool'
 import { groupedOutcomesToFlat, poolToSections } from './group-pool'
 import { applyCraftAction } from './apply'
 import { cloneItemState, makeRng, rollFreshMagic } from './roll'
@@ -63,6 +70,90 @@ function exaltPoolOutcomes(
   const pool = allEligibleForExalt(data, state, { maxPrefix: 3, maxSuffix: 3, tierFloor })
   const sections = poolToSections(pool, 'all')
   return groupedOutcomesToFlat(sections.flatMap((s) => s.groups))
+}
+
+/**
+ * PoE2 Chaos = remove one mod, add one of the same affix kind.
+ * Probability averages over which mod is removed (blocked groups change the add pool).
+ * This matches CoE much better than “empty rare exalt pool” (~44 → ~17 for T1 ES boots).
+ */
+export function chaosHitProbability(
+  data: CraftDataset,
+  state: CraftItemState,
+  targetQuery: string,
+  kind: 'all' | 'p' | 's',
+  tierFloor = 0,
+): { hitPerAttempt: number; matchingOutcomes: CraftOutcome[] } {
+  const q = targetQuery.trim()
+  if (
+    state.mods.some((m) => !m.veiled && modMatchesTargetQuery(m, q, kind))
+  ) {
+    return { hitPerAttempt: 1, matchingOutcomes: [] }
+  }
+
+  const removable = state.mods.filter((m) => !m.fractured && !m.veiled)
+  if (!removable.length) {
+    const outcomes = exaltPoolOutcomes(data, state, tierFloor)
+    const matchingOutcomes = outcomes.filter((o) =>
+      modMatchesTargetQuery({ text: o.text, group: o.group, kind: o.kind }, q, kind),
+    )
+    return {
+      hitPerAttempt: matchingOutcomes.reduce((s, o) => s + o.probability, 0),
+      matchingOutcomes,
+    }
+  }
+
+  const tags = buildItemTags(data, state)
+  const matchById = new Map<string, CraftOutcome>()
+  let hitPerAttempt = 0
+  const pRemove = 1 / removable.length
+  const poolCache = new Map<string, Array<CraftMod & { weight: number }>>()
+
+  for (const victim of removable) {
+    const remaining = state.mods.filter((m) => m !== victim)
+    const blocked = usedGroups(remaining)
+    const counts = countByKind(remaining)
+    const cacheKey = `${victim.kind}|${counts.p},${counts.s}|${[...blocked].sort().join('\0')}`
+    let pool = poolCache.get(cacheKey)
+    if (!pool) {
+      pool = withCatalystWeights(
+        data,
+        state,
+        eligibleMods(data, tags, state.itemLevel, victim.kind, blocked, {
+          maxPrefix: 3,
+          maxSuffix: 3,
+          prefixCount: counts.p,
+          suffixCount: counts.s,
+          baseType: state.baseType,
+          tierFloor,
+        }),
+      )
+      poolCache.set(cacheKey, pool)
+    }
+    const total = pool.reduce((s, m) => s + m.weight, 0)
+    if (total <= 0) continue
+    for (const mod of pool) {
+      if (
+        !modMatchesTargetQuery(
+          { text: mod.t || mod.n || mod.g, group: mod.g, kind: mod.k, name: mod.n },
+          q,
+          kind,
+        )
+      ) {
+        continue
+      }
+      const p = pRemove * (mod.weight / total)
+      hitPerAttempt += p
+      const prev = matchById.get(mod.id)
+      if (prev) prev.probability += p
+      else matchById.set(mod.id, craftModToOutcome(mod, p))
+    }
+  }
+
+  return {
+    hitPerAttempt,
+    matchingOutcomes: [...matchById.values()].sort((a, b) => b.probability - a.probability),
+  }
 }
 
 function monteCarloTarget(
@@ -139,13 +230,12 @@ export function computeTargetHit(data: CraftDataset, query: TargetCraftQuery): T
     hitPerAttempt = matchingOutcomes.reduce((s, o) => s + o.probability, 0)
     note = 'Exact: one added mod per attempt (exalt/regal pool).'
   } else if (sim === 'chaos') {
-    const pool = allEligibleForExalt(data, query.state, { maxPrefix: 3, maxSuffix: 3, tierFloor })
-    const sections = poolToSections(pool, 'all')
-    const outcomes = groupedOutcomesToFlat(sections.flatMap((s) => s.groups))
-    matchingOutcomes = outcomes.filter((o) => modMatchesTargetQuery(o, q, kind))
-    hitPerAttempt = matchingOutcomes.reduce((s, o) => s + o.probability, 0)
-    note =
-      'Approximate: PoE2 chaos adds one mod from the exalt pool (removed mod slightly changes tags). Assumes added-mod slot only.'
+    const chaos = chaosHitProbability(data, query.state, q, kind, tierFloor)
+    hitPerAttempt = chaos.hitPerAttempt
+    matchingOutcomes = chaos.matchingOutcomes
+    note = query.state.mods.length
+      ? 'PoE2 Chaos: remove one mod, add one of that affix kind (pooled over which mod is removed).'
+      : 'CoE affix-table odds on a blank rare (tier weight ÷ open pool; Greater/Perfect apply min ilvl).'
   } else if (sim.startsWith('essence:')) {
     const forced = essenceForcedMod(data, sim.slice('essence:'.length), query.state.baseType)
     if (forced && modMatchesTargetQuery({ text: forced.text, group: forced.group, kind: forced.kind }, q, kind)) {
@@ -185,6 +275,41 @@ export function computeTargetHit(data: CraftDataset, query: TargetCraftQuery): T
     hitPerAttempt = mc.hitRate
     matchingOutcomes = mc.outcomes.filter((o) => modMatchesTargetQuery(o, q, kind))
     note = `Monte Carlo (${samples} rolls) for this action.`
+  } else if (sim === 'annul') {
+    const removable = query.state.mods.filter((m) => !m.fractured && !m.veiled)
+    const matching = removable.filter((m) => modMatchesTargetQuery(m, q, kind))
+    hitPerAttempt = removable.length ? matching.length / removable.length : 0
+    matchingOutcomes = matching.map((m) => ({
+      text: m.text,
+      group: m.group,
+      kind: m.kind,
+      probability: removable.length ? 1 / removable.length : 0,
+    }))
+    note = 'Exact: chance Annul removes a matching mod (uniform among removable).'
+  } else if (sim === 'fracture') {
+    const mods = query.state.mods.filter((m) => !m.veiled)
+    const matching = mods.filter((m) => modMatchesTargetQuery(m, q, kind))
+    hitPerAttempt = mods.length ? matching.length / mods.length : 0
+    matchingOutcomes = matching.map((m) => ({
+      text: m.text,
+      group: m.group,
+      kind: m.kind,
+      probability: mods.length ? 1 / mods.length : 0,
+    }))
+    note = 'Exact: chance Fracture locks a matching mod (uniform among mods).'
+  } else if (sim === 'divine') {
+    const matching = query.state.mods.filter((m) => modMatchesTargetQuery(m, q, kind))
+    hitPerAttempt = matching.length ? 1 : 0
+    matchingOutcomes = matching.map((m) => ({
+      text: m.text,
+      group: m.group,
+      kind: m.kind,
+      probability: 1,
+    }))
+    note = 'Divine re-rolls values only — hit is whether the item already has a matching mod.'
+  } else if (sim === 'desecration') {
+    note = 'Desecration reveal is pick-3 from the desecrated pool — use Emulator/Sequence for bone crafts.'
+    hitPerAttempt = 0
   } else {
     return {
       actionId: query.actionId,
@@ -195,7 +320,7 @@ export function computeTargetHit(data: CraftDataset, query: TargetCraftQuery): T
       attemptsTable: [],
       matchingOutcomes: [],
       samples: 0,
-      note: 'Target odds not implemented for this currency yet. Try Chaos, Exalt, Alteration, Alchemy, or Essence.',
+      note: 'Target odds not implemented for this currency yet. Try Chaos, Exalt, Alteration, Alchemy, Annul, Fracture, Divine, or Essence.',
     }
   }
 

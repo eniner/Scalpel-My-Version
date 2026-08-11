@@ -9,36 +9,29 @@
         {
           "id": "abyss-scarab",
           "name": "Abyss Scarab",
-          "weight": 853,
+          "weight": 1180,
           "signature": "uls",
           "untradeable": false
         },
         {
-          "id": "abyss-scarab-of-crystals",
-          "name": "Abyss Scarab Of Crystals",
-          "weight": 308,
-          "signature": "bor",
-          "untradeable": false
-        },
-        {
-          "id": "abyss-scarab-of-descending",
-          "name": "Abyss Scarab Of Descending",
-          "weight": 283,
-          "signature": "jo",
+          "id": "abyss-scarab-of-edifice",
+          "name": "Abyss Scarab Of Edifice",
+          "weight": 381,
+          "signature": "tyg",
           "untradeable": false
         },
         {
           "id": "abyss-scarab-of-multitudes",
           "name": "Abyss Scarab Of Multitudes",
-          "weight": 580,
-          "signature": "cea",
+          "weight": 816,
+          "signature": "ssl",
           "untradeable": false
         },
         {
-          "id": "abyss-scarab-of-the-consort",
-          "name": "Abyss Scarab Of The Consort",
-          "weight": 46,
-          "signature": "s'",
+          "id": "abyss-scarab-of-profound-depth",
+          "name": "Abyss Scarab Of Profound Depth",
+          "weight": 55,
+          "signature": "g,",
           "untradeable": false
         }
       ]
@@ -52,36 +45,36 @@
         {
           "id": "ambush-scarab",
           "name": "Ambush Scarab",
-          "weight": 870,
+          "weight": 1190,
           "signature": "u'",
           "untradeable": false
         },
         {
           "id": "ambush-scarab-of-containment",
           "name": "Ambush Scarab Of Containment",
-          "weight": 35,
-          "signature": "a'",
+          "weight": 40,
+          "signature": "urk",
           "untradeable": false
         },
         {
           "id": "ambush-scarab-of-discernment",
           "name": "Ambush Scarab Of Discernment",
-          "weight": 325,
-          "signature": "isc",
+          "weight": 391,
+          "signature": "haf",
           "untradeable": false
         },
         {
           "id": "ambush-scarab-of-hidden-compartments",
           "name": "Ambush Scarab Of Hidden Compartments",
-          "weight": 570,
+          "weight": 798,
           "signature": "bv",
           "untradeable": false
         },
         {
           "id": "ambush-scarab-of-potency",
           "name": "Ambush Scarab Of Potency",
-          "weight": 527,
-          "signature": "pot",
+          "weight": 789,
+          "signature": "ksm",
           "untradeable": false
         }
       ]
@@ -95,28 +88,21 @@
         {
           "id": "anarchy-scarab",
           "name": "Anarchy Scarab",
-          "weight": 937,
-          "signature": "e k",
-          "untradeable": false
-        },
-        {
-          "id": "anarchy-scarab-of-the-exceptional",
-          "name": "Anarchy Scarab Of The Exceptional",
-          "weight": 283,
-          "signature": "cep",
+          "weight": 1253,
+          "signature": "n wr",
           "untradeable": false
         },
         {
           "id": "anarchy-scarab-of-gigantification",
           "name": "Anarchy Scarab Of Gigantification",
-          "weight": 580,
-          "signature": "wt",
+          "weight": 823,
+          "signature": "gig",
           "untradeable": false
         },
         {
           "id": "anarchy-scarab-of-partnership",
           "name": "Anarchy Scarab Of Partnership",
-          "weight": 301,
+          "weight": 448,
           "signature": "tn",
           "untradeable": false
         }
@@ -131,22 +117,22 @@
         {
           "id": "bestiary-scarab",
           "name": "Bestiary Scarab",
-          "weight": 874,
-          "signature": "mas",
+          "weight": 1140,
+          "signature": "call",
           "untradeable": false
         },
         {
           "id": "bestiary-scarab-of-duplicating",
           "name": "Bestiary Scarab Of Duplicating",
-          "weight": 304,
-          "signature": "cap",
+          "weight": 410,
+          "signature": "opy",
           "untradeable": false
         },
         {
           "id": "bestiary-scarab-of-the-herd",
           "name": "Bestiary Scarab Of The Herd",
-          "weight": 601,
-          "signature": "erd",
+          "weight": 809,
+          "signature": "ram",
           "untradeable": false
         }
       ]
@@ -160,29 +146,22 @@
         {
           "id": "betrayal-scarab",
           "name": "Betrayal Scarab",
-          "weight": 754,
-          "signature": "don",
+          "weight": 1200,
+          "signature": "jun",
           "untradeable": false
         },
         {
           "id": "betrayal-scarab-of-the-allflame",
           "name": "Betrayal Scarab Of The Allflame",
-          "weight": 584,
+          "weight": 849,
           "signature": "fla",
           "untradeable": false
         },
         {
           "id": "betrayal-scarab-of-reinforcements",
           "name": "Betrayal Scarab Of Reinforcements",
-          "weight": 559,
-          "signature": "cem",
-          "untradeable": false
-        },
-        {
-          "id": "betrayal-scarab-of-perpetuation",
-          "name": "Betrayal Scarab Of Unbreaking",
-          "weight": 216,
-          "signature": "nb",
+          "weight": 821,
+          "signature": "rei",
           "untradeable": false
         }
       ]
@@ -196,29 +175,29 @@
         {
           "id": "beyond-scarab",
           "name": "Beyond Scarab",
-          "weight": 952,
-          "signature": "ndl",
+          "weight": 1184,
+          "signature": "swa",
           "untradeable": false
         },
         {
           "id": "beyond-scarab-of-haemophilia",
           "name": "Beyond Scarab Of Haemophilia",
-          "weight": 552,
-          "signature": "aem",
+          "weight": 791,
+          "signature": "t k",
           "untradeable": false
         },
         {
           "id": "beyond-scarab-of-resurgence",
           "name": "Beyond Scarab Of Resurgence",
-          "weight": 325,
-          "signature": "urg",
+          "weight": 400,
+          "signature": "ung",
           "untradeable": false
         },
         {
           "id": "beyond-scarab-of-the-invasion",
           "name": "Beyond Scarab Of The Invasion",
-          "weight": 276,
-          "signature": "lmo",
+          "weight": 399,
+          "signature": "e 8",
           "untradeable": false
         }
       ]
@@ -232,28 +211,28 @@
         {
           "id": "blight-scarab",
           "name": "Blight Scarab",
-          "weight": 930,
+          "weight": 1074,
           "signature": "dri",
           "untradeable": false
         },
         {
           "id": "blight-scarab-of-blooming",
           "name": "Blight Scarab Of Blooming",
-          "weight": 14,
-          "signature": "-r",
+          "weight": 66,
+          "signature": "y,",
           "untradeable": false
         },
         {
           "id": "blight-scarab-of-invigoration",
           "name": "Blight Scarab Of Invigoration",
-          "weight": 42,
-          "signature": "gor",
+          "weight": 47,
+          "signature": "igu",
           "untradeable": false
         },
         {
           "id": "blight-scarab-of-the-blightheart",
           "name": "Blight Scarab Of The Blightheart",
-          "weight": 311,
+          "weight": 401,
           "signature": "yc",
           "untradeable": false
         }
@@ -267,37 +246,37 @@
       "scarabs": [
         {
           "id": "breach-scarab",
-          "name": "Breach Scarab of the Hive",
-          "weight": 831,
-          "signature": "ek",
+          "name": "Breach Scarab",
+          "weight": 0,
+          "signature": "l br",
           "untradeable": false
         },
         {
           "id": "breach-scarab-of-lordship",
-          "name": "Breach Scarab of Instability",
-          "weight": 552,
-          "signature": "arp",
+          "name": "Breach Scarab Of Lordship",
+          "weight": 0,
+          "signature": "hl",
           "untradeable": false
         },
         {
           "id": "breach-scarab-of-resonant-cascade",
           "name": "Breach Scarab Of Resonant Cascade",
-          "weight": 21,
-          "signature": "lr",
+          "weight": 0,
+          "signature": "w w",
           "untradeable": false
         },
         {
           "id": "breach-scarab-of-snares",
-          "name": "Breach Scarab of the Incensed Swarm",
-          "weight": 25,
-          "signature": "h'",
+          "name": "Breach Scarab Of Snares",
+          "weight": 0,
+          "signature": "tep",
           "untradeable": false
         },
         {
           "id": "breach-scarab-of-splintering",
-          "name": "Breach Scarab of the Marshal",
-          "weight": 283,
-          "signature": "nw",
+          "name": "Breach Scarab Of Splintering",
+          "weight": 0,
+          "signature": "spli",
           "untradeable": false
         }
       ]
@@ -311,28 +290,28 @@
         {
           "id": "cartography-scarab-of-corruption",
           "name": "Cartography Scarab Of Corruption",
-          "weight": 251,
-          "signature": "-u",
+          "weight": 374,
+          "signature": "8 m",
           "untradeable": false
         },
         {
           "id": "cartography-scarab-of-escalation",
           "name": "Cartography Scarab Of Escalation",
-          "weight": 870,
-          "signature": "ala",
+          "weight": 1192,
+          "signature": "ilo",
           "untradeable": false
         },
         {
           "id": "cartography-scarab-of-risk",
           "name": "Cartography Scarab Of Risk",
-          "weight": 11,
-          "signature": "isk",
+          "weight": 50,
+          "signature": "f ri",
           "untradeable": false
         },
         {
           "id": "cartography-scarab-of-the-multitude",
           "name": "Cartography Scarab Of The Multitude",
-          "weight": 566,
+          "weight": 830,
           "signature": "izo",
           "untradeable": false
         }
@@ -347,36 +326,36 @@
         {
           "id": "delirium-scarab",
           "name": "Delirium Scarab",
-          "weight": 867,
+          "weight": 1221,
           "signature": "uo",
           "untradeable": false
         },
         {
           "id": "delirium-scarab-of-delusions",
           "name": "Delirium Scarab Of Delusions",
-          "weight": 325,
+          "weight": 400,
           "signature": "lk",
           "untradeable": false
         },
         {
           "id": "delirium-scarab-of-mania",
           "name": "Delirium Scarab Of Mania",
-          "weight": 672,
-          "signature": "d!",
+          "weight": 814,
+          "signature": "m!",
           "untradeable": false
         },
         {
           "id": "delirium-scarab-of-neuroses",
           "name": "Delirium Scarab Of Neuroses",
-          "weight": 318,
+          "weight": 401,
           "signature": "eu",
           "untradeable": false
         },
         {
           "id": "delirium-scarab-of-paranoia",
           "name": "Delirium Scarab Of Paranoia",
-          "weight": 619,
-          "signature": "noi",
+          "weight": 833,
+          "signature": "d ty",
           "untradeable": false
         }
       ]
@@ -384,28 +363,28 @@
     {
       "id": "divination",
       "name": "Divination",
-      "atlasModifier": "boostable",
+      "atlasModifier": "none",
       "investmentBoost": false,
       "scarabs": [
         {
           "id": "divination-scarab-of-pilfering",
           "name": "Divination Scarab Of Pilfering",
-          "weight": 35,
+          "weight": 36,
           "signature": "ilf",
           "untradeable": false
         },
         {
           "id": "divination-scarab-of-plenty",
           "name": "Divination Scarab Of Plenty",
-          "weight": 248,
+          "weight": 406,
           "signature": "fut",
           "untradeable": false
         },
         {
           "id": "divination-scarab-of-the-cloister",
           "name": "Divination Scarab Of The Cloister",
-          "weight": 853,
-          "signature": "loi",
+          "weight": 1266,
+          "signature": "eck",
           "untradeable": false
         }
       ]
@@ -419,29 +398,29 @@
         {
           "id": "domination-scarab",
           "name": "Domination Scarab",
-          "weight": 803,
-          "signature": "sim",
+          "weight": 1265,
+          "signature": "xc",
           "untradeable": false
         },
         {
           "id": "domination-scarab-of-apparitions",
           "name": "Domination Scarab Of Apparitions",
-          "weight": 598,
-          "signature": "adn",
+          "weight": 758,
+          "signature": "dne",
           "untradeable": false
         },
         {
           "id": "domination-scarab-of-evolution",
           "name": "Domination Scarab Of Evolution",
-          "weight": 290,
-          "signature": "fy",
+          "weight": 420,
+          "signature": "fyi",
           "untradeable": false
         },
         {
           "id": "domination-scarab-of-terrors",
           "name": "Domination Scarab Of Terrors",
-          "weight": 35,
-          "signature": "fig",
+          "weight": 51,
+          "signature": "tev",
           "untradeable": false
         }
       ]
@@ -455,36 +434,36 @@
         {
           "id": "essence-scarab",
           "name": "Essence Scarab",
-          "weight": 860,
-          "signature": "afe",
+          "weight": 1197,
+          "signature": "fe,",
           "untradeable": false
         },
         {
           "id": "essence-scarab-of-adaptation",
           "name": "Essence Scarab Of Adaptation",
-          "weight": 32,
-          "signature": "ada",
+          "weight": 38,
+          "signature": "pta",
           "untradeable": false
         },
         {
           "id": "essence-scarab-of-ascent",
           "name": "Essence Scarab Of Ascent",
-          "weight": 318,
+          "weight": 393,
           "signature": "cet",
           "untradeable": false
         },
         {
           "id": "essence-scarab-of-calcification",
           "name": "Essence Scarab Of Calcification",
-          "weight": 32,
+          "weight": 49,
           "signature": "lc",
           "untradeable": false
         },
         {
           "id": "essence-scarab-of-stability",
           "name": "Essence Scarab Of Stability",
-          "weight": 559,
-          "signature": "pg",
+          "weight": 753,
+          "signature": "ols",
           "untradeable": false
         }
       ]
@@ -498,36 +477,65 @@
         {
           "id": "expedition-scarab",
           "name": "Expedition Scarab",
-          "weight": 906,
-          "signature": "cro",
+          "weight": 1273,
+          "signature": "acro",
           "untradeable": false
         },
         {
           "id": "expedition-scarab-of-archaeology",
           "name": "Expedition Scarab Of Archaeology",
-          "weight": 276,
-          "signature": "gy",
-          "untradeable": false
-        },
-        {
-          "id": "expedition-scarab-of-the-skald",
-          "name": "Expedition Scarab Of Infusion",
-          "weight": 258,
-          "signature": "fus",
+          "weight": 456,
+          "signature": "sd",
           "untradeable": false
         },
         {
           "id": "expedition-scarab-of-runefinding",
           "name": "Expedition Scarab Of Runefinding",
-          "weight": 562,
-          "signature": "nef",
+          "weight": 797,
+          "signature": "urn",
           "untradeable": false
         },
         {
           "id": "expedition-scarab-of-verisium-powder",
           "name": "Expedition Scarab Of Verisium Powder",
-          "weight": 520,
-          "signature": "siu",
+          "weight": 866,
+          "signature": "rl",
+          "untradeable": false
+        }
+      ]
+    },
+    {
+      "id": "harbinger",
+      "name": "Harbinger",
+      "atlasModifier": "boostable",
+      "investmentBoost": false,
+      "scarabs": [
+        {
+          "id": "harbinger-scarab",
+          "name": "Harbinger Scarab",
+          "weight": 1209,
+          "signature": "oop",
+          "untradeable": false
+        },
+        {
+          "id": "harbinger-scarab-of-obelisks",
+          "name": "Harbinger Scarab Of Obelisks",
+          "weight": 804,
+          "signature": "lis",
+          "untradeable": false
+        },
+        {
+          "id": "harbinger-scarab-of-regency",
+          "name": "Harbinger Scarab Of Regency",
+          "weight": 418,
+          "signature": "nob",
+          "untradeable": false
+        },
+        {
+          "id": "harbinger-scarab-of-warhoards",
+          "name": "Harbinger Scarab Of Warhoards",
+          "weight": 425,
+          "signature": "lev",
           "untradeable": false
         }
       ]
@@ -541,21 +549,21 @@
         {
           "id": "harvest-scarab",
           "name": "Harvest Scarab",
-          "weight": 863,
-          "signature": "ado",
+          "weight": 1016,
+          "signature": "n ro",
           "untradeable": false
         },
         {
           "id": "harvest-scarab-of-cornucopia",
           "name": "Harvest Scarab Of Cornucopia",
-          "weight": 46,
-          "signature": "nuc",
+          "weight": 53,
+          "signature": "rnu",
           "untradeable": false
         },
         {
           "id": "harvest-scarab-of-doubling",
           "name": "Harvest Scarab Of Doubling",
-          "weight": 279,
+          "weight": 394,
           "signature": "dou",
           "untradeable": false
         }
@@ -570,49 +578,49 @@
         {
           "id": "horned-scarab-of-awakening",
           "name": "Horned Scarab Of Awakening",
-          "weight": 50,
-          "signature": "eni",
+          "weight": 37,
+          "signature": "wak",
           "untradeable": false
         },
         {
           "id": "horned-scarab-of-bloodlines",
           "name": "Horned Scarab Of Bloodlines",
-          "weight": 28,
-          "signature": "erp",
+          "weight": 60,
+          "signature": "rs p",
           "untradeable": false
         },
         {
           "id": "horned-scarab-of-glittering",
           "name": "Horned Scarab Of Glittering",
-          "weight": 11,
-          "signature": "%,",
+          "weight": 41,
+          "signature": ", u",
           "untradeable": false
         },
         {
           "id": "horned-scarab-of-nemeses",
           "name": "Horned Scarab Of Nemeses",
-          "weight": 311,
+          "weight": 434,
           "signature": "tig",
           "untradeable": false
         },
         {
           "id": "horned-scarab-of-pandemonium",
           "name": "Horned Scarab Of Pandemonium",
-          "weight": 39,
-          "signature": "dem",
+          "weight": 40,
+          "signature": "nct",
           "untradeable": false
         },
         {
           "id": "horned-scarab-of-preservation",
           "name": "Horned Scarab Of Preservation",
-          "weight": 1,
+          "weight": 4,
           "signature": "rva",
           "untradeable": false
         },
         {
           "id": "horned-scarab-of-tradition",
           "name": "Horned Scarab Of Tradition",
-          "weight": 11,
+          "weight": 48,
           "signature": "ges",
           "untradeable": false
         }
@@ -627,29 +635,29 @@
         {
           "id": "incursion-scarab",
           "name": "Incursion Scarab",
-          "weight": 870,
-          "signature": "aa",
+          "weight": 1141,
+          "signature": "rets",
           "untradeable": false
         },
         {
           "id": "incursion-scarab-of-champions",
           "name": "Incursion Scarab Of Champions",
-          "weight": 269,
+          "weight": 376,
           "signature": "tz",
           "untradeable": false
         },
         {
           "id": "incursion-scarab-of-invasion",
           "name": "Incursion Scarab Of Invasion",
-          "weight": 587,
-          "signature": "eit",
+          "weight": 847,
+          "signature": "gat",
           "untradeable": false
         },
         {
           "id": "incursion-scarab-of-timelines",
           "name": "Incursion Scarab Of Timelines",
-          "weight": 39,
-          "signature": "h,",
+          "weight": 44,
+          "signature": "rse",
           "untradeable": false
         }
       ]
@@ -662,30 +670,30 @@
       "scarabs": [
         {
           "id": "influencing-scarab-of-conversion",
-          "name": "Influencing Scarab of Interference",
-          "weight": 258,
-          "signature": "nq",
+          "name": "Influencing Scarab Of Conversion",
+          "weight": 400,
+          "signature": "onv",
           "untradeable": false
         },
         {
           "id": "influencing-scarab-of-hordes",
           "name": "Influencing Scarab Of Hordes",
-          "weight": 545,
+          "weight": 851,
           "signature": "hord",
           "untradeable": false
         },
         {
           "id": "influencing-scarab-of-the-elder",
           "name": "Influencing Scarab Of The Elder",
-          "weight": 881,
+          "weight": 1026,
           "signature": "oid",
           "untradeable": false
         },
         {
           "id": "influencing-scarab-of-the-shaper",
           "name": "Influencing Scarab Of The Shaper",
-          "weight": 842,
-          "signature": "aits",
+          "weight": 1075,
+          "signature": "imag",
           "untradeable": false
         }
       ]
@@ -699,29 +707,22 @@
         {
           "id": "kalguuran-scarab",
           "name": "Kalguuran Scarab",
-          "weight": 842,
-          "signature": "dee",
-          "untradeable": false
-        },
-        {
-          "id": "kalguuran-scarab-of-enriching",
-          "name": "Kalguuran Scarab Of Enriching",
-          "weight": 216,
-          "signature": "nri",
+          "weight": 1249,
+          "signature": "vei",
           "untradeable": false
         },
         {
           "id": "kalguuran-scarab-of-guarded-riches",
           "name": "Kalguuran Scarab Of Guarded Riches",
-          "weight": 541,
+          "weight": 801,
           "signature": "gg",
           "untradeable": false
         },
         {
           "id": "kalguuran-scarab-of-refinement",
           "name": "Kalguuran Scarab Of Refinement",
-          "weight": 32,
-          "signature": "bar",
+          "weight": 59,
+          "signature": "elt",
           "untradeable": false
         }
       ]
@@ -735,29 +736,29 @@
         {
           "id": "legion-scarab",
           "name": "Legion Scarab",
-          "weight": 899,
-          "signature": "arr",
+          "weight": 1257,
+          "signature": "ddl",
           "untradeable": false
         },
         {
           "id": "legion-scarab-of-command",
-          "name": "Legion Scarab of Treasures",
-          "weight": 347,
-          "signature": "bue",
+          "name": "Legion Scarab Of Command",
+          "weight": 454,
+          "signature": "nak",
           "untradeable": false
         },
         {
           "id": "legion-scarab-of-eternal-conflict",
           "name": "Legion Scarab Of Eternal Conflict",
-          "weight": 35,
-          "signature": "onf",
+          "weight": 43,
+          "signature": "rok",
           "untradeable": false
         },
         {
           "id": "legion-scarab-of-officers",
           "name": "Legion Scarab Of Officers",
-          "weight": 265,
-          "signature": "ddl",
+          "weight": 415,
+          "signature": "tle",
           "untradeable": false
         }
       ]
@@ -771,29 +772,22 @@
         {
           "id": "ritual-scarab-of-abundance",
           "name": "Ritual Scarab Of Abundance",
-          "weight": 258,
+          "weight": 418,
           "signature": "abu",
-          "untradeable": false
-        },
-        {
-          "id": "ritual-scarab-of-corpses",
-          "name": "Ritual Scarab Of Corpses",
-          "weight": 237,
-          "signature": "orp",
           "untradeable": false
         },
         {
           "id": "ritual-scarab-of-selectiveness",
           "name": "Ritual Scarab Of Selectiveness",
-          "weight": 1008,
-          "signature": "tiv",
+          "weight": 1246,
+          "signature": "net",
           "untradeable": false
         },
         {
           "id": "ritual-scarab-of-wisps",
           "name": "Ritual Scarab Of Wisps",
-          "weight": 601,
-          "signature": "rb",
+          "weight": 803,
+          "signature": "ps g",
           "untradeable": false
         }
       ]
@@ -807,15 +801,15 @@
         {
           "id": "sulphite-scarab",
           "name": "Sulphite Scarab",
-          "weight": 906,
-          "signature": "kn",
+          "weight": 1257,
+          "signature": "ko",
           "untradeable": false
         },
         {
           "id": "sulphite-scarab-of-fumes",
           "name": "Sulphite Scarab Of Fumes",
-          "weight": 294,
-          "signature": "az",
+          "weight": 425,
+          "signature": "zu",
           "untradeable": false
         }
       ]
@@ -829,22 +823,22 @@
         {
           "id": "titanic-scarab",
           "name": "Titanic Scarab",
-          "weight": 895,
-          "signature": "nam",
+          "weight": 1190,
+          "signature": "ze o",
           "untradeable": false
         },
         {
           "id": "titanic-scarab-of-legend",
           "name": "Titanic Scarab Of Legend",
-          "weight": 347,
+          "weight": 405,
           "signature": "ccu",
           "untradeable": false
         },
         {
           "id": "titanic-scarab-of-treasures",
           "name": "Titanic Scarab Of Treasures",
-          "weight": 283,
-          "signature": "gree",
+          "weight": 369,
+          "signature": "ed is",
           "untradeable": false
         }
       ]
@@ -858,58 +852,22 @@
         {
           "id": "torment-scarab",
           "name": "Torment Scarab",
-          "weight": 810,
-          "signature": "aun",
+          "weight": 1229,
+          "signature": "rim",
           "untradeable": false
         },
         {
           "id": "torment-scarab-of-peculiarity",
           "name": "Torment Scarab Of Peculiarity",
-          "weight": 608,
-          "signature": "-c",
+          "weight": 782,
+          "signature": "l v",
           "untradeable": false
         },
         {
           "id": "torment-scarab-of-possession",
           "name": "Torment Scarab Of Possession",
-          "weight": 265,
-          "signature": "rul",
-          "untradeable": false
-        }
-      ]
-    },
-    {
-      "id": "trarthan",
-      "name": "Trarthan",
-      "atlasModifier": "blockable",
-      "investmentBoost": true,
-      "scarabs": [
-        {
-          "id": "trarthan-scarab",
-          "name": "Trarthan Scarab",
-          "weight": 860,
-          "signature": "oil",
-          "untradeable": false
-        },
-        {
-          "id": "trarthan-scarab-of-infamy",
-          "name": "Trarthan Scarab Of Infamy",
-          "weight": 538,
-          "signature": "my",
-          "untradeable": false
-        },
-        {
-          "id": "trarthan-scarab-of-renown",
-          "name": "Trarthan Scarab Of Renown",
-          "weight": 297,
-          "signature": "pm",
-          "untradeable": false
-        },
-        {
-          "id": "trarthan-scarab-of-surprising-alliances",
-          "name": "Trarthan Scarab Of Surprising Alliances",
-          "weight": 32,
-          "signature": "rpr",
+          "weight": 425,
+          "signature": "rter",
           "untradeable": false
         }
       ]
@@ -923,36 +881,36 @@
         {
           "id": "ultimatum-scarab",
           "name": "Ultimatum Scarab",
-          "weight": 884,
+          "weight": 1029,
           "signature": "req",
           "untradeable": false
         },
         {
           "id": "ultimatum-scarab-of-bribing",
           "name": "Ultimatum Scarab Of Bribing",
-          "weight": 598,
+          "weight": 824,
           "signature": "dg",
           "untradeable": false
         },
         {
           "id": "ultimatum-scarab-of-catalysing",
           "name": "Ultimatum Scarab Of Catalysing",
-          "weight": 53,
-          "signature": "ysi",
+          "weight": 45,
+          "signature": "egr",
           "untradeable": false
         },
         {
           "id": "ultimatum-scarab-of-dueling",
           "name": "Ultimatum Scarab Of Dueling",
-          "weight": 39,
-          "signature": "due",
+          "weight": 35,
+          "signature": "moc",
           "untradeable": false
         },
         {
           "id": "ultimatum-scarab-of-inscription",
           "name": "Ultimatum Scarab Of Inscription",
-          "weight": 322,
-          "signature": "ipt",
+          "weight": 353,
+          "signature": "nsc",
           "untradeable": false
         }
       ]
@@ -966,57 +924,57 @@
         {
           "id": "scarab-of-adversaries",
           "name": "Scarab Of Adversaries",
-          "weight": 782,
+          "weight": 1236,
           "signature": "dv",
           "untradeable": false
         },
         {
-          "id": "scarab-of-the-dextral",
-          "name": "Scarab Of The Dextral",
-          "weight": 294,
-          "signature": "xt",
-          "untradeable": false
-        },
-        {
-          "id": "scarab-of-the-sinistral",
-          "name": "Scarab Of The Sinistral",
-          "weight": 329,
-          "signature": "inis",
+          "id": "scarab-of-bisection",
+          "name": "Scarab Of Bisection",
+          "weight": 424,
+          "signature": "f,",
           "untradeable": false
         },
         {
           "id": "scarab-of-divinity",
           "name": "Scarab Of Divinity",
-          "weight": 626,
+          "weight": 793,
           "signature": "-t",
+          "untradeable": false
+        },
+        {
+          "id": "scarab-of-hunted-traitors",
+          "name": "Scarab Of Hunted Traitors",
+          "weight": 808,
+          "signature": "unf",
           "untradeable": false
         },
         {
           "id": "scarab-of-monstrous-lineage",
           "name": "Scarab Of Monstrous Lineage",
-          "weight": 874,
+          "weight": 1232,
           "signature": "eag",
           "untradeable": false
         },
         {
           "id": "scarab-of-radiant-storms",
           "name": "Scarab Of Radiant Storms",
-          "weight": 42,
-          "signature": "aco",
+          "weight": 58,
+          "signature": "spl",
           "untradeable": false
         },
         {
           "id": "scarab-of-stability",
           "name": "Scarab Of Stability",
-          "weight": 301,
+          "weight": 394,
           "signature": "g!",
           "untradeable": false
         },
         {
           "id": "scarab-of-wisps",
           "name": "Scarab Of Wisps",
-          "weight": 322,
-          "signature": "were",
+          "weight": 385,
+          "signature": "y 2",
           "untradeable": false
         }
       ]

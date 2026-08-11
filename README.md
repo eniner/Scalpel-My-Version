@@ -1,6 +1,22 @@
 # Scalpel — My Version
 
-A fork of [Scalpel](https://github.com/scalpelpoe/scalpel) with custom PoE 2 plugins and a built-in craft engine. This repo patches your **normal installed Scalpel app** (Start menu) so everything works without a separate dev launcher.
+A fork of [Scalpel](https://github.com/scalpelpoe/scalpel) with custom PoE 2 plugins and a built-in craft engine.
+
+---
+
+## Download & play (no build)
+
+**You do not need Node.js, npm, or to compile anything.**
+
+1. Open the latest **[GitHub Release](https://github.com/eniner/Scalpel-My-Version/releases/latest)**
+2. Download **`Scalpel-My-Version-*-Windows.zip`**
+3. Unzip the folder
+4. Double-click **`Install Scalpel.bat`**
+5. Use the new Desktop icon **Scalpel My Version**
+
+That copies the app into `%LOCALAPPDATA%\Programs\Scalpel-My-Version`, installs all bundled plugins, creates the desktop shortcut, and launches Scalpel.
+
+Portable option (no install copy): double-click **`Launch Scalpel (Portable).bat`** inside the unzipped folder instead.
 
 ---
 
@@ -104,16 +120,23 @@ Sheets overlay for stash/vendor search: AND/OR/exclude quotes, Want Any vs All, 
 
 ## Requirements
 
+### Prebuilt ZIP (recommended)
+
+- **Windows 10/11 x64**
+- **Path of Exile** and/or **Path of Exile 2**
+
+### From source (developers only)
+
 - **Windows** (install script targets `%LOCALAPPDATA%\Programs\scalpel`)
-- **[Scalpel](https://github.com/scalpelpoe/scalpel/releases)** already installed from the official installer
-- **[Node.js 22+](https://nodejs.org/)** (for building once)
-- **Path of Exile 2** (custom plugins are PoE 2 only)
+- **[Scalpel](https://github.com/scalpelpoe/scalpel/releases)** already installed from the official installer *(only if using `install:local`)*
+- **[Node.js 22+](https://nodejs.org/)**
+- **Path of Exile 2** (most custom plugins are PoE 2 only)
 
 ---
 
-## Install (recommended)
+## Install from source (developers)
 
-Use this if you already have Scalpel from the official site/Start menu.
+Use this only if you are developing or prefer to patch an official Scalpel install. Everyone else should use the [Download & play](#download--play-no-build) ZIP above.
 
 ### 1. Clone this repo
 
@@ -355,12 +378,12 @@ plugins/scalpel-lab/          Scalpel Lab (crafting UI)
 plugins/scalpel-economy/      poe.ninja economy browser
 plugins/scalpel-harvest/      PoE1 Harvest conversion profitability (E9)
 plugins/scalpel-advisor/      PoE1 farming EV tools hub (E9)
+plugins/scalpel-warrants/     PoE1 Mercenary Warrant market scanner (eniner)
 plugins/runeshape-checker/     Runeshape OCR pricing
 plugins/well-tiers/            Well of Souls + Runeshape OCR
 plugins/build-shopping-list/   Build guide shopping list
 src/renderer/.../scarab-atlas/ Scarab Atlas tab (PoE1)
 src/renderer/.../timeless-*/   Timeless Jewels + tree overlay (PoE1)
-src/renderer/.../scalpel-warrants/  Mercenary Warrants tab (PoE1)
 screenshots/              Feature screenshots used in this README
 src/shared/crafting/           Craft engine (host)
 src/main/handlers/             Craft IPC handlers

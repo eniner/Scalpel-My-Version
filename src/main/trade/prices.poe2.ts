@@ -198,7 +198,13 @@ export function applyProxyResponse(
         graph: line.sparkline?.data,
         ninjaCategory,
       }
-      priceMap.set(line.name.toLowerCase(), info)
+      // Prefer the higher ask when multiple overview lines share a name
+      // (e.g. charm spirit variants collapsing to one row). Callers that need
+      // a specific variant should use pricesByVariant or a live trade check.
+      const existing = priceMap.get(line.name.toLowerCase())
+      if (!existing || info.divineValue > (existing.divineValue ?? 0)) {
+        priceMap.set(line.name.toLowerCase(), info)
+      }
       pricesByVariant?.set(`${line.name.toLowerCase()}|${line.variant ?? ''}`, info)
       entriesOut?.push({
         name: line.name,

@@ -2,8 +2,9 @@ import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
 import { createRoot } from 'react-dom/client'
 import { AdvisorPanel } from './AdvisorPanel'
 import { ADVISOR_ICON } from './icon'
+import { injectAdvisorStyles, theme } from './shared/theme'
 
-const WINDOW = { width: 980, height: 700 }
+const WINDOW = { width: 1000, height: 720 }
 
 export default function activate(ctx: ScalpelPluginContext): void {
   if (ctx.getPoeVersion() !== 1) return
@@ -16,8 +17,8 @@ export default function activate(ctx: ScalpelPluginContext): void {
       defaultSize: WINDOW,
     },
     (container) => {
-      container.style.cssText =
-        'box-sizing:border-box;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#0c0c12'
+      injectAdvisorStyles()
+      container.style.cssText = `box-sizing:border-box;height:100%;display:flex;flex-direction:column;overflow:hidden;background:${theme.bg}`
       const root = createRoot(container)
       root.render(<AdvisorPanel ctx={ctx} />)
       return () => root.unmount()

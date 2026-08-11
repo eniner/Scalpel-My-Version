@@ -133,6 +133,7 @@ function toLabelBlock(block: FilterBlock): NonNullable<SearchableItem['blocks']>
     visibility: block.visibility === 'Hide' ? 'Hide' : 'Show',
     actions: block.actions,
     continue: block.continue,
+    tier: block.tierTag?.tier,
   }
 }
 
@@ -371,6 +372,19 @@ export function register(store: Store<AppSettings>): void {
       if (item.rarity !== 'Unique') continue
       const primary = item.blocks?.[item.blocks.length - 1]
       result[item.name] = primary?.visibility === 'Hide' ? 'Hide' : 'Show'
+    }
+    return result
+  })
+
+  // Primary matching block's filter-section tier (t0 / t1 / …) for every unique.
+  ipcMain.handle('get-unique-filter-tiers', async (): Promise<Record<string, string | null>> => {
+    if (!getCurrentFilter()) return {}
+    await primeSearchableItemsCache(store)
+    const result: Record<string, string | null> = {}
+    for (const item of searchableCache?.items ?? []) {
+      if (item.rarity !== 'Unique') continue
+      const primary = item.blocks?.[item.blocks.length - 1]
+      result[item.name] = primary?.tier ?? null
     }
     return result
   })

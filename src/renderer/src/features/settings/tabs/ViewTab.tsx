@@ -3,7 +3,7 @@ import type { AppSettings, HideableTabKey } from '@shared/types'
 import { ScrubInput } from '@renderer/components/primitives/ScrubInput'
 import { SettingToggleBox } from '@renderer/components/primitives/SettingToggleBox'
 import { ThemeSettings } from './ThemeSettings'
-import { Setting, CloseSmall, Buy, Filter, AllApplication } from '@icon-park/react'
+import { Setting, CloseSmall, Buy, Filter, AllApplication, Ranking } from '@icon-park/react'
 import { getGameFeatures } from '@shared/game-features'
 import { DIV_CARD_ICON_URL, IP } from '@renderer/shared/constants'
 import dustIconAsset from '@renderer/assets/currency/thaumaturgic-dust.png'
@@ -82,6 +82,12 @@ export function ViewTab({ settings, update, updateMany }: Props): JSX.Element {
       show: features.dustExplorer,
     },
     {
+      key: 'uniquetiers',
+      icon: <Ranking size={16} {...IP} />,
+      title: m.feature_unique_tiers(),
+      show: features.uniqueTiers,
+    },
+    {
       key: 'divcards',
       icon: <img src={DIV_CARD_ICON_URL} alt="" className="w-[18px] h-[18px] object-contain" />,
       title: m.feature_div_card_explorer(),
@@ -104,12 +110,6 @@ export function ViewTab({ settings, update, updateMany }: Props): JSX.Element {
       icon: <span className="text-[10px] font-bold">TJ</span>,
       title: m.feature_timeless_jewels(),
       show: features.timelessJewels,
-    },
-    {
-      key: 'warrants',
-      icon: <span className="text-[9px] font-bold">SW</span>,
-      title: m.feature_scalpel_warrants(),
-      show: features.scalpelWarrants,
     },
     {
       key: 'regex',

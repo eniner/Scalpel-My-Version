@@ -86,6 +86,8 @@ const off = ctx.prices.onChange(async () => {
 await ctx.prices.refresh() // force a refetch, bypassing the host cache TTL
 ```
 
+`ctx.ninja.getCharacterModel({ account, league, name })` fetches a public poe.ninja PoE2 character profile model (including `skills[].dps` from Path of Building). Host-proxied for the same CORS reason.
+
 `chaosValue` is the baseline-equivalent count (chaos in PoE1, exalt in PoE2). `category === 'currency'` is guaranteed to return currency orbs in both games. See "Reading economy prices" in [PLUGINS.md](../../PLUGINS.md) for the full reference.
 
 Plugins running inside Scalpel inherit CSS variables (`--bg`, `--accent`, `--text`, etc.) from the renderer DOM tree, so the forwarded components render with the correct theme without any extra setup.

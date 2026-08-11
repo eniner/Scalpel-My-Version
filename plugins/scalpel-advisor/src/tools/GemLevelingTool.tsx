@@ -1,14 +1,25 @@
 import type { ScalpelPluginContext } from '@scalpelpoe/plugin-sdk'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import gemLevelingRefJson from '../data/gem-leveling-ref.json'
 import gemTradeMappingJson from '../data/gem-trade-mapping.json'
-import { computeRows, type GemComputedRow, type GemLevelingData, type GemType } from '../engines/gemLeveling'
-import { ledgerGet, leagueDataPath, floorToChaos } from '../shared/ledger'
+import { computeRows, type GemLevelingData, type GemType } from '../engines/gemLeveling'
+import { floorToChaos } from '../shared/floors'
+import { applyNinjaToGemLeveling } from '../shared/ninjaOverlay'
 import { chaosForName, fmtChaos, fmtSignedChaos, indexPrices } from '../shared/prices'
 import { indexPriceIcons } from '../shared/icons'
 import { ItemName } from '../shared/ItemName'
 import { ToolHeader } from '../shared/ToolChrome'
-import { inputStyle, theme } from '../shared/theme'
+import { accentBtnStyle, btnStyle, inputStyle, theme } from '../shared/theme'
+import {
+  Blurb,
+  FieldLabel,
+  HeroMetric,
+  HeroRow,
+  ListRow,
+  SetupGroup,
+  SplitBody,
+  Workbench,
+} from '../shared/ui'
 import { gemTradeUrl, type GemTradeMapping } from '../shared/tradeUrl'
 
 const REF = gemLevelingRefJson as unknown as GemLevelingData
@@ -20,12 +31,6 @@ const TYPE_COLOR: Record<GemType, string> = {
   skill: theme.blue,
   support: theme.purple,
   exceptional: theme.accent,
-}
-
-const REC_COLOR: Record<GemComputedRow['recommend'], string> = {
-  '0q': theme.blue,
-  '20q': theme.green,
-  skip: theme.dim,
 }
 
 type SortKey = 'name' | 'buy' | 'low0q' | 'high20q' | 'profit'
@@ -64,16 +69,12 @@ export function GemLevelingTool({
       setPriceIcons(indexPriceIcons(list))
       const nextCpd = chaosForName(byName, 'Divine Orb') ?? 180
       setCpd(nextCpd)
-
-      try {
-        const live = await ledgerGet<GemLevelingData>(leagueDataPath(league, 'gem-leveling-advisor.json'))
-        setData(live)
-        setGcpPrice((prev) => floorToChaos(live.gcpFloors, nextCpd) ?? prev)
-        setStatus(`Live · ${league} · ${live.gems.length} gems`)
-      } catch {
-        setData(REF)
-        setStatus(`Bundled snapshot · ${league} (live fetch failed)`)
-      }
+      const live = applyNinjaToGemLeveling(REF, list)
+      setData(live)
+      setGcpPrice((prev) => floorToChaos(live.gcpFloors, nextCpd) ?? prev)
+      const gcpLive = chaosForName(byName, "Gemcutter's Prism")
+      if (gcpLive != null) setGcpPrice(gcpLive)
+      setStatus(`poe.ninja · ${league} · ${REF.gems.length} gems (bundled XP/weights)`)
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err))
     }
@@ -129,7 +130,7 @@ export function GemLevelingTool({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'hidden' }}>
+    <Workbench>
       <ToolHeader
         toolId="gem-leveling"
         title="Gem Leveling Advisor"
@@ -138,196 +139,209 @@ export function GemLevelingTool({
         onRefresh={() => void refresh()}
         refreshLabel="Refresh"
       />
-      <p style={{ margin: 0, color: theme.dim, fontSize: 11 }}>
-        Buy a gem, level to 20 (optionally 20% quality), and resell. Profit is normalized per unit of gem XP so
-        exceptional gems (1→3) compare fairly against normal gems (1→20).
-      </p>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
-        <label style={lab}>
-          GCP Price
-          <input
-            style={inputStyle}
-            type="number"
-            step="0.1"
-            value={gcpPrice}
-            onChange={(e) => setGcpPrice(Number(e.target.value) || 0)}
-          />
-        </label>
-        <label style={lab}>
-          GCPs Needed
-          <input
-            style={inputStyle}
-            type="number"
-            value={gcpsNeeded}
-            onChange={(e) => setGcpsNeeded(Number(e.target.value) || 0)}
-          />
-        </label>
-        <label style={lab}>
-          Type
-          <select
-            style={{ ...inputStyle, width: 100 }}
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-          >
-            <option value="all">All</option>
-            <option value="skill">Skill</option>
-            <option value="support">Support</option>
-            <option value="exceptional">Exceptional</option>
-          </select>
-        </label>
-        <label style={lab}>
-          Min Listings
-          <input
-            style={inputStyle}
-            type="number"
-            value={minListings}
-            onChange={(e) => setMinListings(Number(e.target.value) || 0)}
-          />
-        </label>
-        <label style={lab}>
-          Min Volume
-          <input
-            style={inputStyle}
-            type="number"
-            value={minVolume}
-            onChange={(e) => setMinVolume(Number(e.target.value) || 0)}
-          />
-        </label>
-        <label style={lab}>
-          Search
-          <input
-            style={{ ...inputStyle, width: 140 }}
-            type="text"
-            placeholder="Gem name…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
-        <label style={{ ...checkLab }}>
-          <input type="checkbox" checked={vendorOnly} onChange={(e) => setVendorOnly(e.target.checked)} />
-          Vendor only
-        </label>
-        <label style={{ ...checkLab }}>
-          <input
-            type="checkbox"
-            checked={belowThresholdLast}
-            onChange={(e) => setBelowThresholdLast(e.target.checked)}
-          />
-          Below-threshold last
-        </label>
-        <span style={{ color: theme.dim, fontSize: 11 }}>
-          {filtered.length} / {rows.length} gems
-        </span>
-      </div>
-
-      <div style={{ flex: 1, overflow: 'auto', border: `1px solid ${theme.border}`, borderRadius: 6 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead>
-            <tr style={{ color: theme.dim, textAlign: 'left', position: 'sticky', top: 0, background: theme.panel }}>
-              <Th label="GEM" onClick={() => toggleSort('name')} active={sort.key === 'name'} dir={sort.dir} />
-              <th style={th}>TYPE</th>
-              <Th label="BUY" onClick={() => toggleSort('buy')} active={sort.key === 'buy'} dir={sort.dir} />
-              <Th label="0Q LOW" onClick={() => toggleSort('low0q')} active={sort.key === 'low0q'} dir={sort.dir} />
-              <th style={th}>LIST/VOL</th>
-              <Th
-                label="20Q LOW"
-                onClick={() => toggleSort('high20q')}
-                active={sort.key === 'high20q'}
-                dir={sort.dir}
-              />
-              <th style={th}>LIST/VOL</th>
-              <Th label="NORM PROFIT" onClick={() => toggleSort('profit')} active={sort.key === 'profit'} dir={sort.dir} />
-              <th style={th}>REC</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r) => (
-              <tr
-                key={r.gem.name}
-                style={{
-                  borderTop: `1px solid ${theme.border}`,
-                  opacity: r.belowThreshold ? 0.5 : 1,
-                }}
-              >
-                <td style={td}>
-                  <ItemName
-                    name={r.gem.name}
-                    size={22}
-                    opts={{
-                      baseType: TRADE_MAPPING.trade[r.gem.name]?.type,
-                      priceIcons,
-                    }}
-                  >
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        ctx.openExternal(gemTradeUrl(r.gem.name, TRADE_MAPPING, league))
-                      }}
-                      style={{ color: theme.text, textDecoration: 'none' }}
-                      title="Open trade search"
-                    >
-                      {r.gem.name}
-                    </a>
+      <SplitBody
+        railWidth={260}
+        rail={
+          <>
+            <SetupGroup title="GCP cost">
+              <FieldLabel
+                label={
+                  <ItemName name="Gemcutter's Prism" size={14} opts={{ priceIcons }}>
+                    GCP Price
                   </ItemName>
-                </td>
-                <td style={td}>
-                  <span
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: '0.03em',
-                      color: TYPE_COLOR[r.gem.type],
-                      border: `1px solid ${TYPE_COLOR[r.gem.type]}`,
-                      borderRadius: 3,
-                      padding: '1px 5px',
-                    }}
-                  >
-                    {r.gem.type.toUpperCase()}
-                  </span>
-                </td>
-                <td style={td}>{r.gem.hasBuyCost ? fmtChaos(r.buy, cpd) : 'free'}</td>
-                <td style={td}>{fmtChaos(r.low0q, cpd)}</td>
-                <td style={{ ...td, color: theme.dim, fontSize: 10 }}>
-                  {r.lowListings} / {r.lowVolume}
-                </td>
-                <td style={td}>{fmtChaos(r.high20q, cpd)}</td>
-                <td style={{ ...td, color: theme.dim, fontSize: 10 }}>
-                  {r.highListings} / {r.highVolume}
-                </td>
-                <td style={{ ...td, color: r.bestNormProfit != null && r.bestNormProfit > 0 ? theme.green : theme.red }}>
-                  {fmtSignedChaos(r.bestNormProfit, cpd)}
-                </td>
-                <td style={{ ...td, color: REC_COLOR[r.recommend], fontWeight: 600 }}>{r.recommend.toUpperCase()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                }
+              >
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  step="0.1"
+                  value={gcpPrice}
+                  onChange={(e) => setGcpPrice(Number(e.target.value) || 0)}
+                />
+              </FieldLabel>
+              <FieldLabel label="GCPs Needed">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={gcpsNeeded}
+                  onChange={(e) => setGcpsNeeded(Number(e.target.value) || 0)}
+                />
+              </FieldLabel>
+            </SetupGroup>
+
+            <SetupGroup title="Filters">
+              <FieldLabel label="Type">
+                <select
+                  style={{ ...inputStyle, width: '100%' }}
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
+                >
+                  <option value="all">All</option>
+                  <option value="skill">Skill</option>
+                  <option value="support">Support</option>
+                  <option value="exceptional">Exceptional</option>
+                </select>
+              </FieldLabel>
+              <FieldLabel label="Min Listings">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={minListings}
+                  onChange={(e) => setMinListings(Number(e.target.value) || 0)}
+                />
+              </FieldLabel>
+              <FieldLabel label="Min Volume">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="number"
+                  value={minVolume}
+                  onChange={(e) => setMinVolume(Number(e.target.value) || 0)}
+                />
+              </FieldLabel>
+              <FieldLabel label="Search">
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  type="text"
+                  placeholder="Gem name…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </FieldLabel>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                <input type="checkbox" checked={vendorOnly} onChange={(e) => setVendorOnly(e.target.checked)} />
+                Vendor only
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                <input
+                  type="checkbox"
+                  checked={belowThresholdLast}
+                  onChange={(e) => setBelowThresholdLast(e.target.checked)}
+                />
+                Below-threshold last
+              </label>
+            </SetupGroup>
+
+            <SetupGroup title="Sort" defaultOpen={false}>
+              {(
+                [
+                  ['profit', 'Norm profit'],
+                  ['name', 'Name'],
+                  ['buy', 'Buy'],
+                  ['low0q', '0Q low'],
+                  ['high20q', '20Q low'],
+                ] as [SortKey, string][]
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  style={sort.key === key ? accentBtnStyle : btnStyle}
+                  onClick={() => toggleSort(key)}
+                >
+                  {label}
+                  {sort.key === key ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}
+                </button>
+              ))}
+            </SetupGroup>
+
+            <Blurb>
+              Buy → level to 20 (optionally 20% quality) → resell. Profit is normalized per gem XP so exceptional
+              gems compare fairly.
+            </Blurb>
+          </>
+        }
+        stage={
+          <>
+            <HeroRow>
+              <HeroMetric label="Showing" value={`${filtered.length}`} sub={`of ${rows.length} gems`} />
+              <HeroMetric
+                label="Top pick"
+                value={
+                  filtered[0]?.bestNormProfit != null
+                    ? fmtSignedChaos(filtered[0].bestNormProfit, cpd)
+                    : '—'
+                }
+                tone="good"
+                sub={filtered[0]?.gem.name}
+              />
+            </HeroRow>
+
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: `1px solid ${theme.border}` }}>
+              {filtered.map((r) => (
+                <ListRow
+                  key={r.gem.name}
+                  muted={r.belowThreshold}
+                  leading={
+                    <div>
+                      <ItemName
+                        name={r.gem.name}
+                        size={22}
+                        opts={{
+                          baseType: TRADE_MAPPING.trade[r.gem.name]?.type,
+                          priceIcons,
+                        }}
+                      >
+                        <a
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            ctx.openExternal(gemTradeUrl(r.gem.name, TRADE_MAPPING, league))
+                          }}
+                          style={{ color: theme.ink, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}
+                          title="Open trade search"
+                        >
+                          {r.gem.name}
+                        </a>
+                      </ItemName>
+                      <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>
+                        <span style={{ color: TYPE_COLOR[r.gem.type] }}>{r.gem.type}</span>
+                        {' · '}
+                        buy {r.gem.hasBuyCost ? fmtChaos(r.buy, cpd) : 'free'}
+                        {' · '}
+                        0Q {fmtChaos(r.low0q, cpd)} ({r.lowListings}/{r.lowVolume})
+                        {' · '}
+                        20Q {fmtChaos(r.high20q, cpd)} ({r.highListings}/{r.highVolume})
+                      </div>
+                    </div>
+                  }
+                  trailing={
+                    <>
+                      <span
+                        className="sa-num"
+                        style={{
+                          color:
+                            r.bestNormProfit != null && r.bestNormProfit > 0 ? theme.green : theme.red,
+                          minWidth: 64,
+                          textAlign: 'right',
+                        }}
+                      >
+                        {fmtSignedChaos(r.bestNormProfit, cpd)}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 650,
+                          letterSpacing: '0.04em',
+                          color:
+                            r.recommend === '20q'
+                              ? theme.green
+                              : r.recommend === '0q'
+                                ? theme.accent
+                                : theme.dim,
+                          minWidth: 36,
+                          textAlign: 'right',
+                        }}
+                      >
+                        {r.recommend.toUpperCase()}
+                      </span>
+                    </>
+                  }
+                />
+              ))}
+            </div>
+          </>
+        }
+      />
+    </Workbench>
   )
 }
-
-function Th({
-  label,
-  onClick,
-  active,
-  dir,
-}: {
-  label: string
-  onClick: () => void
-  active: boolean
-  dir: SortDir
-}) {
-  return (
-    <th style={{ ...th, cursor: 'pointer', userSelect: 'none' }} onClick={onClick}>
-      {label}
-      {active ? <span style={{ color: theme.accent }}> {dir === 1 ? '▲' : '▼'}</span> : null}
-    </th>
-  )
-}
-
-const lab: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: theme.dim }
-const checkLab: CSSProperties = { display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: theme.text }
-const th: CSSProperties = { padding: '6px 8px', fontWeight: 500, fontSize: 10 }
-const td: CSSProperties = { padding: '5px 8px' }

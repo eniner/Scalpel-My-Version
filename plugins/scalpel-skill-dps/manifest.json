@@ -1,0 +1,11 @@
+{
+  "manifestVersion": 1,
+  "id": "scalpel-skill-dps",
+  "version": "0.2.5",
+  "name": "Skill DPS",
+  "description": "Import a poe.ninja PoE2 character: Skill DPS, ascendancy/keystones, Find upgrades, and build value.",
+  "author": "eniner",
+  "homepage": "https://github.com/eniner/scalpel-advisor",
+  "scalpelMinVersion": ">=0.9.8",
+  "poeVersions": [2]
+}

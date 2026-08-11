@@ -1,1 +1,0 @@
-export { ScalpelWarrants } from './ScalpelWarrants'

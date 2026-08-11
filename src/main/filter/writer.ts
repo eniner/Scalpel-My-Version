@@ -133,6 +133,63 @@ export function addBaseTypeToTier(filterFile: FilterFile, blockIndex: number, ba
   filterFile.rawLines = lines
 }
 
+/** Remove a BaseType from a tier block and write to disk. */
+export function removeBaseTypeFromTier(filterFile: FilterFile, blockIndex: number, baseType: string): void {
+  const block = filterFile.blocks[blockIndex]
+  if (!block) throw new Error('Block not found')
+  const name = baseType.trim()
+  if (!name) throw new Error('BaseType name required')
+  const lines = [...filterFile.rawLines]
+  removeBaseTypeFromRawLines(lines, block, name)
+  writeFileSync(filterFile.path, lines.join(filterFile.eol ?? '\n'), 'utf-8')
+  filterFile.rawLines = lines
+}
+
+/** Delete an entire filter block (e.g. empty tier after last BaseType removed). */
+export function deleteFilterBlock(filterFile: FilterFile, blockIndex: number): void {
+  if (!filterFile.blocks[blockIndex]) throw new Error('Block not found')
+  writeFilterSelective(filterFile, new Set(), new Set([blockIndex]))
+}
+
+/**
+ * Move a whole rule/block in file order so it ends up at `toIndex`.
+ * Gaps (blank lines) that followed the block move with it.
+ * Caller must reload/parse the filter after this.
+ */
+export function moveFilterBlock(filterFile: FilterFile, fromIndex: number, toIndex: number): void {
+  const blocks = filterFile.blocks
+  if (fromIndex === toIndex) return
+  if (fromIndex < 0 || fromIndex >= blocks.length) throw new Error('Source block not found')
+  if (toIndex < 0 || toIndex >= blocks.length) throw new Error('Destination index out of range')
+
+  const sliceOf = (block: FilterBlock): { start: number; end: number; lines: string[] } => {
+    const leading = block.leadingComment ? block.leadingComment.split('\n').length : 0
+    const start = block.lineStart - 1 - leading
+    const end = block.bodyEndLine ?? block.lineEnd
+    return { start, end, lines: filterFile.rawLines.slice(start, end) }
+  }
+
+  const slices = blocks.map(sliceOf)
+  const preamble = filterFile.rawLines.slice(0, slices[0].start)
+  const gaps: string[][] = []
+  for (let i = 0; i < slices.length - 1; i++) {
+    gaps.push(filterFile.rawLines.slice(slices[i].end, slices[i + 1].start))
+  }
+  const trailing = filterFile.rawLines.slice(slices[slices.length - 1].end)
+
+  // Each unit = block lines + the gap that originally followed it (except last)
+  const units = slices.map((s, i) => ({
+    lines: i < gaps.length ? [...s.lines, ...gaps[i]] : [...s.lines],
+  }))
+  const [moved] = units.splice(fromIndex, 1)
+  units.splice(toIndex, 0, moved)
+
+  const out = [...preamble, ...units.flatMap((u) => u.lines), ...trailing]
+  const eol = filterFile.eol ?? '\n'
+  writeFileSync(filterFile.path, out.join(eol), 'utf-8')
+  filterFile.rawLines = out
+}
+
 /**
  * Insert a new Show rule into a NeverSink section (FilterBlade-style "Add rule").
  * Places it just before `beforeBlockIndex` (usually the first tier of the section)
@@ -147,6 +204,8 @@ export function insertSectionRule(
     beforeBlockIndex: number
     visibility?: FilterBlock['visibility']
     copyStyleFromIndex?: number
+    /** When true (default), copy all non-BaseType conditions from the style source. */
+    cloneConditions?: boolean
   },
 ): number {
   const { typePath, tier, baseType } = opts
@@ -163,7 +222,15 @@ export function insertSectionRule(
   const styleSrc =
     opts.copyStyleFromIndex != null ? filterFile.blocks[opts.copyStyleFromIndex] : filterFile.blocks[opts.beforeBlockIndex]
 
-  const classCond = styleSrc?.conditions.find((c) => c.type === 'Class')
+  const cloneConditions = opts.cloneConditions !== false
+  const clonedConds = cloneConditions
+    ? (styleSrc?.conditions ?? [])
+        .filter((c) => c.type !== 'BaseType')
+        .map((c) => ({ ...c, values: [...c.values] }))
+    : (() => {
+        const classCond = styleSrc?.conditions.find((c) => c.type === 'Class')
+        return classCond ? [{ ...classCond, values: [...classCond.values] }] : []
+      })()
   const actions = (styleSrc?.actions ?? [])
     .filter((a) =>
       ['SetTextColor', 'SetBorderColor', 'SetBackgroundColor', 'SetFontSize', 'PlayAlertSound', 'PlayEffect', 'MinimapIcon'].includes(
@@ -176,7 +243,7 @@ export function insertSectionRule(
     id: `new-${Date.now()}`,
     visibility: opts.visibility ?? 'Show',
     conditions: [
-      ...(classCond ? [{ ...classCond, values: [...classCond.values] }] : []),
+      ...clonedConds,
       { type: 'BaseType', operator: '==', values: [name], explicitOperator: true },
     ],
     actions:
