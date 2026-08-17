@@ -1,18 +1,11 @@
-import type { CraftDataset, CraftItemState, CraftAction, CraftMod, GenKind } from './types'
+import type { CraftDataset, CraftItemState, CraftAction, CraftMod, GenKind, CraftCurrencyEntry } from './types'
 import { tierFloorForCurrency, simKeyForCurrencyName } from './currency-rules'
 import { DESECRATION_BONES, boneAppliesToBase } from './desecration'
 import { allEligibleForExalt, countByKind, eligibleMods, rollTagsForState } from './pool'
 import { groupedOutcomesToFlat, poolToSections } from './group-pool'
 import { spawnWeight } from './weights'
 
-export interface CraftCurrencyEntry {
-  name: string
-  desc: string
-  lvl: number
-  cat: string
-  essenceId?: string
-  tierFloor?: number
-}
+export type { CraftCurrencyEntry }
 
 function slug(name: string): string {
   return `currency:${name}`
@@ -31,7 +24,11 @@ const SIM_KEY: Record<string, string> = {
 }
 
 export function simKeyForCurrency(name: string, cat?: string): string | null {
-  return simKeyForCurrencyName(name, cat) ?? SIM_KEY[name.toLowerCase()] ?? (name.includes('Essence') || cat === 'essence' ? `essence:${name}` : null)
+  return (
+    simKeyForCurrencyName(name, cat) ??
+    SIM_KEY[name.toLowerCase()] ??
+    (name.includes('Essence') || cat === 'essence' ? `essence:${name}` : null)
+  )
 }
 
 function currencyCategory(name: string, tags: string[]): string {
@@ -43,8 +40,14 @@ function currencyCategory(name: string, tags: string[]): string {
   return 'other'
 }
 
-export function buildCurrencyCatalog(baseItems: Record<string, { name?: string; tags?: string[]; drop_level?: number; properties?: { description?: string; directions?: string } }>): CraftCurrencyEntry[] {
-  const skip = /\b(map|scarab|fragment|seal|invitation|contract|waystone|dedication|tribute|baptism|rite|tome|tablet|vault key|pinnacle|logbook|\[dnt\]|shard)\b/i
+export function buildCurrencyCatalog(
+  baseItems: Record<
+    string,
+    { name?: string; tags?: string[]; drop_level?: number; properties?: { description?: string; directions?: string } }
+  >,
+): CraftCurrencyEntry[] {
+  const skip =
+    /\b(map|scarab|fragment|seal|invitation|contract|waystone|dedication|tribute|baptism|rite|tome|tablet|vault key|pinnacle|logbook|\[dnt\]|shard)\b/i
   const out: CraftCurrencyEntry[] = []
   for (const bi of Object.values(baseItems)) {
     if (!bi.name || !bi.tags?.includes('currency')) continue
@@ -53,7 +56,11 @@ export function buildCurrencyCatalog(baseItems: Record<string, { name?: string; 
     if (!desc.trim()) continue
     out.push({
       name: bi.name,
-      desc: desc.replace(/\[([^|\]]+)\|([^\]]+)\]/g, '$2').replace(/\[([^\]]+)\]/g, '$1').replace(/\s+/g, ' ').trim(),
+      desc: desc
+        .replace(/\[([^|\]]+)\|([^\]]+)\]/g, '$2')
+        .replace(/\[([^\]]+)\]/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim(),
       lvl: bi.drop_level || 1,
       cat: currencyCategory(bi.name, bi.tags),
     })
@@ -88,18 +95,22 @@ function poolActions(state: CraftItemState | null): CraftAction[] {
   ]
 }
 
-function appliesForSim(sim: string | null, state: CraftItemState, cur: CraftCurrencyEntry, data: CraftDataset): { applies: boolean; reason?: string } {
+function appliesForSim(
+  sim: string | null,
+  state: CraftItemState,
+  cur: CraftCurrencyEntry,
+  data: CraftDataset,
+): { applies: boolean; reason?: string } {
   if (!sim) return { applies: false, reason: 'Exact odds not modeled for this currency yet.' }
   const counts = countByKind(state.mods)
   const total = state.mods.length
   switch (sim) {
     case 'chaos':
-      return state.rarity === 'Rare'
-        ? { applies: true }
-        : { applies: false, reason: 'Only applies to Rare items.' }
+      return state.rarity === 'Rare' ? { applies: true } : { applies: false, reason: 'Only applies to Rare items.' }
     case 'exalt':
       if (state.rarity !== 'Rare') return { applies: false, reason: 'Only applies to Rare items.' }
-      if (total >= 6 || (counts.p >= 3 && counts.s >= 3)) return { applies: false, reason: 'No open prefix or suffix slot.' }
+      if (total >= 6 || (counts.p >= 3 && counts.s >= 3))
+        return { applies: false, reason: 'No open prefix or suffix slot.' }
       return { applies: true }
     case 'annul':
       return (state.rarity === 'Rare' || state.rarity === 'Magic') && total > 0
@@ -143,7 +154,8 @@ function appliesForSim(sim: string | null, state: CraftItemState, cur: CraftCurr
       if (sim.startsWith('essence:')) {
         const perfect = /perfect|alloy/i.test(cur.name)
         if (perfect) {
-          if (state.rarity !== 'Rare') return { applies: false, reason: 'Perfect essences and alloys need a Rare item.' }
+          if (state.rarity !== 'Rare')
+            return { applies: false, reason: 'Perfect essences and alloys need a Rare item.' }
           if (total === 0) return { applies: false, reason: 'Item needs at least one modifier.' }
         } else if (state.rarity !== 'Magic') {
           return { applies: false, reason: 'Essences apply to Magic items.' }
@@ -265,7 +277,12 @@ export function buildPoolForMode(
 }
 
 export function resolveSimActionId(actionId: string, data: CraftDataset): string {
-  if (actionId.startsWith('pool:') || ['chaos', 'exalt', 'annul', 'alteration', 'transmutation', 'augmentation', 'regal', 'alchemy', 'scouring'].includes(actionId)) {
+  if (
+    actionId.startsWith('pool:') ||
+    ['chaos', 'exalt', 'annul', 'alteration', 'transmutation', 'augmentation', 'regal', 'alchemy', 'scouring'].includes(
+      actionId,
+    )
+  ) {
     return actionId
   }
   if (actionId.startsWith('currency:')) {

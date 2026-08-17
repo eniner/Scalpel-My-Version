@@ -279,7 +279,15 @@ export function TierConditionInspector({
     const newCond: FilterCondition = {
       type,
       operator: numeric ? '>=' : type === 'Rarity' ? '>=' : '==',
-      values: bool ? ['True'] : type === 'Rarity' ? ['Normal'] : numeric ? ['1'] : type === 'Class' ? ['Stackable Currency'] : [''],
+      values: bool
+        ? ['True']
+        : type === 'Rarity'
+          ? ['Normal']
+          : numeric
+            ? ['1']
+            : type === 'Class'
+              ? ['Stackable Currency']
+              : [''],
       explicitOperator: numeric || type === 'Rarity',
     }
     const baseIdx = block.conditions.findIndex((c) => c.type === 'BaseType')
@@ -372,7 +380,9 @@ export function TierConditionInspector({
                   <select
                     value={c.operator}
                     disabled={busy || saving}
-                    onChange={(e) => updateCond(i, { operator: e.target.value as ComparisonOperator, explicitOperator: true })}
+                    onChange={(e) =>
+                      updateCond(i, { operator: e.target.value as ComparisonOperator, explicitOperator: true })
+                    }
                     style={{ ...inputStyle, width: 56 }}
                     aria-label={`${c.type} operator`}
                   >
@@ -400,7 +410,12 @@ export function TierConditionInspector({
             )
           })}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 4 }}>
-            <select value={addType} onChange={(e) => setAddType(e.target.value)} style={inputStyle} aria-label="Add condition type">
+            <select
+              value={addType}
+              onChange={(e) => setAddType(e.target.value)}
+              style={inputStyle}
+              aria-label="Add condition type"
+            >
               {ADDABLE_CONDITIONS.map((t) => (
                 <option key={t} value={t}>
                   {t}
@@ -477,9 +492,7 @@ export function TierConditionInspector({
                         }))
                         const baseIdx = withoutNonBase.findIndex((c) => c.type === 'BaseType')
                         const conditions =
-                          baseIdx >= 0
-                            ? [...applied, ...withoutNonBase]
-                            : [...withoutNonBase, ...applied]
+                          baseIdx >= 0 ? [...applied, ...withoutNonBase] : [...withoutNonBase, ...applied]
                         setBlock({ ...block, conditions })
                       }}
                     >
@@ -776,7 +789,12 @@ export function MatchDebuggerPanel({
     <div style={panelStyle} role="region" aria-label="Match debugger">
       <div style={{ fontSize: 12, fontWeight: 700, color: '#f0e6d2' }}>What wins?</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-        <button type="button" disabled={busy || running} onClick={() => void pasteFromClipboard()} style={{ fontSize: 11 }}>
+        <button
+          type="button"
+          disabled={busy || running}
+          onClick={() => void pasteFromClipboard()}
+          style={{ fontSize: 11 }}
+        >
           Paste PoE item
         </button>
         <button
@@ -886,7 +904,9 @@ export function MatchDebuggerPanel({
               }}
             >
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: 11, color: step.isWinner ? '#c9a227' : step.shadowed ? '#fca5a5' : '#f0e6d2' }}>
+                <strong
+                  style={{ fontSize: 11, color: step.isWinner ? '#c9a227' : step.shadowed ? '#fca5a5' : '#f0e6d2' }}
+                >
                   {step.isWinner ? '★ Winner' : step.shadowed ? 'Shadowed' : step.continue ? 'Continue' : 'Match'} ·{' '}
                   {step.visibility}
                 </strong>
@@ -913,7 +933,10 @@ export function MatchDebuggerPanel({
               <div style={{ fontSize: 10, color: '#6b6b7a', marginTop: 2 }}>{step.styleSummary}</div>
               <div style={{ fontSize: 10, color: '#9a9aab', marginTop: 2 }}>
                 {step.conditions
-                  .map((c) => `${c.result === 'pass' ? '✓' : '✗'} ${c.type}${c.operator !== '==' ? c.operator : ''} ${c.values.join(' ')}`)
+                  .map(
+                    (c) =>
+                      `${c.result === 'pass' ? '✓' : '✗'} ${c.type}${c.operator !== '==' ? c.operator : ''} ${c.values.join(' ')}`,
+                  )
                   .join(' · ')}
               </div>
             </div>
@@ -1006,10 +1029,15 @@ export function ReapplyPanel({ busy, onDone }: { busy?: boolean; onDone: () => v
     <div style={panelStyle} role="region" aria-label="Re-apply edits onto upstream">
       <div style={{ fontSize: 12, fontWeight: 700, color: '#f0e6d2' }}>Re-apply onto updated filter</div>
       <div style={{ fontSize: 11, color: '#9a9aab' }}>
-        Replays your recorded section edits onto the matching OnlineFilters copy. Does not switch in-game. Runs preflight first.
+        Replays your recorded section edits onto the matching OnlineFilters copy. Does not switch in-game. Runs
+        preflight first.
       </div>
       {preflightWarn && <div style={{ fontSize: 11, color: '#fbbf24' }}>{preflightWarn}</div>}
-      {msg && <div style={{ fontSize: 11, color: msg.includes('fail') || msg.includes('No ') ? '#f87171' : '#86efac' }}>{msg}</div>}
+      {msg && (
+        <div style={{ fontSize: 11, color: msg.includes('fail') || msg.includes('No ') ? '#f87171' : '#86efac' }}>
+          {msg}
+        </div>
+      )}
       {preview?.ok && (
         <div style={{ fontSize: 11, color: '#f0e6d2' }}>
           Source: <strong style={{ color: '#c9a227' }}>{preview.onlineFilterName ?? '—'}</strong>
@@ -1044,13 +1072,7 @@ export function ReapplyPanel({ busy, onDone }: { busy?: boolean; onDone: () => v
 }
 
 /** 4. Diff vs checkpoint + session edits + restore. */
-export function DiffRollbackPanel({
-  busy,
-  onRestored,
-}: {
-  busy?: boolean
-  onRestored: () => void
-}): JSX.Element {
+export function DiffRollbackPanel({ busy, onRestored }: { busy?: boolean; onRestored: () => void }): JSX.Element {
   const [changes, setChanges] = useState<FilterChange[]>([])
   const [versions, setVersions] = useState<FilterVersion[]>([])
   const [selected, setSelected] = useState('')
@@ -1108,9 +1130,7 @@ export function DiffRollbackPanel({
     <div style={panelStyle} role="region" aria-label="Diff and rollback">
       <div style={{ fontSize: 12, fontWeight: 700, color: '#f0e6d2' }}>Diff & rollback</div>
 
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#c9a227' }}>
-        Session edits ({changes.length})
-      </div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#c9a227' }}>Session edits ({changes.length})</div>
       <div style={{ maxHeight: 90, overflowY: 'auto', fontSize: 10, color: '#9a9aab' }}>
         {changes.length === 0 ? (
           <div>No recorded intents yet — edits that record intents will appear here.</div>
@@ -1140,10 +1160,20 @@ export function DiffRollbackPanel({
             </option>
           ))}
         </select>
-        <button type="button" disabled={busy || working || !selected} onClick={() => void runDiff()} style={{ fontSize: 11 }}>
+        <button
+          type="button"
+          disabled={busy || working || !selected}
+          onClick={() => void runDiff()}
+          style={{ fontSize: 11 }}
+        >
           Diff
         </button>
-        <button type="button" disabled={busy || working || !selected} onClick={() => void restore()} style={{ fontSize: 11 }}>
+        <button
+          type="button"
+          disabled={busy || working || !selected}
+          onClick={() => void restore()}
+          style={{ fontSize: 11 }}
+        >
           Restore
         </button>
       </div>
@@ -1154,16 +1184,24 @@ export function DiffRollbackPanel({
       {diff?.ok && (
         <div style={{ maxHeight: 140, overflowY: 'auto', fontSize: 10, color: '#f0e6d2' }}>
           <div style={{ color: '#9a9aab', marginBottom: 4 }}>
-            {diff.changedSectionCount === 0 ? 'No section differences' : `${diff.changedSectionCount} section(s) differ`}
+            {diff.changedSectionCount === 0
+              ? 'No section differences'
+              : `${diff.changedSectionCount} section(s) differ`}
           </div>
           {diff.sections.slice(0, 20).map((s) => (
             <div key={s.typePath} style={{ marginBottom: 6 }}>
               <strong style={{ color: '#c9a227' }}>{s.title}</strong>
               {s.onlyCurrent.length > 0 && (
-                <div style={{ color: '#86efac' }}>+ {s.onlyCurrent.slice(0, 8).join(', ')}{s.onlyCurrent.length > 8 ? '…' : ''}</div>
+                <div style={{ color: '#86efac' }}>
+                  + {s.onlyCurrent.slice(0, 8).join(', ')}
+                  {s.onlyCurrent.length > 8 ? '…' : ''}
+                </div>
               )}
               {s.onlyOther.length > 0 && (
-                <div style={{ color: '#fca5a5' }}>− {s.onlyOther.slice(0, 8).join(', ')}{s.onlyOther.length > 8 ? '…' : ''}</div>
+                <div style={{ color: '#fca5a5' }}>
+                  − {s.onlyOther.slice(0, 8).join(', ')}
+                  {s.onlyOther.length > 8 ? '…' : ''}
+                </div>
               )}
               {s.visibilityChanges.map((v) => (
                 <div key={v.tier} style={{ color: '#fcd34d' }}>
@@ -1328,7 +1366,12 @@ export function StrictnessDiffPanel({ busy, onDone }: { busy?: boolean; onDone?:
             </option>
           ))}
         </select>
-        <button type="button" disabled={busy || working || !leftPath || !rightPath} onClick={() => void run()} style={{ fontSize: 11 }}>
+        <button
+          type="button"
+          disabled={busy || working || !leftPath || !rightPath}
+          onClick={() => void run()}
+          style={{ fontSize: 11 }}
+        >
           Diff
         </button>
       </div>
@@ -1336,7 +1379,9 @@ export function StrictnessDiffPanel({ busy, onDone }: { busy?: boolean; onDone?:
       {applyNote && <div style={{ fontSize: 11, color: '#86efac' }}>{applyNote}</div>}
       {diff?.ok && (
         <>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', fontSize: 11, color: '#f0e6d2' }}>
+          <div
+            style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', fontSize: 11, color: '#f0e6d2' }}
+          >
             <label style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               <input type="checkbox" checked={addMissing} onChange={(e) => setAddMissing(e.target.checked)} />
               Add BaseTypes from right
@@ -1447,7 +1492,12 @@ export function SectionChangesPanel({
         <button type="button" disabled={busy} onClick={() => void refresh()} style={{ fontSize: 10 }}>
           Refresh
         </button>
-        <button type="button" disabled={busy || changes.length === 0} onClick={onUndoLast} style={{ fontSize: 10, marginLeft: 'auto' }}>
+        <button
+          type="button"
+          disabled={busy || changes.length === 0}
+          onClick={onUndoLast}
+          style={{ fontSize: 10, marginLeft: 'auto' }}
+        >
           Undo last
         </button>
         {activeTypePath && onUndoSection && (
@@ -1563,7 +1613,9 @@ export function BatchConditionPanel({
         let changed = false
         if (preset) {
           const base = block.conditions.filter((c) => c.type === 'BaseType')
-          const nonBase = preset.conditions.filter((c) => c.type !== 'BaseType').map((c) => ({ ...c, values: [...c.values] }))
+          const nonBase = preset.conditions
+            .filter((c) => c.type !== 'BaseType')
+            .map((c) => ({ ...c, values: [...c.values] })) as FilterCondition[]
           block = { ...block, conditions: [...nonBase, ...base] }
           changed = true
         }
@@ -1599,7 +1651,9 @@ export function BatchConditionPanel({
   return (
     <div style={panelStyle} role="region" aria-label="Batch condition apply">
       <div style={{ fontSize: 12, fontWeight: 700, color: '#f0e6d2' }}>Batch apply</div>
-      <div style={{ fontSize: 11, color: '#9a9aab' }}>Apply a preset, StackSize, and/or Show/Hide to many tiers at once.</div>
+      <div style={{ fontSize: 11, color: '#9a9aab' }}>
+        Apply a preset, StackSize, and/or Show/Hide to many tiers at once.
+      </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <button type="button" style={{ fontSize: 10 }} onClick={selectAll}>
           Select all tiers
@@ -1610,14 +1664,22 @@ export function BatchConditionPanel({
       </div>
       <div style={{ maxHeight: 120, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {section.tiers.map((t) => (
-          <label key={t.blockIndex} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, color: '#f0e6d2' }}>
+          <label
+            key={t.blockIndex}
+            style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, color: '#f0e6d2' }}
+          >
             <input type="checkbox" checked={selected.has(t.blockIndex)} onChange={() => toggle(t.blockIndex)} />
             {t.label} · {t.visibility}
           </label>
         ))}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-        <select value={presetId} onChange={(e) => setPresetId(e.target.value)} style={{ ...inputStyle, minWidth: 120 }} aria-label="Preset">
+        <select
+          value={presetId}
+          onChange={(e) => setPresetId(e.target.value)}
+          style={{ ...inputStyle, minWidth: 120 }}
+          aria-label="Preset"
+        >
           <option value="">Preset…</option>
           {presets.map((p) => (
             <option key={p.id} value={p.id}>
@@ -1625,12 +1687,22 @@ export function BatchConditionPanel({
             </option>
           ))}
         </select>
-        <select value={vis} onChange={(e) => setVis(e.target.value as '' | 'Show' | 'Hide')} style={inputStyle} aria-label="Visibility">
+        <select
+          value={vis}
+          onChange={(e) => setVis(e.target.value as '' | 'Show' | 'Hide')}
+          style={inputStyle}
+          aria-label="Visibility"
+        >
           <option value="">Visibility…</option>
           <option value="Show">Show</option>
           <option value="Hide">Hide</option>
         </select>
-        <select value={stackOp} onChange={(e) => setStackOp(e.target.value)} style={{ ...inputStyle, width: 56 }} aria-label="Stack op">
+        <select
+          value={stackOp}
+          onChange={(e) => setStackOp(e.target.value)}
+          style={{ ...inputStyle, width: 56 }}
+          aria-label="Stack op"
+        >
           {OPS.map((o) => (
             <option key={o} value={o}>
               {o}
@@ -1720,7 +1792,9 @@ export function LootFilmstripPanel({
           {loading ? '…' : 'Refresh'}
         </button>
       </div>
-      <div style={{ fontSize: 11, color: '#9a9aab' }}>Last Ctrl+C items Scalpel evaluated — click to open What wins?</div>
+      <div style={{ fontSize: 11, color: '#9a9aab' }}>
+        Last Ctrl+C items Scalpel evaluated — click to open What wins?
+      </div>
       {error && <div style={{ fontSize: 11, color: '#f87171' }}>{error}</div>}
       {rows.length === 0 && !loading ? (
         <div style={{ fontSize: 11, color: '#9a9aab' }}>No recent items yet.</div>
@@ -1748,7 +1822,16 @@ export function LootFilmstripPanel({
               <div style={{ fontSize: 10, color: '#9a9aab' }}>
                 {r.visibility ?? '?'} · {r.winner ?? 'no match'}
               </div>
-              <div style={{ fontSize: 9, color: '#6b6b7a', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  color: '#6b6b7a',
+                  marginTop: 4,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {r.style || '—'}
               </div>
             </button>
@@ -1851,7 +1934,14 @@ export function EconomyNudgesPanel({
     const top = ranked.slice(0, Math.min(2, ranked.length))
     const low = ranked.filter((t) => {
       const id = t.tier.toLowerCase()
-      return t.visibility !== 'Show' || /[c-z]$/.test(id) || id.includes('c') || id.includes('d') || id.includes('e') || id.includes('f')
+      return (
+        t.visibility !== 'Show' ||
+        /[c-z]$/.test(id) ||
+        id.includes('c') ||
+        id.includes('d') ||
+        id.includes('e') ||
+        id.includes('f')
+      )
     })
     const out: Array<{ baseType: string; chaos: number; from: FilterSectionTier; to: FilterSectionTier }> = []
     for (const t of low.length ? low : ranked.slice(2)) {
@@ -1869,7 +1959,9 @@ export function EconomyNudgesPanel({
   return (
     <div style={panelStyle} role="region" aria-label="Economy nudges">
       <div style={{ fontSize: 12, fontWeight: 700, color: '#f0e6d2' }}>Economy nudges</div>
-      <div style={{ fontSize: 11, color: '#9a9aab' }}>Priced items in lower/hidden tiers — one-click bump toward top Show tiers.</div>
+      <div style={{ fontSize: 11, color: '#9a9aab' }}>
+        Priced items in lower/hidden tiers — one-click bump toward top Show tiers.
+      </div>
       {!section ? (
         <div style={{ fontSize: 11, color: '#9a9aab' }}>Open a section.</div>
       ) : nudges.length === 0 ? (
@@ -1877,7 +1969,10 @@ export function EconomyNudgesPanel({
       ) : (
         <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {nudges.map((n) => (
-            <div key={`${n.baseType}-${n.from.blockIndex}`} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11 }}>
+            <div
+              key={`${n.baseType}-${n.from.blockIndex}`}
+              style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11 }}
+            >
               <span style={{ flex: 1, color: '#f0e6d2' }}>
                 {n.baseType} · {n.chaos.toFixed(1)}c · {n.from.label} → {n.to.label}
               </span>
@@ -1946,7 +2041,10 @@ export function SectionTemplatesPanel({
     if (!section) return
     const tpl = templates.find((t) => t.id === id)
     if (!tpl) return
-    if (!window.confirm(`Apply template “${tpl.name}” visibility + conditions onto matching tiers in ${section.title}?`)) return
+    if (
+      !window.confirm(`Apply template “${tpl.name}” visibility + conditions onto matching tiers in ${section.title}?`)
+    )
+      return
     setWorking(true)
     setNote(null)
     try {
@@ -1997,7 +2095,9 @@ export function SectionTemplatesPanel({
   return (
     <div style={panelStyle} role="region" aria-label="Section templates">
       <div style={{ fontSize: 12, fontWeight: 700, color: '#f0e6d2' }}>Section templates</div>
-      <div style={{ fontSize: 11, color: '#9a9aab' }}>Export/import visibility + conditions (not BaseType lists) across filters.</div>
+      <div style={{ fontSize: 11, color: '#9a9aab' }}>
+        Export/import visibility + conditions (not BaseType lists) across filters.
+      </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           value={name}
@@ -2006,7 +2106,12 @@ export function SectionTemplatesPanel({
           disabled={!section}
           style={{ ...inputStyle, flex: 1, minWidth: 120 }}
         />
-        <button type="button" disabled={!section || busy || working} onClick={() => void saveCurrent()} style={{ fontSize: 11 }}>
+        <button
+          type="button"
+          disabled={!section || busy || working}
+          onClick={() => void saveCurrent()}
+          style={{ fontSize: 11 }}
+        >
           Save current
         </button>
         <button type="button" style={{ fontSize: 10 }} onClick={() => void doExport()}>
@@ -2020,7 +2125,12 @@ export function SectionTemplatesPanel({
             <span style={{ flex: 1, color: '#f0e6d2' }}>
               {t.name} · {t.title} ({t.tiers.length} tiers)
             </span>
-            <button type="button" disabled={!section || busy || working} style={{ fontSize: 10 }} onClick={() => void applyTemplate(t.id)}>
+            <button
+              type="button"
+              disabled={!section || busy || working}
+              style={{ fontSize: 10 }}
+              onClick={() => void applyTemplate(t.id)}
+            >
               Apply
             </button>
             <button
@@ -2043,7 +2153,12 @@ export function SectionTemplatesPanel({
         rows={2}
         style={{ ...inputStyle, width: '100%', resize: 'vertical', fontFamily: 'ui-monospace, monospace' }}
       />
-      <button type="button" disabled={!importJson.trim()} onClick={doImport} style={{ fontSize: 10, alignSelf: 'flex-start' }}>
+      <button
+        type="button"
+        disabled={!importJson.trim()}
+        onClick={doImport}
+        style={{ fontSize: 10, alignSelf: 'flex-start' }}
+      >
         Import JSON
       </button>
       {note && <div style={{ fontSize: 11, color: '#86efac' }}>{note}</div>}

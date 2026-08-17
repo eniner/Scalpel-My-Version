@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 import { getActiveMatch } from '../../shared/activeMatch'
 import { ItemSummary } from '../../components/ItemSummary'
 import { FilterBlockEditor, type SaveState } from './filter-block-editor'
+import { AddToCustomTier } from './AddToCustomTier'
 import { TierNavigator } from './TierNavigator'
 import { getItemIconUrl, RARITY_COLORS } from './filter-panel/constants'
 import { CollapsedHeader } from './filter-panel/CollapsedHeader'
@@ -158,6 +159,7 @@ export function FilterPanel({
           flush
         />
         <div className="p-3 flex flex-col gap-3">
+          <AddToCustomTier item={item} />
           {activeTierGroup && (
             <TierNavigator
               key={activeTierGroup.currentTier}

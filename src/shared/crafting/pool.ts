@@ -166,24 +166,28 @@ export function allEligibleForExalt(
   const tierFloor = opts.tierFloor ?? 0
   const pool: Array<CraftMod & { weight: number }> = []
   if (counts.p < opts.maxPrefix) {
-    pool.push(...eligibleMods(data, tags, state.itemLevel, 'p', blocked, {
-      maxPrefix: opts.maxPrefix,
-      maxSuffix: opts.maxSuffix,
-      prefixCount: counts.p,
-      suffixCount: counts.s,
-      baseType: state.baseType,
-      tierFloor,
-    }))
+    pool.push(
+      ...eligibleMods(data, tags, state.itemLevel, 'p', blocked, {
+        maxPrefix: opts.maxPrefix,
+        maxSuffix: opts.maxSuffix,
+        prefixCount: counts.p,
+        suffixCount: counts.s,
+        baseType: state.baseType,
+        tierFloor,
+      }),
+    )
   }
   if (counts.s < opts.maxSuffix) {
-    pool.push(...eligibleMods(data, tags, state.itemLevel, 's', blocked, {
-      maxPrefix: opts.maxPrefix,
-      maxSuffix: opts.maxSuffix,
-      prefixCount: counts.p,
-      suffixCount: counts.s,
-      baseType: state.baseType,
-      tierFloor,
-    }))
+    pool.push(
+      ...eligibleMods(data, tags, state.itemLevel, 's', blocked, {
+        maxPrefix: opts.maxPrefix,
+        maxSuffix: opts.maxSuffix,
+        prefixCount: counts.p,
+        suffixCount: counts.s,
+        baseType: state.baseType,
+        tierFloor,
+      }),
+    )
   }
   return withCatalystWeights(data, state, pool)
 }
@@ -251,8 +255,7 @@ export function itemStateFromPoeItem(
     itemClass: item.itemClass || base?.c || 'Item',
     corrupted: item.corrupted,
     mods,
-    marksmanEnabled:
-      opts?.marksmanEnabled !== undefined ? opts.marksmanEnabled : itemHasMarksmanImplicit(item),
+    marksmanEnabled: opts?.marksmanEnabled !== undefined ? opts.marksmanEnabled : itemHasMarksmanImplicit(item),
   }
 }
 
@@ -284,6 +287,7 @@ export function itemStateToPoeItem(state: CraftItemState): import('../contracts/
     transfigured: false,
     blighted: false,
     zanaMemory: false,
+    scourged: false,
     implicitCount: 0,
     gemLevel: 0,
     stackSize: 1,
@@ -296,6 +300,9 @@ export function itemStateToPoeItem(state: CraftItemState): import('../contracts/
       type: m.kind === 'p' ? 'prefix' : 'suffix',
       name: m.name ?? m.group,
       lines: [m.text],
+      tier: 0,
+      tags: [],
+      ranges: [],
     })),
   }
 }

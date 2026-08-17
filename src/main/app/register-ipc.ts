@@ -18,6 +18,7 @@ import * as filesHandlers from '../handlers/files'
 import * as editingHandlers from '../handlers/editing'
 import * as versionsHandlers from '../handlers/versions'
 import * as onlineSyncHandlers from '../handlers/online-sync'
+import * as customTierHandlers from '../handlers/custom-tiers'
 import * as pricesHandlers from '../handlers/prices'
 import { register as registerCheatSheets } from '../handlers/cheat-sheets'
 import { register as registerWhiteboard } from '../handlers/whiteboard'
@@ -53,6 +54,7 @@ export function registerAllIpc(deps: IpcRegistrationDeps): void {
   editingHandlers.register(store)
   versionsHandlers.register(store)
   onlineSyncHandlers.register(store)
+  customTierHandlers.register(store)
   pricesHandlers.register(store)
   registerCheatSheets()
   registerWhiteboard()

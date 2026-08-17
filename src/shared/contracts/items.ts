@@ -25,6 +25,14 @@ export interface TierTag {
   tier: string
 }
 
+/** Sidecar custom tier. Survives FilterBlade updates and Scalpel economy refresh. */
+export interface CustomTier {
+  id: string
+  typePath: string
+  visibility: Visibility
+  baseTypes: string[]
+}
+
 export interface FilterBlock {
   id: string
   visibility: Visibility

@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // electron's `app.getPath('userData')` drives the on-disk path; mock it to a
 // throwaway location and skip fs writes entirely (debounce timer never fires
 // in these synchronous tests).
-vi.mock('electron', () => ({ app: { getPath: () => '/tmp/test-scalpel' } }))
+vi.mock('electron', () => ({
+  app: { getPath: () => '/tmp/test-scalpel', on: () => {} },
+  ipcMain: { on: () => {}, handle: () => {}, removeListener: () => {} },
+}))
 
 // Both bundled JSONs are imported at module load; stub them with a few known
 // entries so we can verify bundled-wins-over-cache behaviour.

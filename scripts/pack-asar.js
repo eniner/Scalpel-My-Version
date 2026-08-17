@@ -28,11 +28,18 @@ if (!fs.existsSync(outDir)) {
 
 // Use npm to resolve the full production dependency tree (including nested deps)
 const { execSync } = require('node:child_process')
-const npmOutput = execSync('npm ls --prod --all --parseable', {
-  cwd: projectRoot,
-  encoding: 'utf8',
-  stdio: ['pipe', 'pipe', 'ignore'],
-})
+let npmOutput = ''
+try {
+  npmOutput = execSync('npm ls --prod --all --parseable', {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'ignore'],
+  })
+} catch (err) {
+  npmOutput = err.stdout || ''
+  if (!npmOutput.trim()) throw err
+  console.warn('npm ls exited non-zero; packing from partial production tree')
+}
 const prodPaths = npmOutput
   .trim()
   .split('\n')

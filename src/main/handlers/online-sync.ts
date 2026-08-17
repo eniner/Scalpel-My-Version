@@ -8,6 +8,7 @@ import { getBaselineByLocalPath, saveBaseline } from '../baselines'
 import { clearIntents, getIntents } from '../filter/intent-recorder'
 import { replayIntents } from '../filter/intent-replay'
 import { applyLocalNameHeader } from '../filter/local-name'
+import { applyCustomTiersToFile, clearCustomTiers } from '../filter/custom-tiers'
 import { writeFilterSelective } from '../filter/writer'
 import { loadFilter } from '../filter-state'
 import { switchFilterInGame } from '../overlay'
@@ -84,6 +85,7 @@ export function register(store: Store<AppSettings>): void {
         const content = applyLocalNameHeader(originalContent, localName)
         writeFileSync(targetPath, content, 'utf-8')
         clearIntents()
+        applyCustomTiersToFile(targetPath)
         // Set as active filter
         return { ok: true, path: targetPath }
       } catch (err) {
@@ -135,6 +137,7 @@ export function register(store: Store<AppSettings>): void {
       writeFileSync(filterPath, applyLocalNameHeader(baseline.content, localFileName), 'utf-8')
       // Discard recorded edits so a later sync does not re-apply them.
       clearIntents()
+      clearCustomTiers(filterPath)
       loadFilter(filterPath, 'Filter Reset')
       await switchFilterInGame(localFileName, localFileName)
       return { ok: true }
@@ -173,6 +176,7 @@ export function register(store: Store<AppSettings>): void {
         if (intentLog.intents.length === 0) {
           // No intents - overwrite with upstream
           writeFileSync(info.localPath, localContent, 'utf-8')
+          applyCustomTiersToFile(info.localPath)
         } else {
           const result = replayIntents(localContent, info.localPath, intentLog, { forceApply: true })
           const { fallbackBlocks } = writeFilterSelective(result.filter, result.modifiedBlocks, result.removedBlocks)
@@ -188,6 +192,7 @@ export function register(store: Store<AppSettings>): void {
         // Update baseline for migration-era compatibility
         saveBaseline(info.onlineFilterName, upstreamContent, info.onlineFilePath, info.localPath)
         saveVersion(info.localPath, false, 'Online Filter Merged')
+        applyCustomTiersToFile(info.localPath)
 
         const currentPath = getProfileBackedSetting(store, 'filterPath')
         if (currentPath === info.localPath) {
@@ -238,6 +243,7 @@ export function register(store: Store<AppSettings>): void {
         if (intentLog.intents.length === 0) {
           // No intents - overwrite with upstream
           writeFileSync(localPath, localContent, 'utf-8')
+          applyCustomTiersToFile(localPath)
           const currentPath = getProfileBackedSetting(store, 'filterPath')
           if (currentPath === localPath) loadFilter(localPath, 'Online Filter Updated')
           return { ok: true, stats: { applied: 0, skipped: 0, conflicts: 0 } }
@@ -270,6 +276,7 @@ export function register(store: Store<AppSettings>): void {
         }
 
         saveVersion(localPath, false, 'Online Filter Merged')
+        applyCustomTiersToFile(localPath)
 
         const currentPath = getProfileBackedSetting(store, 'filterPath')
         if (currentPath === localPath) loadFilter(localPath, 'Online Filter Merged')
@@ -358,6 +365,7 @@ export function register(store: Store<AppSettings>): void {
         const content = applyLocalNameHeader(originalContent, localName)
         writeFileSync(localPath, content, 'utf-8')
         clearIntents()
+        applyCustomTiersToFile(localPath)
         return {
           ok: true,
           filterDir: dir,
@@ -411,43 +419,40 @@ export function register(store: Store<AppSettings>): void {
    * Apply recorded intents onto the online upstream into the local filter.
    * Does NOT switch the in-game filter (safe from section editor).
    */
-  ipcMain.handle(
-    'apply-filter-reapply',
-    async (): Promise<FilterReapplyResult> => {
-      const info = findOnlineFilter(store)
-      if ('error' in info) return { ok: false, error: info.error }
-      try {
-        const upstreamContent = readFileSync(info.onlineFilePath, 'utf-8')
-        const localContent = applyLocalNameHeader(upstreamContent, info.localFileName)
-        const intentLog = getIntents()
+  ipcMain.handle('apply-filter-reapply', async (): Promise<FilterReapplyResult> => {
+    const info = findOnlineFilter(store)
+    if ('error' in info) return { ok: false, error: info.error }
+    try {
+      const upstreamContent = readFileSync(info.onlineFilePath, 'utf-8')
+      const localContent = applyLocalNameHeader(upstreamContent, info.localFileName)
+      const intentLog = getIntents()
 
-        let skippedForValidity = 0
-        let applied = 0
-        let skipped = 0
-        const conflicts: Array<{ description: string }> = []
+      let skippedForValidity = 0
+      let applied = 0
+      let skipped = 0
+      const conflicts: Array<{ description: string }> = []
 
-        if (intentLog.intents.length === 0) {
-          writeFileSync(info.localPath, localContent, 'utf-8')
-        } else {
-          const result = replayIntents(localContent, info.localPath, intentLog, { forceApply: true })
-          const { fallbackBlocks } = writeFilterSelective(result.filter, result.modifiedBlocks, result.removedBlocks)
-          skippedForValidity = fallbackBlocks.length
-          applied = result.stats.applied
-          skipped = result.stats.skipped
-          conflicts.push(...result.conflicts.map((c) => ({ description: c.description })))
-        }
-
-        saveBaseline(info.onlineFilterName, upstreamContent, info.onlineFilePath, info.localPath)
-        saveVersion(info.localPath, false, 'Section Reapply')
-        const currentPath = getProfileBackedSetting(store, 'filterPath')
-        if (currentPath === info.localPath) {
-          loadFilter(info.localPath, 'Section Reapply')
-        }
-
-        return { ok: true, applied, skipped, skippedForValidity, conflicts }
-      } catch (err) {
-        return { ok: false, error: String(err) }
+      if (intentLog.intents.length === 0) {
+        writeFileSync(info.localPath, localContent, 'utf-8')
+      } else {
+        const result = replayIntents(localContent, info.localPath, intentLog, { forceApply: true })
+        const { fallbackBlocks } = writeFilterSelective(result.filter, result.modifiedBlocks, result.removedBlocks)
+        skippedForValidity = fallbackBlocks.length
+        applied = result.stats.applied
+        skipped = result.stats.skipped
+        conflicts.push(...result.conflicts.map((c) => ({ description: c.description })))
       }
-    },
-  )
+
+      saveBaseline(info.onlineFilterName, upstreamContent, info.onlineFilePath, info.localPath)
+      saveVersion(info.localPath, false, 'Section Reapply')
+      const currentPath = getProfileBackedSetting(store, 'filterPath')
+      if (currentPath === info.localPath) {
+        loadFilter(info.localPath, 'Section Reapply')
+      }
+
+      return { ok: true, applied, skipped, skippedForValidity, conflicts }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  })
 }

@@ -19,6 +19,7 @@ export type {
   RgbaColor,
   FilterAction,
   TierTag,
+  CustomTier,
   FilterBlock,
   FilterFile,
   FilterListEntry,

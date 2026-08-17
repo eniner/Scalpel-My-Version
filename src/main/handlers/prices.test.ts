@@ -22,6 +22,7 @@ vi.mock('../evaluation', () => ({
   runPriceCheck: vi.fn(),
 }))
 vi.mock('electron', () => ({
+  app: { getPath: () => '/tmp', on: vi.fn() },
   ipcMain: { handle: vi.fn(), on: vi.fn() },
 }))
 

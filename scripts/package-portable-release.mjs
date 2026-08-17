@@ -64,6 +64,43 @@ function ensure() {
   }
 }
 
+function writeShortcutPs1(dest) {
+  // Resolves OneDrive Desktop + Start Menu via .NET, then pins a .lnk that
+  // uses Scalpel.exe's own embedded icon (most reliable on Windows).
+  const content = `param(
+  [Parameter(Mandatory = $true)][string]$InstallDir,
+  [string]$ShortcutName = 'Scalpel My Version'
+)
+
+$ErrorActionPreference = 'Stop'
+$exe = Join-Path $InstallDir 'Scalpel.exe'
+if (-not (Test-Path $exe)) { throw "Scalpel.exe not found in $InstallDir" }
+
+$ico = Join-Path $InstallDir 'Scalpel.ico'
+if (-not (Test-Path $ico)) { $ico = Join-Path $InstallDir 'resources\\icon.ico' }
+$iconLocation = if (Test-Path $ico) { $ico } else { "$exe,0" }
+
+function New-ScalpelShortcut([string]$path) {
+  $folder = Split-Path $path -Parent
+  if (-not (Test-Path $folder)) { New-Item -ItemType Directory -Path $folder -Force | Out-Null }
+  $ws = New-Object -ComObject WScript.Shell
+  $s = $ws.CreateShortcut($path)
+  $s.TargetPath = $exe
+  $s.WorkingDirectory = $InstallDir
+  $s.IconLocation = $iconLocation
+  $s.Description = 'Scalpel My Version ${releaseTag}'
+  $s.Save()
+  Write-Host "  shortcut: $path"
+}
+
+$desktop = [Environment]::GetFolderPath('Desktop')
+$programs = [Environment]::GetFolderPath('Programs')
+New-ScalpelShortcut (Join-Path $desktop "$ShortcutName.lnk")
+New-ScalpelShortcut (Join-Path $programs "$ShortcutName.lnk")
+`
+  writeFileSync(dest, content.replace(/\n/g, '\r\n'))
+}
+
 function writeInstallBat(dest) {
   // Double-click installer: copies app to LocalAppData, seeds plugins, makes desktop icon, launches.
   const content = `@echo off
@@ -72,8 +109,6 @@ cd /d "%~dp0"
 
 set "INSTALL_DIR=%LOCALAPPDATA%\\Programs\\Scalpel-My-Version"
 set "PLUGINS_DIR=%APPDATA%\\Scalpel\\plugins"
-set "DESKTOP=%USERPROFILE%\\Desktop"
-set "ICON=%~dp0resources\\icon.ico"
 
 echo.
 echo  ========================================
@@ -104,15 +139,18 @@ for %%P in (${PLUGIN_IDS.join(' ')}) do (
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$p='%PLUGINS_DIR%\\installed.json'; $ids=@(${PLUGIN_IDS.map((id) => `'${id}'`).join(',')}); $cur=@(); if(Test-Path $p){try{$cur=Get-Content $p -Raw|ConvertFrom-Json}catch{}}; if(-not($cur -is [System.Array])){$cur=@()}; foreach($i in $ids){if($cur -notcontains $i){$cur+=$i}}; $cur|ConvertTo-Json|Set-Content -Encoding UTF8 $p"
 
-echo [3/4] Creating Desktop shortcut...
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$ws=New-Object -ComObject WScript.Shell; $s=$ws.CreateShortcut('%DESKTOP%\\Scalpel My Version.lnk'); $s.TargetPath='%INSTALL_DIR%\\Scalpel.exe'; $s.WorkingDirectory='%INSTALL_DIR%'; $s.IconLocation='%INSTALL_DIR%\\resources\\icon.ico'; $s.Description='Scalpel My Version ${releaseTag}'; $s.Save()"
+echo [3/4] Creating Desktop + Start Menu icons...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\\Create-Shortcuts.ps1" "%INSTALL_DIR%"
+if errorlevel 1 (
+  echo WARNING: Shortcut creation failed. You can still launch:
+  echo          %INSTALL_DIR%\\Scalpel.exe
+)
 
 echo [4/4] Launching Scalpel...
 start "" "%INSTALL_DIR%\\Scalpel.exe"
 
 echo.
-echo  Done. Use the Desktop icon "Scalpel My Version" next time.
+echo  Done. Use the Desktop / Start Menu icon "Scalpel My Version" next time.
 echo.
 timeout /t 4 >nul
 `
@@ -148,10 +186,11 @@ function writeReadme(dest) {
 EASY INSTALL (recommended)
 1. Unzip this folder anywhere
 2. Double-click  Install Scalpel.bat
-3. Use the new Desktop icon: "Scalpel My Version"
+3. Use the new Desktop / Start Menu icon: "Scalpel My Version"
 
 That installs to %LOCALAPPDATA%\\Programs\\Scalpel-My-Version,
-copies all plugins, and launches the app. No Node.js, no npm, no build.
+copies all plugins, creates the Scalpel icon, and launches the app.
+No Node.js, no npm, no build.
 
 PORTABLE (no install)
 - Double-click  Launch Scalpel (Portable).bat
@@ -182,9 +221,12 @@ function assemble() {
   if (existsSync(unpackedDest)) rmSync(unpackedDest, { recursive: true, force: true })
   if (existsSync(asarUnpackedSrc)) cpSync(asarUnpackedSrc, unpackedDest, { recursive: true })
 
-  // Keep fork branding icon for shortcuts
+  // Fork branding: beside the exe (shortcut-friendly) and in resources/
   const iconSrc = join(root, 'resources', 'icon.ico')
-  if (existsSync(iconSrc)) copyFileSync(iconSrc, join(resources, 'icon.ico'))
+  if (existsSync(iconSrc)) {
+    copyFileSync(iconSrc, join(resources, 'icon.ico'))
+    copyFileSync(iconSrc, join(stageApp, 'Scalpel.ico'))
+  }
 
   console.log('Bundling plugins…')
   const bundled = join(stageApp, 'bundled-plugins')
@@ -199,6 +241,7 @@ function assemble() {
     }
   }
 
+  writeShortcutPs1(join(stageApp, 'Create-Shortcuts.ps1'))
   writeInstallBat(join(stageApp, 'Install Scalpel.bat'))
   writePortableLaunchBat(join(stageApp, 'Launch Scalpel (Portable).bat'))
   writeReadme(join(stageApp, 'README-INSTALL.txt'))

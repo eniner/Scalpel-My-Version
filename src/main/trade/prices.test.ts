@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({
-  app: { getPath: () => '/tmp', getAppPath: () => '/tmp', userAgentFallback: 'Scalpel-Test/1.0' },
+  app: { getPath: () => '/tmp', getAppPath: () => '/tmp', userAgentFallback: 'Scalpel-Test/1.0', on: () => {} },
   ipcMain: { on: vi.fn(), handle: vi.fn(), removeListener: vi.fn() },
   net: { request: vi.fn() },
 }))

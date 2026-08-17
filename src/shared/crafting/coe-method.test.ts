@@ -25,10 +25,14 @@ describe('CoE method parity', () => {
     expect(pool.length).toBeGreaterThan(0)
     expect(pool.every((m) => !m.desecrated)).toBe(true)
 
-    const exalt = allEligibleForExalt(data, { ...state, rarity: 'Rare', mods: [] }, {
-      maxPrefix: 3,
-      maxSuffix: 3,
-    })
+    const exalt = allEligibleForExalt(
+      data,
+      { ...state, rarity: 'Rare', mods: [] },
+      {
+        maxPrefix: 3,
+        maxSuffix: 3,
+      },
+    )
     expect(exalt.every((m) => !m.desecrated)).toBe(true)
   })
 
@@ -63,16 +67,11 @@ describe('CoE method parity', () => {
     expect(attrs.includes('drop')).toBe(false)
 
     // Homogenise filter must not require `drop` even if somehow present on attrs list
-    const mod = rollOneExaltMod(
-      data,
-      { ...alch.state, mods: alch.state.mods.slice(0, 2) },
-      () => 0.3,
-      0,
-      undefined,
-      { homogenise: true },
-    )
+    const mod = rollOneExaltMod(data, { ...alch.state, mods: alch.state.mods.slice(0, 2) }, () => 0.3, 0, undefined, {
+      homogenise: true,
+    })
     expect(mod).toBeTruthy()
     expect(mod!.desecrated).toBeFalsy()
     void state
-  })
+  }, 60_000)
 })

@@ -69,7 +69,7 @@ export function createPluginContext(deps: PluginContextFactoryDeps): ScalpelPlug
     filter: deps.filter,
     webPanel: deps.webPanel,
     readClipboardText: () => deps.readClipboardText(),
-    craft: deps.craft,
+    craft: deps.craft as ScalpelPluginContext['craft'],
     openExternal: deps.openExternal,
     openTab: () => deps.openTab(deps.pluginId),
     copyAndEvaluateItem: () => deps.copyAndEvaluateItem(),

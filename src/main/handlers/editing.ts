@@ -21,6 +21,8 @@ import type {
 } from '@shared/types'
 import { defaultPoeItem } from '@shared/poe-item'
 import { evaluateAndSend, getLastEvaluatedItem, getRecentEvaluatedItems } from '../evaluation'
+import { isCustomBlock } from '../filter/custom-tier-inject'
+import { applyCustomTiersToFile, moveItemBetweenCustomTiers } from '../filter/custom-tiers'
 import { describeIntent } from '../filter/intent-describe'
 import { getIntents, mergeIntents, record, replaceIntents } from '../filter/intent-recorder'
 import {
@@ -49,6 +51,36 @@ import { parseItemText } from '../trade/clipboard'
 import { basename, extname, join } from 'node:path'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import type { FilterFile, MatchResult } from '@shared/types'
+
+function customIdOf(block: FilterBlock | undefined): string | null {
+  if (!block || !isCustomBlock(block)) return null
+  const m = block.inlineComment?.match(/\$custom->(\S+)/)
+  return m?.[1] ?? null
+}
+
+function applyCustomRetier(
+  store: Store<AppSettings>,
+  filterPath: string,
+  baseTypes: string[],
+  fromId: string | null,
+  toId: string | null,
+  toTypePath: string | undefined,
+  itemJson: string,
+): void {
+  for (const bt of baseTypes) {
+    moveItemBetweenCustomTiers(filterPath, bt, fromId, toId, toTypePath)
+  }
+  applyCustomTiersToFile(filterPath)
+  loadFilter(filterPath)
+  if (itemJson) {
+    try {
+      evaluateAndSend(JSON.parse(itemJson) as PoeItem)
+    } catch {
+      /* ignore */
+    }
+  }
+  if (store.get('reloadOnSave') !== false) reloadFilterInGame()
+}
 
 function matchStepsFromResults(matches: MatchResult[]): FilterMatchStep[] {
   const winnerIdx = matches.find((m) => m.isFirstMatch)?.blockIndex ?? null
@@ -125,7 +157,12 @@ function buildSyntheticItem(req: Partial<FilterMatchRequest> & { baseType: strin
   )
 }
 
-function sectionDiffBetween(left: FilterFile, right: FilterFile, leftLabel: string, rightLabel: string): FilterVersionDiff {
+function sectionDiffBetween(
+  left: FilterFile,
+  right: FilterFile,
+  leftLabel: string,
+  rightLabel: string,
+): FilterVersionDiff {
   const leftSections = buildFilterSections(left)
   const rightSections = buildFilterSections(right)
   const rightByPath = new Map(rightSections.map((s) => [s.typePath, s]))
@@ -258,42 +295,39 @@ export function register(store: Store<AppSettings>): void {
     return { ok: true as const, path: currentFilter.path, sections: buildFilterSections(currentFilter) }
   })
 
-  ipcMain.handle(
-    'set-section-tier-visibility',
-    (_event, blockIndex: number, visibility: FilterBlock['visibility']) => {
-      const currentFilter = getCurrentFilter()
-      if (!currentFilter) return { ok: false, error: 'No filter loaded' }
-      const oldBlock = currentFilter.blocks[blockIndex]
-      if (!oldBlock) return { ok: false, error: 'Block not found' }
-      if (oldBlock.visibility === visibility) return { ok: true }
-      try {
-        const updatedBlock: FilterBlock = { ...oldBlock, visibility }
-        const tier = oldBlock.tierTag?.tier ?? `block #${blockIndex + 1}`
-        captureSnapshot(
-          currentFilter.path,
-          'block-edit',
-          `${oldBlock.visibility} → ${visibility} (${tier})`,
-          undefined,
-          oldBlock.tierTag?.typePath,
-        )
-        if (oldBlock.tierTag) {
-          record({
-            type: 'set-visibility',
-            target: { typePath: oldBlock.tierTag.typePath, tier: oldBlock.tierTag.tier },
-            payload: { visibility },
-            timestamp: Date.now(),
-          })
-        }
-        writeBlockEdit(currentFilter, blockIndex, updatedBlock)
-        const path = getProfileBackedSetting(store, 'filterPath')
-        if (path) loadFilter(path)
-        reloadFilterInGame()
-        return { ok: true }
-      } catch (err) {
-        return { ok: false, error: String(err) }
+  ipcMain.handle('set-section-tier-visibility', (_event, blockIndex: number, visibility: FilterBlock['visibility']) => {
+    const currentFilter = getCurrentFilter()
+    if (!currentFilter) return { ok: false, error: 'No filter loaded' }
+    const oldBlock = currentFilter.blocks[blockIndex]
+    if (!oldBlock) return { ok: false, error: 'Block not found' }
+    if (oldBlock.visibility === visibility) return { ok: true }
+    try {
+      const updatedBlock: FilterBlock = { ...oldBlock, visibility }
+      const tier = oldBlock.tierTag?.tier ?? `block #${blockIndex + 1}`
+      captureSnapshot(
+        currentFilter.path,
+        'block-edit',
+        `${oldBlock.visibility} → ${visibility} (${tier})`,
+        undefined,
+        oldBlock.tierTag?.typePath,
+      )
+      if (oldBlock.tierTag) {
+        record({
+          type: 'set-visibility',
+          target: { typePath: oldBlock.tierTag.typePath, tier: oldBlock.tierTag.tier },
+          payload: { visibility },
+          timestamp: Date.now(),
+        })
       }
-    },
-  )
+      writeBlockEdit(currentFilter, blockIndex, updatedBlock)
+      const path = getProfileBackedSetting(store, 'filterPath')
+      if (path) loadFilter(path)
+      reloadFilterInGame()
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  })
 
   ipcMain.handle('get-filter-block', (_event, blockIndex: number) => {
     const path = getProfileBackedSetting(store, 'filterPath') as string | undefined
@@ -336,78 +370,63 @@ export function register(store: Store<AppSettings>): void {
     }
   })
 
-  ipcMain.handle(
-    'add-basetype-to-tier',
-    (_event, blockIndex: number, baseType: string) => {
-      const currentFilter = getCurrentFilter()
-      if (!currentFilter) return { ok: false, error: 'No filter loaded' }
-      try {
-        const block = currentFilter.blocks[blockIndex]
-        captureSnapshot(currentFilter.path, 'block-edit', `Added "${baseType}" to tier`, baseType)
-        if (block?.tierTag) {
-          record({
-            type: 'move-basetype',
-            target: { typePath: block.tierTag.typePath, tier: block.tierTag.tier },
-            payload: { value: baseType, fromTier: '__new__' },
-            timestamp: Date.now(),
-          })
-        }
-        addBaseTypeToTier(currentFilter, blockIndex, baseType)
-        const path = getProfileBackedSetting(store, 'filterPath')
-        if (path) loadFilter(path)
-        if (store.get('reloadOnSave') !== false) reloadFilterInGame()
-        return { ok: true }
-      } catch (err) {
-        return { ok: false, error: String(err) }
+  ipcMain.handle('add-basetype-to-tier', (_event, blockIndex: number, baseType: string) => {
+    const currentFilter = getCurrentFilter()
+    if (!currentFilter) return { ok: false, error: 'No filter loaded' }
+    try {
+      const block = currentFilter.blocks[blockIndex]
+      captureSnapshot(currentFilter.path, 'block-edit', `Added "${baseType}" to tier`, baseType)
+      if (block?.tierTag) {
+        record({
+          type: 'move-basetype',
+          target: { typePath: block.tierTag.typePath, tier: block.tierTag.tier },
+          payload: { value: baseType, fromTier: '__new__' },
+          timestamp: Date.now(),
+        })
       }
-    },
-  )
+      addBaseTypeToTier(currentFilter, blockIndex, baseType)
+      const path = getProfileBackedSetting(store, 'filterPath')
+      if (path) loadFilter(path)
+      if (store.get('reloadOnSave') !== false) reloadFilterInGame()
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  })
 
-  ipcMain.handle(
-    'remove-basetype-from-tier',
-    (_event, blockIndex: number, baseType: string) => {
-      const currentFilter = getCurrentFilter()
-      if (!currentFilter) return { ok: false, error: 'No filter loaded' }
-      try {
-        const block = currentFilter.blocks[blockIndex]
-        captureSnapshot(currentFilter.path, 'block-edit', `Removed "${baseType}" from tier`, baseType)
-        if (block?.tierTag) {
-          record({
-            type: 'remove-basetype',
-            target: { typePath: block.tierTag.typePath, tier: block.tierTag.tier },
-            payload: { value: baseType },
-            timestamp: Date.now(),
-          })
-        }
-        removeBaseTypeFromTier(currentFilter, blockIndex, baseType)
-        const path = getProfileBackedSetting(store, 'filterPath')
-        if (path) loadFilter(path)
-        if (store.get('reloadOnSave') !== false) reloadFilterInGame()
-        return { ok: true }
-      } catch (err) {
-        return { ok: false, error: String(err) }
+  ipcMain.handle('remove-basetype-from-tier', (_event, blockIndex: number, baseType: string) => {
+    const currentFilter = getCurrentFilter()
+    if (!currentFilter) return { ok: false, error: 'No filter loaded' }
+    try {
+      const block = currentFilter.blocks[blockIndex]
+      captureSnapshot(currentFilter.path, 'block-edit', `Removed "${baseType}" from tier`, baseType)
+      if (block?.tierTag) {
+        record({
+          type: 'remove-basetype',
+          target: { typePath: block.tierTag.typePath, tier: block.tierTag.tier },
+          payload: { value: baseType },
+          timestamp: Date.now(),
+        })
       }
-    },
-  )
+      removeBaseTypeFromTier(currentFilter, blockIndex, baseType)
+      const path = getProfileBackedSetting(store, 'filterPath')
+      if (path) loadFilter(path)
+      if (store.get('reloadOnSave') !== false) reloadFilterInGame()
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  })
 
   ipcMain.handle('delete-filter-block', (_event, blockIndex: number) => {
     const currentFilter = getCurrentFilter()
     if (!currentFilter) return { ok: false, error: 'No filter loaded' }
     try {
       const block = currentFilter.blocks[blockIndex]
-      const label = block?.tierTag
-        ? `${block.tierTag.typePath}/${block.tierTag.tier}`
-        : `block #${blockIndex + 1}`
-      captureSnapshot(
-        currentFilter.path,
-        'block-edit',
-        `Deleted tier ${label}`,
-        undefined,
-        block?.tierTag?.typePath,
-      )
+      const label = block?.tierTag ? `${block.tierTag.typePath}/${block.tierTag.tier}` : `block #${blockIndex + 1}`
+      captureSnapshot(currentFilter.path, 'block-edit', `Deleted tier ${label}`, undefined, block?.tierTag?.typePath)
       if (block?.tierTag) {
-        const bases =
-          block.conditions.find((c) => c.type === 'BaseType')?.values ?? []
+        const bases = block.conditions.find((c) => c.type === 'BaseType')?.values ?? []
         record({
           type: 'delete-block',
           target: { typePath: block.tierTag.typePath, tier: block.tierTag.tier },
@@ -430,9 +449,7 @@ export function register(store: Store<AppSettings>): void {
     if (!currentFilter) return { ok: false, error: 'No filter loaded' }
     try {
       const block = currentFilter.blocks[fromIndex]
-      const label = block?.tierTag
-        ? `${block.tierTag.typePath}/${block.tierTag.tier}`
-        : `block #${fromIndex + 1}`
+      const label = block?.tierTag ? `${block.tierTag.typePath}/${block.tierTag.tier}` : `block #${fromIndex + 1}`
       captureSnapshot(
         currentFilter.path,
         'tier-move',
@@ -674,6 +691,20 @@ export function register(store: Store<AppSettings>): void {
         // Record intent
         const fromBlock = currentFilter.blocks[fromBlockIndex]
         const toBlock = currentFilter.blocks[toBlockIndex]
+        const fromCustom = customIdOf(fromBlock)
+        const toCustom = customIdOf(toBlock)
+        if (fromCustom || toCustom) {
+          applyCustomRetier(
+            store,
+            currentFilter.path,
+            [baseType],
+            fromCustom,
+            toCustom,
+            toBlock?.tierTag?.typePath,
+            itemJson,
+          )
+          return { ok: true }
+        }
         if (toBlock.tierTag && fromBlock.tierTag) {
           record({
             type: 'move-basetype',
@@ -720,6 +751,20 @@ export function register(store: Store<AppSettings>): void {
           // Record intent
           const fromBlock = currentFilter.blocks[fromBlockIndex]
           const toBlock = currentFilter.blocks[toBlockIndex]
+          const fromCustom = customIdOf(fromBlock)
+          const toCustom = customIdOf(toBlock)
+          if (fromCustom || toCustom) {
+            applyCustomRetier(
+              store,
+              currentFilter.path,
+              baseTypes,
+              fromCustom,
+              toCustom,
+              toBlock?.tierTag?.typePath,
+              itemJson,
+            )
+            return { ok: true }
+          }
           if (toBlock.tierTag && fromBlock.tierTag) {
             record({
               type: 'move-basetype',
@@ -993,77 +1038,80 @@ export function register(store: Store<AppSettings>): void {
     }
   })
 
-  ipcMain.handle(
-    'preview-basetype-move',
-    (_event, baseType: string, toBlockIndex: number): MoveConflictPreview => {
-      const currentFilter = ensureFilterLoaded(store)
-      if (!currentFilter) return { ok: false, error: 'No filter loaded', becomesWinner: false, currentWinnerIndex: null, steps: [] }
-      const name = (baseType ?? '').trim()
-      if (!name) return { ok: false, error: 'BaseType required', becomesWinner: false, currentWinnerIndex: null, steps: [] }
-      const dest = currentFilter.blocks[toBlockIndex]
-      if (!dest) return { ok: false, error: 'Destination block not found', becomesWinner: false, currentWinnerIndex: null, steps: [] }
-
-      const item = buildSyntheticItem({ baseType: name })
-      // Simulate item as if already only in destination: evaluate against filter where
-      // we temporarily ensure BaseType is on dest for matching dest conditions.
-      const matches = findMatchingBlocks(currentFilter, item, true, true)
-      const steps = matchStepsFromResults(matches)
-      const winner = steps.find((s) => s.isWinner)
-      const destTag = dest.tierTag
-      const destLabel = destTag ? `${destTag.typePath}/${destTag.tier}` : `Block #${toBlockIndex + 1}`
-
-      // After move, dest becomes a candidate. If an earlier non-Continue match exists
-      // before toBlockIndex, the move won't change in-game look.
-      const earlierWinner = matches.find((m) => m.isFirstMatch && m.blockIndex < toBlockIndex)
-      const destWouldMatch = (() => {
-        const nonBase = dest.conditions.filter((c) => c.type !== 'BaseType')
-        const eval_ = evaluateBlock({ conditions: nonBase }, item)
-        return eval_.matches || nonBase.length === 0
-      })()
-
-      let warning: string | undefined
-      let becomesWinner = false
-      if (!destWouldMatch) {
-        warning = `${destLabel} conditions may not match a default “${name}” (e.g. StackSize / Class).`
-      } else if (earlierWinner) {
-        const tag = earlierWinner.block.tierTag
-        const label = tag ? `${tag.typePath}/${tag.tier}` : `Block #${earlierWinner.blockIndex + 1}`
-        warning = `An earlier rule still wins (${label} · ${earlierWinner.block.visibility}). Moving here won’t change in-game look unless you insert above it or change conditions.`
-      } else if (!winner || winner.blockIndex >= toBlockIndex) {
-        becomesWinner = true
-      } else {
-        becomesWinner = winner.blockIndex === toBlockIndex
-      }
-
+  ipcMain.handle('preview-basetype-move', (_event, baseType: string, toBlockIndex: number): MoveConflictPreview => {
+    const currentFilter = ensureFilterLoaded(store)
+    if (!currentFilter)
+      return { ok: false, error: 'No filter loaded', becomesWinner: false, currentWinnerIndex: null, steps: [] }
+    const name = (baseType ?? '').trim()
+    if (!name)
+      return { ok: false, error: 'BaseType required', becomesWinner: false, currentWinnerIndex: null, steps: [] }
+    const dest = currentFilter.blocks[toBlockIndex]
+    if (!dest)
       return {
-        ok: true,
-        becomesWinner,
-        currentWinnerIndex: winner?.blockIndex ?? null,
-        currentWinnerLabel: winner?.label,
-        warning,
-        steps,
+        ok: false,
+        error: 'Destination block not found',
+        becomesWinner: false,
+        currentWinnerIndex: null,
+        steps: [],
       }
-    },
-  )
 
-  ipcMain.handle(
-    'diff-filter-files',
-    (_event, leftPath: string, rightPath: string): FilterVersionDiff => {
-      try {
-        if (!leftPath || !rightPath) {
-          return { ok: false, error: 'Pick two filters', sections: [], changedSectionCount: 0 }
-        }
-        if (!existsSync(leftPath) || !existsSync(rightPath)) {
-          return { ok: false, error: 'Filter file not found', sections: [], changedSectionCount: 0 }
-        }
-        const left = parseFilterFile(leftPath, readFileSync(leftPath, 'utf-8'))
-        const right = parseFilterFile(rightPath, readFileSync(rightPath, 'utf-8'))
-        return sectionDiffBetween(left, right, basename(leftPath, '.filter'), basename(rightPath, '.filter'))
-      } catch (err) {
-        return { ok: false, error: String(err), sections: [], changedSectionCount: 0 }
+    const item = buildSyntheticItem({ baseType: name })
+    // Simulate item as if already only in destination: evaluate against filter where
+    // we temporarily ensure BaseType is on dest for matching dest conditions.
+    const matches = findMatchingBlocks(currentFilter, item, true, true)
+    const steps = matchStepsFromResults(matches)
+    const winner = steps.find((s) => s.isWinner)
+    const destTag = dest.tierTag
+    const destLabel = destTag ? `${destTag.typePath}/${destTag.tier}` : `Block #${toBlockIndex + 1}`
+
+    // After move, dest becomes a candidate. If an earlier non-Continue match exists
+    // before toBlockIndex, the move won't change in-game look.
+    const earlierWinner = matches.find((m) => m.isFirstMatch && m.blockIndex < toBlockIndex)
+    const destWouldMatch = (() => {
+      const nonBase = dest.conditions.filter((c) => c.type !== 'BaseType')
+      const eval_ = evaluateBlock({ conditions: nonBase }, item)
+      return eval_.matches || nonBase.length === 0
+    })()
+
+    let warning: string | undefined
+    let becomesWinner = false
+    if (!destWouldMatch) {
+      warning = `${destLabel} conditions may not match a default “${name}” (e.g. StackSize / Class).`
+    } else if (earlierWinner) {
+      const tag = earlierWinner.block.tierTag
+      const label = tag ? `${tag.typePath}/${tag.tier}` : `Block #${earlierWinner.blockIndex + 1}`
+      warning = `An earlier rule still wins (${label} · ${earlierWinner.block.visibility}). Moving here won’t change in-game look unless you insert above it or change conditions.`
+    } else if (!winner || winner.blockIndex >= toBlockIndex) {
+      becomesWinner = true
+    } else {
+      becomesWinner = winner.blockIndex === toBlockIndex
+    }
+
+    return {
+      ok: true,
+      becomesWinner,
+      currentWinnerIndex: winner?.blockIndex ?? null,
+      currentWinnerLabel: winner?.label,
+      warning,
+      steps,
+    }
+  })
+
+  ipcMain.handle('diff-filter-files', (_event, leftPath: string, rightPath: string): FilterVersionDiff => {
+    try {
+      if (!leftPath || !rightPath) {
+        return { ok: false, error: 'Pick two filters', sections: [], changedSectionCount: 0 }
       }
-    },
-  )
+      if (!existsSync(leftPath) || !existsSync(rightPath)) {
+        return { ok: false, error: 'Filter file not found', sections: [], changedSectionCount: 0 }
+      }
+      const left = parseFilterFile(leftPath, readFileSync(leftPath, 'utf-8'))
+      const right = parseFilterFile(rightPath, readFileSync(rightPath, 'utf-8'))
+      return sectionDiffBetween(left, right, basename(leftPath, '.filter'), basename(rightPath, '.filter'))
+    } catch (err) {
+      return { ok: false, error: String(err), sections: [], changedSectionCount: 0 }
+    }
+  })
 
   ipcMain.handle('diff-filter-vs-version', (_event, versionFilename: string): FilterVersionDiff => {
     const filterPath = getProfileBackedSetting(store, 'filterPath') as string | undefined
@@ -1258,10 +1306,7 @@ export function register(store: Store<AppSettings>): void {
 
   ipcMain.handle(
     'apply-section-delta',
-    async (
-      _event,
-      req: ApplySectionDeltaRequest,
-    ): Promise<ApplySectionDeltaResult> => {
+    async (_event, req: ApplySectionDeltaRequest): Promise<ApplySectionDeltaResult> => {
       const currentFilter = ensureFilterLoaded(store)
       if (!currentFilter) return { ok: false, error: 'No filter loaded', added: 0, removed: 0, visibilityChanged: 0 }
       if (!req?.typePath || !req.sourcePath) {
@@ -1277,7 +1322,8 @@ export function register(store: Store<AppSettings>): void {
         const src = srcSections.find((s) => s.typePath === req.typePath)
         const cur = curSections.find((s) => s.typePath === req.typePath)
         if (!src) return { ok: false, error: 'Section missing in source', added: 0, removed: 0, visibilityChanged: 0 }
-        if (!cur) return { ok: false, error: 'Section missing in current filter', added: 0, removed: 0, visibilityChanged: 0 }
+        if (!cur)
+          return { ok: false, error: 'Section missing in current filter', added: 0, removed: 0, visibilityChanged: 0 }
 
         let added = 0
         let removed = 0
@@ -1285,8 +1331,7 @@ export function register(store: Store<AppSettings>): void {
 
         const curBases = new Set(cur.tiers.flatMap((t) => t.baseTypes))
         const srcBases = new Set(src.tiers.flatMap((t) => t.baseTypes))
-        const targetTier =
-          cur.tiers.find((t) => t.visibility === 'Show') ?? cur.tiers[0] ?? null
+        const targetTier = cur.tiers.find((t) => t.visibility === 'Show') ?? cur.tiers[0] ?? null
 
         if (req.addMissingFromSource && targetTier) {
           for (const base of srcBases) {
@@ -1375,8 +1420,8 @@ export function register(store: Store<AppSettings>): void {
         } else {
           mergeIntents(intents)
         }
-        let applied = 0
-        let skipped = 0
+        const applied = 0
+        const skipped = 0
         if (payload.replay) {
           const currentFilter = ensureFilterLoaded(store)
           if (!currentFilter) return { ok: false, error: 'No filter loaded' }
@@ -1449,7 +1494,11 @@ export function register(store: Store<AppSettings>): void {
 
         for (const c of b.conditions) {
           if (condType && c.type !== condType) continue
-          if (valueQ && !c.values.some((v) => v.toLowerCase().includes(valueQ)) && !String(c.operator).includes(valueQ)) {
+          if (
+            valueQ &&
+            !c.values.some((v) => v.toLowerCase().includes(valueQ)) &&
+            !String(c.operator).includes(valueQ)
+          ) {
             if (condType) {
               // type matched but value didn't — skip unless no value filter
               continue

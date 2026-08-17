@@ -1,4 +1,4 @@
-import { app, clipboard, crashReporter, ipcMain, screen } from 'electron'
+import { app, crashReporter, ipcMain, screen } from 'electron'
 import { installEarlyDiagnostics, recordMainBreadcrumb, recordMainDiagnostic } from './diagnostics'
 
 // Prevent unhandled JS exceptions from crashing the native overlay thread
@@ -30,7 +30,6 @@ installEarlyDiagnostics()
 crashReporter.start({ uploadToServer: false })
 
 import { execSync } from 'node:child_process'
-import { uIOhook, UiohookKey } from 'uiohook-napi'
 import Store from 'electron-store'
 import { OverlayController } from 'electron-overlay-window'
 import {
@@ -56,6 +55,7 @@ import {
   resumeHotkeys,
   setStashScrollEnabled,
   setStashScrollModifier,
+  pasteRegexToPoESearch,
 } from './hotkeys'
 import { refreshLeagues } from './trade/leagues'
 import { stopOnlineSync } from './online-sync'
@@ -70,7 +70,6 @@ import {
 } from './evaluation'
 import { initLearning } from './learning'
 import { initMainLocale } from './locale'
-import { snapshotClipboard } from './clipboard-preserve'
 import { flushAll as flushPluginStorage } from './plugins/storage'
 import { registerCheatSheetProtocol } from './cheat-sheet-protocol'
 import { registerScalpelInternalProtocol, registerScalpelInternalSchemePrivileges } from './plugins/protocol'
@@ -325,17 +324,6 @@ app.whenReady().then(() => {
     openTimeless: 'timeless',
     openRegex: 'regex',
   }
-  const pasteRegexToSearch = (regex: string): void => {
-    const restoreClip = snapshotClipboard()
-    clipboard.writeText(regex)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
-    uIOhook.keyTap(UiohookKey.F)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
-    uIOhook.keyTap(UiohookKey.V)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
-    setTimeout(restoreClip, 100)
-  }
 
   const REGEX_REMOTE_FLUSH_EPS = 0.01
   function regexRemoteFlushLeft(anchor: { fracX: number } | null): boolean {
@@ -357,7 +345,9 @@ app.whenReady().then(() => {
           OverlayController.focusTarget()
         } catch {}
       },
-      paste: pasteRegexToSearch,
+      paste: (regex) => {
+        void pasteRegexToPoESearch(regex)
+      },
       defer: (fn) => setTimeout(fn, 50),
     })
   })
@@ -370,7 +360,7 @@ app.whenReady().then(() => {
 
   setAppMacroHandler((action, tag, presetId) => {
     if (action === 'pasteRegex') {
-      if (currentRegex) pasteRegexToSearch(currentRegex)
+      if (currentRegex) void pasteRegexToPoESearch(currentRegex)
       return
     }
     if (action === 'useSavedRegex') {
@@ -380,7 +370,7 @@ app.whenReady().then(() => {
       const preset = presetId
         ? presets.find((p) => p.id === presetId)
         : presets.find((p) => p.tags?.some((t) => t.text === tag && (!t.source || t.source === 'custom')))
-      if (preset?.regex) pasteRegexToSearch(preset.regex)
+      if (preset?.regex) void pasteRegexToPoESearch(preset.regex)
       return
     }
     if (action === 'closeOverlay') {

@@ -12,9 +12,9 @@ A fork of [Scalpel](https://github.com/scalpelpoe/scalpel) with custom PoE 2 plu
 2. Download **`Scalpel-My-Version-*-Windows.zip`**
 3. Unzip the folder
 4. Double-click **`Install Scalpel.bat`**
-5. Use the new Desktop icon **Scalpel My Version**
+5. Use the new Desktop / Start Menu icon **Scalpel My Version**
 
-That copies the app into `%LOCALAPPDATA%\Programs\Scalpel-My-Version`, installs all bundled plugins, creates the desktop shortcut, and launches Scalpel.
+That copies the app into `%LOCALAPPDATA%\Programs\Scalpel-My-Version`, installs all bundled plugins, creates shortcuts with the Scalpel icon (including OneDrive Desktop), and launches Scalpel.
 
 Portable option (no install copy): double-click **`Launch Scalpel (Portable).bat`** inside the unzipped folder instead.
 
@@ -28,6 +28,7 @@ Portable option (no install copy): double-click **`Launch Scalpel (Portable).bat
 | **Scalpel Economy** | Economy tab + overlay | In-game poe.ninja browser (currency, runes, uniques, omens, essences, etc.) |
 | **Filter section editor** | Settings → Filter | Browse NeverSink `$type`/`$tier` sections, Show/Hide, drag BaseTypes, style brush, Add rule |
 | **Loot simulator** | Settings → Filter | Roll BaseTypes from a section; Fontin labels + alert sounds like a pack drop |
+| **Custom tiers** | Settings → Filter + overlay | Pin your own bases into a named tier above FilterBlade / economy rules. Survives online updates. |
 | **FilterBlade / OnlineFilters bridge** | Settings → Filter | Open PoE / FilterBlade, Scan & Link shared filters as `*-local.filter` |
 | **Runeshape Checker** | Runeshape tab | OCR hotkey that reads Runeshape Combinations rewards and shows poe.ninja prices |
 | **Scalpel OCR** (`well-tiers`) | — | OCR hotkey for Well of Souls affix tiers and Runeshape reward pricing |

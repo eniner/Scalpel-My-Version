@@ -3,6 +3,7 @@ import { getGameFeatures } from '@shared/game-features'
 import { getApplyItemFilterToRitual, setApplyItemFilterToRitual } from '@shared/poe-config-ini'
 import { FilterPicker } from '@renderer/components/FilterPicker'
 import { FilterSectionEditor } from '@renderer/components/FilterSectionEditor'
+import { CustomTiersPanel } from '@renderer/components/CustomTiersPanel'
 import { LootSimulator } from '@renderer/components/LootSimulator'
 import { HistoryPanel } from '@renderer/components/HistoryPanel'
 import { HotkeyField } from '@renderer/components/primitives/HotkeyField'
@@ -128,6 +129,8 @@ export function FilterTab({
           <FilterSectionEditor filterPath={filterPath} />
         </div>
       </section>
+
+      <CustomTiersPanel filterPath={filterPath} />
 
       <section>
         <label>Loot simulator</label>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PoeItem, Zone } from '@shared/types'
+import type { CraftApi, PluginActivate, PluginManifest } from '../../../plugin-sdk/src/types'
 import { createFilterApi } from './create-filter-api'
 import { createPluginContext } from './context'
 import { resolveLeagueOptions } from '@renderer/shared/league-options'
@@ -144,7 +145,8 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
         trade: {
           openSearch: (item) => window.api.tradeOpenSearch(item),
           priceCheck: (item) => window.api.tradePriceCheck(item),
-          scanWarrants: (opts) => window.api.warrantsScan(opts) as Promise<import('../../../plugin-sdk/src/types').WarrantScanResult>,
+          scanWarrants: (opts) =>
+            window.api.warrantsScan(opts) as Promise<import('../../../plugin-sdk/src/types').WarrantScanResult>,
           warrantsCatalog: () => window.api.warrantsCatalog(),
           whisperSeller: (queryId, listingId, league) => window.api.whisperSeller(queryId, listingId, league),
           visitHideout: (queryId, listingId, league) => window.api.visitHideout(queryId, listingId, league),
@@ -186,7 +188,7 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
           getCatalog: () => window.api.craftGetCatalog(m.id),
           sequence: (config) => window.api.craftSequence(m.id, config),
           searchMods: (opts) => window.api.craftSearchMods(m.id, opts),
-        },
+        } as CraftApi,
         registerTab: (pluginId, opts) => {
           setTabs((prev) => {
             if (prev.find((t) => t.pluginId === pluginId)) return prev

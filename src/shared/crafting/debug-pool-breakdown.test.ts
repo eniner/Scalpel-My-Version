@@ -17,7 +17,7 @@ describe('prefix pool breakdown', () => {
       rarity: 'Rare' as const,
       mods: [],
     }
-    const tags = rollTagsForState(data, state)
+    const tags = rollTagsForState(state)
     const pool = allEligibleForExalt(data, state, { maxPrefix: 3, maxSuffix: 3 })
     const pref = pool.filter((m) => m.k === 'p')
     const groups = poolToGroups(pref)

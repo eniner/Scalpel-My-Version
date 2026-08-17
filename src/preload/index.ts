@@ -117,6 +117,28 @@ export const api = {
   switchIngameFilter: (filterName: string, currentFilter?: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('switch-ingame-filter', filterName, currentFilter),
 
+  getCustomTiers: (): Promise<{ tiers: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('get-custom-tiers'),
+  saveCustomTier: (
+    tier: import('@shared/types').CustomTier,
+  ): Promise<{ ok: boolean; error?: string; tiers?: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('save-custom-tier', tier),
+  deleteCustomTier: (
+    id: string,
+  ): Promise<{ ok: boolean; error?: string; tiers?: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('delete-custom-tier', id),
+  addCustomTierItem: (
+    id: string,
+    baseType: string,
+    itemJson?: string,
+  ): Promise<{ ok: boolean; error?: string; tiers?: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('add-custom-tier-item', id, baseType, itemJson),
+  removeCustomTierItem: (
+    id: string,
+    baseType: string,
+  ): Promise<{ ok: boolean; error?: string; tiers?: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('remove-custom-tier-item', id, baseType),
+
   // Color frequencies
   getColorFrequencies: (): Promise<
     Record<string, Array<{ r: number; g: number; b: number; a: number; count: number; category: string }>>
@@ -177,8 +199,7 @@ export const api = {
     ipcRenderer.invoke('preflight-filter-check'),
   applySectionDelta: (
     req: import('@shared/types').ApplySectionDeltaRequest,
-  ): Promise<import('@shared/types').ApplySectionDeltaResult> =>
-    ipcRenderer.invoke('apply-section-delta', req),
+  ): Promise<import('@shared/types').ApplySectionDeltaResult> => ipcRenderer.invoke('apply-section-delta', req),
   exportFilterIntents: (): Promise<{
     ok: boolean
     filterName?: string
@@ -211,19 +232,11 @@ export const api = {
   }> => ipcRenderer.invoke('find-filter-conditions', query),
   undoSectionHistory: (typePath: string): Promise<{ ok: boolean; undone: number; error?: string }> =>
     ipcRenderer.invoke('undo-section-history', typePath),
-  previewBaseTypeMove: (
-    baseType: string,
-    toBlockIndex: number,
-  ): Promise<import('@shared/types').MoveConflictPreview> =>
+  previewBaseTypeMove: (baseType: string, toBlockIndex: number): Promise<import('@shared/types').MoveConflictPreview> =>
     ipcRenderer.invoke('preview-basetype-move', baseType, toBlockIndex),
-  diffFilterFiles: (
-    leftPath: string,
-    rightPath: string,
-  ): Promise<import('@shared/types').FilterVersionDiff> =>
+  diffFilterFiles: (leftPath: string, rightPath: string): Promise<import('@shared/types').FilterVersionDiff> =>
     ipcRenderer.invoke('diff-filter-files', leftPath, rightPath),
-  diffFilterVsVersion: (
-    versionFilename: string,
-  ): Promise<import('@shared/types').FilterVersionDiff> =>
+  diffFilterVsVersion: (versionFilename: string): Promise<import('@shared/types').FilterVersionDiff> =>
     ipcRenderer.invoke('diff-filter-vs-version', versionFilename),
   previewFilterReapply: (): Promise<import('@shared/types').FilterReapplyPreview> =>
     ipcRenderer.invoke('preview-filter-reapply'),
@@ -231,8 +244,7 @@ export const api = {
     ipcRenderer.invoke('apply-filter-reapply'),
   reloadFilter: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('reload-filter'),
   getUniqueVisibility: (): Promise<Record<string, 'Show' | 'Hide'>> => ipcRenderer.invoke('get-unique-visibility'),
-  getUniqueFilterTiers: (): Promise<Record<string, string | null>> =>
-    ipcRenderer.invoke('get-unique-filter-tiers'),
+  getUniqueFilterTiers: (): Promise<Record<string, string | null>> => ipcRenderer.invoke('get-unique-filter-tiers'),
   lookupBaseType: (
     baseType: string,
     itemClass: string,
@@ -386,8 +398,10 @@ export const api = {
       ipcRenderer.send('timeless-tree:set-state', state),
     requestState: (): void => ipcRenderer.send('timeless-tree:request-state'),
     onState: (cb: (state: import('@shared/timeless-tree-state').TimelessTreeState) => void): (() => void) => {
-      const handler = (_: Electron.IpcRendererEvent, next: import('@shared/timeless-tree-state').TimelessTreeState): void =>
-        cb(next)
+      const handler = (
+        _: Electron.IpcRendererEvent,
+        next: import('@shared/timeless-tree-state').TimelessTreeState,
+      ): void => cb(next)
       ipcRenderer.on('timeless-tree:state', handler)
       return () => ipcRenderer.removeListener('timeless-tree:state', handler)
     },
@@ -544,39 +558,34 @@ export const api = {
   buildPlannerRead: (filename: string): Promise<{ path: string; content: string }> =>
     ipcRenderer.invoke('plugins:build-planner-read', filename),
   buildPlannerOpenFolder: (): Promise<{ path: string }> => ipcRenderer.invoke('plugins:build-planner-open-folder'),
-  tradeOpenSearch: (
-    item: {
-      name: string
-      baseType: string
-      itemClass?: string
-      rarity: string
-      notes?: string
-      statPriority?: string[]
-      similarItems?: boolean
-      upgradeSearch?: boolean
-      statKinds?: string[]
-    },
-  ): Promise<{
+  tradeOpenSearch: (item: {
+    name: string
+    baseType: string
+    itemClass?: string
+    rarity: string
+    notes?: string
+    statPriority?: string[]
+    similarItems?: boolean
+    upgradeSearch?: boolean
+    statKinds?: string[]
+  }): Promise<{
     url: string
     queryId: string
     total: number
     matchedStats?: number
     unmatchedMods?: string[]
-  }> =>
-    ipcRenderer.invoke('plugins:trade-open-search', item),
-  tradePriceCheck: (
-    item: {
-      name: string
-      baseType: string
-      itemClass?: string
-      rarity: string
-      notes?: string
-      statPriority?: string[]
-      similarItems?: boolean
-      upgradeSearch?: boolean
-      statKinds?: string[]
-    },
-  ): Promise<{
+  }> => ipcRenderer.invoke('plugins:trade-open-search', item),
+  tradePriceCheck: (item: {
+    name: string
+    baseType: string
+    itemClass?: string
+    rarity: string
+    notes?: string
+    statPriority?: string[]
+    similarItems?: boolean
+    upgradeSearch?: boolean
+    statKinds?: string[]
+  }): Promise<{
     url: string
     queryId: string
     total: number
@@ -993,8 +1002,7 @@ export const api = {
 
   // Auto-update
   downloadUpdate: (): Promise<void> => ipcRenderer.invoke('download-update'),
-  installUpdate: (): Promise<{ ok: true } | { ok: false; error: string }> =>
-    ipcRenderer.invoke('install-update'),
+  installUpdate: (): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('install-update'),
   getUpdateState: (): Promise<{
     updateVersion: string | null
     updateReady: boolean
@@ -1259,12 +1267,8 @@ export const api = {
       marksmanEnabled?: boolean
     },
   ) => ipcRenderer.invoke('plugins:craft-mod-pool', pluginId, opts),
-  craftSearchBases: (
-    pluginId: string,
-    query: string,
-    limit?: number,
-    itemClass?: string,
-  ) => ipcRenderer.invoke('plugins:craft-search-bases', pluginId, query, limit, itemClass),
+  craftSearchBases: (pluginId: string, query: string, limit?: number, itemClass?: string) =>
+    ipcRenderer.invoke('plugins:craft-search-bases', pluginId, query, limit, itemClass),
   craftListItemClasses: (pluginId: string) => ipcRenderer.invoke('plugins:craft-list-item-classes', pluginId),
   craftGetCatalog: (pluginId: string) => ipcRenderer.invoke('plugins:craft-get-catalog', pluginId),
   craftSequence: (pluginId: string, config: import('@shared/crafting/catalog-types').CraftSequenceConfig) =>

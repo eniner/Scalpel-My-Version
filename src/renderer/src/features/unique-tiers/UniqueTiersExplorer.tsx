@@ -22,11 +22,7 @@ function sanitizePersistedFilters(filters: ActiveFilter[]): ActiveFilter[] {
   const valid = new Set<string>(TIER_ORDER)
   return filters
     .filter((f) => ALL_FILTER_TYPES.includes(f.type))
-    .map((f) =>
-      f.type === 'tier'
-        ? { ...f, tiers: f.tiers.filter((t) => valid.has(t)) }
-        : f,
-    )
+    .map((f) => (f.type === 'tier' ? { ...f, tiers: f.tiers.filter((t) => valid.has(t)) } : f))
     .filter((f) => f.type !== 'tier' || f.tiers.length > 0)
 }
 
@@ -38,16 +34,19 @@ export function UniqueTiersExplorer({
   onPriceCheckItem?: () => void
 } = {}): JSX.Element {
   const [sortKey, setSortKey] = useState<SortKey>(
-    persistedState.sortKey === 'filterTier' ? 'tier' : persistedState.sortKey,
+    persistedState.sortKey === 'name' ||
+      persistedState.sortKey === 'chaosValue' ||
+      persistedState.sortKey === 'dustIlvl84' ||
+      persistedState.sortKey === 'tier'
+      ? persistedState.sortKey
+      : 'tier',
   )
   const [sortDir, setSortDir] = useState<SortDir>(persistedState.sortDir)
   const [prices, setPrices] = useState<Record<string, number>>({})
   const [divineRate, setDivineRate] = useState(0)
   const [mirrorRate, setMirrorRate] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [filters, setFiltersState] = useState<ActiveFilter[]>(() =>
-    sanitizePersistedFilters(persistedState.filters),
-  )
+  const [filters, setFiltersState] = useState<ActiveFilter[]>(() => sanitizePersistedFilters(persistedState.filters))
   const [visibility, setVisibility] = useState<Record<string, 'Show' | 'Hide'>>({})
   const [filterVersion, setFilterVersion] = useState(0)
   /** Bumps when main harvests new icons so rows re-resolve via iconFor. */
@@ -262,9 +261,7 @@ export function UniqueTiersExplorer({
       <div className="bg-bg-card px-3 py-[10px] flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <span className="section-title">Unique Tiers</span>
-          <span className="text-[10px] text-text-dim">
-            {loading ? 'Fetching prices...' : `${sorted.length} items`}
-          </span>
+          <span className="text-[10px] text-text-dim">{loading ? 'Fetching prices...' : `${sorted.length} items`}</span>
         </div>
         <p className="text-[10px] text-text-dim leading-snug m-0">
           Drop-weight tiers (T0–T5) from the wiki unique-tier analysis — not filter tags or divine prices.

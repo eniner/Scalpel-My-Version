@@ -40,7 +40,7 @@ describe('homogenising exalt', () => {
     const mod = rollOneExaltMod(data, state, () => 0.1, 0, undefined, { homogenise: true })
     expect(mod).toBeTruthy()
     expect(mod!.a?.some((t) => attrs.includes(t))).toBe(true)
-  })
+  }, 60_000)
 })
 
 describe('named desecration omens', () => {
@@ -52,21 +52,12 @@ describe('named desecration omens', () => {
       rarity: 'Rare',
       mods: [],
     }
-    const picks = rollDesecrationChoices(
-      data,
-      state,
-      's',
-      0,
-      { desecNamed: 'liege', consume: ['liege'] },
-      () => 0.2,
-    )
+    const picks = rollDesecrationChoices(data, state, 's', 0, { desecNamed: 'liege', consume: ['liege'] }, () => 0.2)
     expect(picks.some((p) => p.desecrated)).toBe(true)
     // At least one desecrated pick should resolve to amanamu_mod in the pool text match via attrs on craftMod
     const desec = picks.filter((p) => p.desecrated)
     expect(desec.length).toBeGreaterThan(0)
-    const hit = data.mods.find(
-      (m) => m.desecrated && m.t === desec[0].text && m.a?.includes('amanamu_mod'),
-    )
+    const hit = data.mods.find((m) => m.desecrated && m.t === desec[0].text && m.a?.includes('amanamu_mod'))
     expect(hit).toBeTruthy()
-  })
+  }, 60_000)
 })

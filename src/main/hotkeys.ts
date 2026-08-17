@@ -570,6 +570,47 @@ export function sendChatCommand(command: string, autoSubmit = true): Promise<voi
   return pasteToPoEChat(command, autoSubmit).then(() => restoreModifiers(held))
 }
 
+/**
+ * Paste a regex into PoE's stash/inventory search (Ctrl+F, Ctrl+V).
+ * Mirrors sendChatCommand: release held modifiers, mark injecting so the hook
+ * ignores synthetic keys, focus the game, then settle briefly so a bare F-key
+ * hotkey (flask conflict) finishes releasing before Ctrl+F is synthesized.
+ */
+let regexPasteLocked = false
+export async function pasteRegexToPoESearch(regex: string): Promise<void> {
+  if (!regex || regexPasteLocked || injecting) return
+  regexPasteLocked = true
+
+  const held: ModSnapshot = { ...heldModifiers }
+  injecting = true
+  if (held.ctrl) uIOhook.keyToggle(held.ctrl, 'up')
+  if (held.shift) uIOhook.keyToggle(held.shift, 'up')
+  if (held.alt) uIOhook.keyToggle(held.alt, 'up')
+
+  try {
+    // Let the triggering hotkey keyup (and any flask F1–F5 collision) settle.
+    await new Promise((r) => setTimeout(r, 50))
+
+    if (!OverlayController.targetHasFocus) focusGameWindow()
+
+    const restoreClip = snapshotClipboard()
+    clipboard.writeText(regex)
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
+    uIOhook.keyTap(UiohookKey.F)
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
+    uIOhook.keyTap(UiohookKey.V)
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+
+    await new Promise((r) => setTimeout(r, 100))
+    restoreClip()
+  } finally {
+    restoreModifiers(held)
+    injecting = false
+    regexPasteLocked = false
+  }
+}
+
 /** Track physically held modifier keys via uiohook (ignores synthetic key events during injection) */
 const heldModifiers = { ctrl: 0 as number, shift: 0 as number, alt: 0 as number }
 

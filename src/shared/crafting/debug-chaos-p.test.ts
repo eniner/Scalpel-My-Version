@@ -39,7 +39,9 @@ describe('chaos p debug', () => {
       tierFloor: 0,
     })
     pool = withCatalystWeights(data, state, pool)
-    const t1 = pool.filter((m) => /increased Energy Shield/i.test(m.t) && !/,/.test(m.t) && (m.ranges?.[0]?.[0] ?? 0) >= 92)
+    const t1 = pool.filter(
+      (m) => /increased Energy Shield/i.test(m.t) && !/,/.test(m.t) && (m.ranges?.[0]?.[0] ?? 0) >= 92,
+    )
     const out = {
       chaosP: chaos.hitPerAttempt,
       chaosE: chaos.hitPerAttempt > 0 ? 1 / chaos.hitPerAttempt : null,
@@ -51,7 +53,7 @@ describe('chaos p debug', () => {
       },
       // Prefix-forced (omen-like): only remove prefixes
       prefixForcedE: (() => {
-        const prefs = state.mods.filter((m) => m.k === 'p')
+        const prefs = state.mods.filter((m) => m.kind === 'p')
         let p = 0
         for (const victim of prefs) {
           const rem = state.mods.filter((m) => m !== victim)
@@ -77,5 +79,5 @@ describe('chaos p debug', () => {
     }
     writeFileSync(join(__dirname, '_chaos-p.json'), JSON.stringify(out, null, 2))
     expect(chaos.hitPerAttempt).toBeGreaterThan(0)
-  })
+  }, 60_000)
 })

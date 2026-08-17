@@ -1,5 +1,12 @@
 export const CHANGELOG: { version: string; notes: string[] }[] = [
   {
+    version: '1.3.0-my',
+    notes: [
+      'Custom tiers pin your own bases above FilterBlade or economy rules. They survive online updates and do not write to FilterBlade.xyz.',
+      'Windows ZIP: double-click Install Scalpel.bat to get a Desktop and Start Menu icon (works with OneDrive Desktop).',
+    ],
+  },
+  {
     version: '0.9.15',
     notes: [
       'PoE2 waystone price-check now defaults to yield chips on and difficulty affixes off.',
