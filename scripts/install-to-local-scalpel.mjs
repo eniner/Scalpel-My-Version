@@ -17,6 +17,7 @@ const PLUGIN_IDS = [
   'scalpel-harvest',
   'scalpel-advisor',
   'scalpel-skill-dps',
+  'scalpel-dps',
   'scalpel-warrants',
   'runeshape-checker',
   'well-tiers',

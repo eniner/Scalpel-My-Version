@@ -1,0 +1,6 @@
+node_modules
+dist
+.claude/
+*.tgz
+.git/COMMIT_MSG.txt
+.git/PR_BODY.txt

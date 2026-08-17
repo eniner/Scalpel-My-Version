@@ -40,6 +40,7 @@ Portable option (no install copy): double-click **`Launch Scalpel (Portable).bat
 | **Scalpel Warrants** | Warrants tab (PoE1) | Mercenary Warrant market scanner |
 | **Scalpel Harvest** | Overlay hotkey (PoE1) | Harvest lifeforce conversion profitability (plugin, E9) |
 | **Scalpel Advisor** | Overlay hotkey (PoE1) | Farming EV hub — gems, beasts, scarabs, essences, harvest, bosses, betrayal, scrying (plugin, E9) |
+| **Scalpel DPS** | DPS tab + overlay (PoE1 + PoE2) | PoB-style weapon A/B compare from in-game Ctrl+C capture — attack and spell DPS |
 
 Upstream Scalpel core (price check, regex builder, macros, sheets, etc.) stays intact — this fork layers the addons above on top.
 
@@ -379,6 +380,7 @@ plugins/scalpel-lab/          Scalpel Lab (crafting UI)
 plugins/scalpel-economy/      poe.ninja economy browser
 plugins/scalpel-harvest/      PoE1 Harvest conversion profitability (E9)
 plugins/scalpel-advisor/      PoE1 farming EV tools hub (E9)
+plugins/scalpel-dps/          PoB-style weapon A/B DPS compare (PoE1 + PoE2)
 plugins/scalpel-warrants/     PoE1 Mercenary Warrant market scanner (eniner)
 plugins/runeshape-checker/     Runeshape OCR pricing
 plugins/well-tiers/            Well of Souls + Runeshape OCR
