@@ -12,6 +12,9 @@ import type {
   GameVariant,
   HistoryEntry,
   Manifest,
+  RadialBackdropEvent,
+  RadialOpenPayload,
+  RadialPendingState,
   RemovalPreview,
   OverlayData,
   PoeProfileSummary,
@@ -895,6 +898,25 @@ export const api = {
       return () => ipcRenderer.removeListener(IPC_CHANNELS.SCREEN.SOURCE_MAYBE_STALE_EVENT, handler)
     },
   },
+  // Radial menu
+  onRadialOpen: (cb: (payload: RadialOpenPayload) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, payload: RadialOpenPayload): void => cb(payload)
+    ipcRenderer.on(IPC_CHANNELS.RADIAL.OPEN_EVENT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.RADIAL.OPEN_EVENT, handler)
+  },
+  onRadialClose: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on(IPC_CHANNELS.RADIAL.CLOSE_EVENT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.RADIAL.CLOSE_EVENT, handler)
+  },
+  onRadialBackdrop: (cb: (backdrop: RadialBackdropEvent) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, backdrop: RadialBackdropEvent): void => cb(backdrop)
+    ipcRenderer.on(IPC_CHANNELS.RADIAL.BACKDROP_EVENT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.RADIAL.BACKDROP_EVENT, handler)
+  },
+  radialPending: (): Promise<RadialPendingState> => ipcRenderer.invoke(IPC_CHANNELS.RADIAL.PENDING),
+  radialFire: (sliceId: string): void => ipcRenderer.send(IPC_CHANNELS.RADIAL.FIRE, sliceId),
+  radialCancel: (): void => ipcRenderer.send(IPC_CHANNELS.RADIAL.CANCEL),
   // Plugins
   listInstalledPlugins: (): Promise<
     Array<{

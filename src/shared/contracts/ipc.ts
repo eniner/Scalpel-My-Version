@@ -141,6 +141,28 @@ export const IPC_CHANNELS = {
     SAVE_OVERLAY_STATE: 'save-overlay-state',
   },
 
+  RADIAL: {
+    /** main -> radial window: open at payload.center with payload.slices */
+    OPEN_EVENT: 'radial:open',
+    /** main -> radial window: the menu is gone, unmount the view. Every
+     *  main-initiated hide sends this: the window is hidden by dropping its
+     *  opacity, so the renderer keeps running (and keeps animating) unless it
+     *  is told. */
+    CLOSE_EVENT: 'radial:close',
+    /** main -> radial window: a blurred grab of the game pixels behind the
+     *  disc, sent after the open so the screen capture never delays the menu.
+     *  Best-effort - a failed or slow capture just leaves the plain disc. */
+    BACKDROP_EVENT: 'radial:backdrop',
+    /** radial window -> main: fire this slice id */
+    FIRE: 'radial:fire',
+    /** radial window -> main: cancel/hide */
+    CANCEL: 'radial:cancel',
+    /** radial window -> main (invoke): pending payload, for the mount race on
+     *  the very first open (window created lazily; the OPEN_EVENT send can land
+     *  before the renderer subscribes). */
+    PENDING: 'radial:pending',
+  },
+
   CHEAT_SHEETS: {
     ADD_FROM_FILE: 'cheat-sheet:add-from-file',
     ADD_FROM_URL: 'cheat-sheet:add-from-url',
