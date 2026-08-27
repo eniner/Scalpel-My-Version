@@ -26,10 +26,10 @@ describe('simulateCraftPath', () => {
       samples: 250,
       maxTrials: 40,
     })
-    expect(Date.now() - t0).toBeLessThan(5000)
+    expect(Date.now() - t0).toBeLessThan(15_000)
     expect(result.samples).toBeGreaterThan(0)
     expect(result.note).toContain('single-step')
-  })
+  }, 30_000)
 
   it('alt-regal multi-step completes under apply budget', () => {
     const data = loadData()

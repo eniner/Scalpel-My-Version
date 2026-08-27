@@ -15,6 +15,8 @@ src/shared/paraglide/
 /src/**/*.jsx
 /src/**/*.js.map
 /src/**/*.jsx.map
+# Vendored Go WASM runtime for Timeless Jewels (not compiled from our TS)
+!/src/renderer/src/features/timeless-jewels/wasm/wasm_exec.js
 *.tsbuildinfo
 
 # AI slop confirmed
