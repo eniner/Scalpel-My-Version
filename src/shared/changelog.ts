@@ -2,6 +2,7 @@ export const CHANGELOG: { version: string; notes: string[] }[] = [
   {
     version: '1.0.4',
     notes: [
+      'Added a radial menu, turn it on in the settings macro page.',
       'Updated plugin sdk with some new features.',
       'Plugins that need a newer Scalpel version no longer show in the plugin browser.',
       'Plugin overlay windows now start pinned, so Esc no longer closes them.',
