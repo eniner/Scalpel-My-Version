@@ -67,16 +67,14 @@ export function setItemFilterInConfig(ini: string, filterId: string): string {
 
 /** Map a Scalpel filter path to the id PoE stores in item_filter=. */
 export function filterIdFromScalpelPath(filterPath: string, filterDir: string): string {
-  const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase()
-  const online = join(filterDir, 'OnlineFilters')
-  if (norm(filterPath).startsWith(norm(online) + '/') || norm(filterPath).startsWith(norm(online) + '\\')) {
-    return basename(filterPath)
-  }
-  // Case-insensitive OnlineFilters folder name
-  const parts = filterPath.replace(/\\/g, '/').split('/')
+  const posix = (p: string) => p.replace(/\\/g, '/')
+  const parts = posix(filterPath).split('/')
+  const last = parts[parts.length - 1] ?? ''
+  const onlinePrefix = `${posix(filterDir).replace(/\/+$/, '')}/OnlineFilters/`
+  if (posix(filterPath).toLowerCase().startsWith(onlinePrefix.toLowerCase())) return last
   const idx = parts.findIndex((p) => p.toLowerCase() === 'onlinefilters')
-  if (idx >= 0 && idx < parts.length - 1) return parts[parts.length - 1]
-  return basename(filterPath).replace(/\.filter$/i, '')
+  if (idx >= 0 && idx < parts.length - 1) return last
+  return last.replace(/\.filter$/i, '')
 }
 
 function safeLocalStem(name: string): string {

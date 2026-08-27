@@ -33,4 +33,13 @@ describe('filterIdFromScalpelPath', () => {
       ),
     ).toBe('9lives-local')
   })
+
+  it('parses posix OnlineFilters paths', () => {
+    expect(
+      filterIdFromScalpelPath(
+        '/home/x/Documents/My Games/Path of Exile 2/OnlineFilters/rkY4jLfX',
+        '/home/x/Documents/My Games/Path of Exile 2',
+      ),
+    ).toBe('rkY4jLfX')
+  })
 })
