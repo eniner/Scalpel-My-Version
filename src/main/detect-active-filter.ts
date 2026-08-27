@@ -254,9 +254,7 @@ export function detectFilterById(
 export function detectedToListEntry(detected: DetectedActiveFilter): FilterListEntry {
   return {
     path: detected.localCopyPath ?? detected.filterPath,
-    name: detected.localCopyPath
-      ? basename(detected.localCopyPath, '.filter')
-      : detected.name,
+    name: detected.localCopyPath ? basename(detected.localCopyPath, '.filter') : detected.name,
     online: detected.online && !detected.localCopyPath,
   }
 }

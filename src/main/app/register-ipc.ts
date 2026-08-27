@@ -18,6 +18,7 @@ import * as filesHandlers from '../handlers/files'
 import * as editingHandlers from '../handlers/editing'
 import * as versionsHandlers from '../handlers/versions'
 import * as onlineSyncHandlers from '../handlers/online-sync'
+import * as generateFilterHandlers from '../handlers/generate-filter'
 import * as pricesHandlers from '../handlers/prices'
 import { register as registerCheatSheets } from '../handlers/cheat-sheets'
 import { register as registerOverlayPin } from '../handlers/overlay-pin'
@@ -34,7 +35,11 @@ import { registerBuildPlannerHandlers } from '../handlers/build-planner'
 import { registerPluginTradeHandlers } from '../handlers/plugin-trade'
 import { registerPluginWebPanelHandlers } from '../handlers/plugin-web-panel'
 import { registerPluginCraftHandlers } from '../handlers/plugin-craft'
+import { registerNinjaCharacterHandlers } from '../handlers/ninja-character'
 import { registerPluginCursorHandlers } from '../handlers/plugin-cursor'
+import { registerPluginMediaHandlers } from '../handlers/plugin-media'
+import { register as registerCustomTiers } from '../handlers/custom-tiers'
+import { register as registerLauncher } from '../handlers/launcher'
 
 export interface IpcRegistrationDeps {
   store: Store<AppSettings>
@@ -53,6 +58,8 @@ export function registerAllIpc(deps: IpcRegistrationDeps): void {
   settingsHandlers.register(store)
   filesHandlers.register(store)
   editingHandlers.register(store)
+  registerCustomTiers(store)
+  generateFilterHandlers.register(store)
   versionsHandlers.register(store)
   onlineSyncHandlers.register(store)
   pricesHandlers.register(store)
@@ -70,9 +77,12 @@ export function registerAllIpc(deps: IpcRegistrationDeps): void {
   registerPluginCaptureHandlers()
   registerBuildPlannerHandlers()
   registerPluginTradeHandlers(store)
+  registerNinjaCharacterHandlers()
   registerPluginWebPanelHandlers()
   registerPluginCraftHandlers()
   registerPluginCursorHandlers()
+  registerPluginMediaHandlers()
+  registerLauncher()
   registerDiagnostics({ store, getAppWindow, showAppWindow })
 
   // ── Simple inline handlers ────────────────────────────────────────────────

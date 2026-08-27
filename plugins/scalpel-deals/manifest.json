@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "scalpel-deals",
+  "version": "0.1.3",
+  "name": "Listing Watch",
+  "description": "PoE2 trade monitor that flags underpriced listings. Alerts only — never auto-whispers or buys.",
+  "author": "eniner",
+  "scalpelMinVersion": ">=0.9.16-rc1",
+  "poeVersions": [2]
+}

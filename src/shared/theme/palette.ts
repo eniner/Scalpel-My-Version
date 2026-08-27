@@ -17,8 +17,11 @@ export interface ThemePalette {
   minimalColor: string
 }
 
+export type ThemePresetGroup = 'core' | 'studio' | 'game' | 'light'
+
 export interface ThemePreset {
   id: string
   name: string
+  group: ThemePresetGroup
   palette: ThemePalette
 }

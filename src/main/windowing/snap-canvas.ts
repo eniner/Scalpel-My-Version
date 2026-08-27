@@ -92,20 +92,29 @@ export function getSnapCanvasWindow(): BrowserWindow | null {
   return canvasWin && !canvasWin.isDestroyed() ? canvasWin : null
 }
 
-/** Show the snap ghost at the given rect. Pass null to clear it. */
-export function setSnapGhost(rect: Rect | null): void {
+/** Show the snap ghost at the given rect. Pass null to clear it. `edges`
+ *  carries the winning mount's flush sides so the ghost squares the same
+ *  corners the docked window will. */
+export function setSnapGhost(rect: (Rect & { edges?: import('./snap-mounts').FlushEdges }) | null): void {
+  // Clearing must never create the canvas. There is nothing to clear if it
+  // doesn't exist, and the hide/blur/exit paths clear defensively on every
+  // call - going through ensureCanvasWindow would spawn a whole renderer
+  // process the first time the user alt-tabs out of PoE, for a window no
+  // secondary overlay ever asked for.
+  if (!rect) {
+    getSnapCanvasWindow()?.webContents.send('secondary-overlay-canvas:snap-ghost', null)
+    return
+  }
   const win = ensureCanvasWindow()
-  if (rect) {
-    // Re-apply bounds on every show: PoE may have moved to a different display
-    // since the canvas was last sized, and the canvas needs to land on PoE's
-    // current display to inherit that monitor's scale factor. Also covers the
-    // Windows quirk where the first show after creation re-clamps the window
-    // into the work area, chopping the bottom off.
-    applyCanvasBounds(win)
-    if (!canvasShown) {
-      win.show()
-      canvasShown = true
-    }
+  // Re-apply bounds on every show: PoE may have moved to a different display
+  // since the canvas was last sized, and the canvas needs to land on PoE's
+  // current display to inherit that monitor's scale factor. Also covers the
+  // Windows quirk where the first show after creation re-clamps the window
+  // into the work area, chopping the bottom off.
+  applyCanvasBounds(win)
+  if (!canvasShown) {
+    win.show()
+    canvasShown = true
   }
   win.webContents.send('secondary-overlay-canvas:snap-ghost', rect)
 }

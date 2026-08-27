@@ -49,11 +49,22 @@ export function createPluginContext(deps: PluginContextFactoryDeps): ScalpelPlug
         icon: opts.icon,
         hotkeyLabel: opts.hotkeyLabel,
         defaultSize: opts.defaultSize,
+        defaultPosition: opts.defaultPosition,
+        snapPositions: opts.snapPositions,
         mode: opts.mode,
       })
     },
     openOverlay: () => deps.openOverlay(deps.pluginId),
     closeOverlay: () => deps.closeOverlay(deps.pluginId),
+    // Inert here for the same reason as setInteractiveRegion below: the overlay
+    // render only ever runs in the pop-out window's process, so only that copy
+    // of the plugin has anything to reset when the window is reopened.
+    // use-activate-plugin supplies the real subscription there.
+    onOverlayVisibility: () => () => {},
+    // Interactive regions are owned by the annotation-overlay window process
+    // (see use-activate-plugin); the main-overlay context never renders the
+    // annotation surface, so this is inert here.
+    setInteractiveRegion: () => {},
     fetch: window.fetch.bind(window),
     storage: {
       get: <T = unknown>(key: string): Promise<T | null> => deps.storage.get(key) as Promise<T | null>,
@@ -65,9 +76,12 @@ export function createPluginContext(deps: PluginContextFactoryDeps): ScalpelPlug
     buildPlanner: deps.buildPlanner,
     trade: deps.trade,
     prices: deps.prices,
+    ninja: deps.ninja,
+    filter: deps.filter,
     webPanel: deps.webPanel,
     readClipboardText: () => deps.readClipboardText(),
     craft: deps.craft,
+    media: deps.media,
     openExternal: deps.openExternal,
     openTab: () => deps.openTab(deps.pluginId),
     copyAndEvaluateItem: (opts) => deps.copyAndEvaluateItem(opts),

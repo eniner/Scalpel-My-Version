@@ -25,6 +25,14 @@ export interface TierTag {
   tier: string
 }
 
+/** Sidecar custom tier. Survives FilterBlade updates and Scalpel economy refresh. */
+export interface CustomTier {
+  id: string
+  typePath: string
+  visibility: Visibility
+  baseTypes: string[]
+}
+
 export interface FilterBlock {
   id: string
   visibility: Visibility
@@ -62,6 +70,10 @@ export interface AdvancedMod {
   fractured?: boolean
   crafted?: boolean
   eldritch?: boolean
+  /** Which eldritch altar granted the implicit. `eldritch` only says one of them did;
+   *  the price-check source badge needs to know which, so it is kept separately rather
+   *  than widening the boolean its existing consumers read. */
+  eldritchSource?: 'searing-exarch' | 'eater-of-worlds'
   foulborn?: boolean
   magnitudeMultiplier?: number
   randomSupport?: boolean
@@ -85,6 +97,9 @@ export interface PoeItem {
   reqStr: number
   reqDex: number
   reqInt: number
+  /** "Requires Level" from the requirements section. Absent on items that print
+   *  no requirements block (most currency, maps, div cards). */
+  requiredLevel?: number
   corrupted: boolean
   twiceCorrupted?: boolean
   hasVaalUniqueMod?: boolean
@@ -93,13 +108,16 @@ export interface PoeItem {
   synthesised: boolean
   isSynthetic?: boolean
   fractured: boolean
+  /** PoE1 Vestigial unique (Domain of Timeless Conflict / Crystal of Permutation). */
+  vestigial?: boolean
   transfigured: boolean
   alternateQuality?: boolean
   vaalGem?: boolean
   blighted: boolean
   uberBlighted?: boolean
   scourged: boolean
-  vestigial?: boolean
+  /** PoE2 sanctification (or similar) flag when present on clipboard text. */
+  sanctified?: boolean
   foulborn?: boolean
   zanaMemory: boolean
   implicitCount: number
@@ -114,6 +132,8 @@ export interface PoeItem {
   imbues: string[]
   grantedSkills?: string[]
   memoryStrands?: number
+  /** Allflame Embers intangibility percent on the crafted base. */
+  intangibility?: number
   unidentifiedItemTier?: number
   areaLevel?: number
   advancedMods?: AdvancedMod[]
@@ -139,6 +159,10 @@ export interface PoeItem {
   width?: number
   height?: number
   heistJob?: { skill: string; level: number }
+  /** Multi-job heist contracts may list several skills. */
+  heistJobs?: Array<{ skill: string; level: number }>
+  /** Heist blueprint target, e.g. "Currency" or "Enchanted Armaments". */
+  heistTarget?: string
   monsterLevel?: number
   wingsRevealed?: number
   wingsTotal?: number
@@ -150,24 +174,27 @@ export interface PoeItem {
   ultimatumChallenge?: string
   ultimatumRewardText?: string
   ultimatumRequired?: string
-  /** Chart zone name as printed on the clipboard, e.g. "Sea Pillars". PoE1
-   *  `Chart` item class only. Part of the chart's trade identity: the trade API
-   *  indexes each zone as its own type + discriminator. */
+  /** Chart zone name as printed on the clipboard, e.g. "Sea Pillars". */
   chartZone?: string
   /** Chart shape, e.g. "Straight". PoE1 `Chart` item class only. */
   chartShape?: string
-  /** Map area a Scrying Orb is bound to, e.g. "Dunes", from its "Map Area:"
-   *  line. Part of the orb's trade identity: the trade API indexes each area as
-   *  its own type + discriminator (see shared/data/trade/scrying-orbs.ts). */
+  /** Map area a Scrying Orb is bound to, e.g. "Dunes". */
   scryingArea?: string
-  /** Mercenary build a Mercenary Warrant sells, e.g. "Mysterious Diver" or
-   *  "Infamous Mysterious Diver", from its "Build:" line. Part of the warrant's
-   *  trade identity: the trade API indexes each build as its own type +
-   *  discriminator (see shared/data/trade/mercenary-warrants.ts). */
+  /** Mercenary build a Mercenary Warrant sells, e.g. "Mysterious Diver". */
   mercenaryBuild?: string
-  /** Mercenary level a Mercenary Warrant sells, capped at 83. Indexes as
-   *  misc_filters.ilvl on trade, not as area level. */
+  /** Mercenary level a Mercenary Warrant sells, capped at 83. */
   mercenaryLevel?: number
+  /**
+   * Mercenary Warrant skills + linked supports. Each support-at-tier is its own
+   * presence-only trade stat id (mercenary.skill_* / mercenary.support_*).
+   */
+  mercenarySkills?: MercenarySkill[]
+}
+
+/** One skill on a Mercenary Warrant's mercenary plus the supports linked to it. */
+export interface MercenarySkill {
+  name: string
+  supports: string[]
 }
 
 export interface Zone {
@@ -187,6 +214,25 @@ export interface MatchResult {
   evaluatedConditions: EvaluatedCondition[]
   hasUnknowns: boolean
 }
+
+export interface RemovalPreview {
+  /** The block that still catches the item afterwards, or null for none. */
+  landsOn: MatchResult | null
+  /** How many tiers the base will be stripped from. */
+  tierCount: number
+  /** Tiers that name the item but cannot be stripped, so it stays visible. */
+  skipped: { tier: string; reason: 'token' | 'last-base' }[]
+  /** Hide tier the item will be added to, or null when none is needed or none exists. */
+  hideDestination: string | null
+  /** True when stripping the naming tiers is enough on its own. */
+  alreadyHidden: boolean
+  /** Set when hiding means flipping the sole-name tier to Hide. */
+  flipTier: string | null
+}
+
+export type MoveBlockedReason = 'conditions' | 'no-basetype' | 'outranked'
+
+export type SourceLockReason = 'last-base' | 'token'
 
 export interface TierSibling {
   tier: string
@@ -229,13 +275,30 @@ export interface SearchableItem {
   baseType: string
   itemClass: string
   rarity: 'Unique' | 'Currency' | 'Gem'
-  blocks: Array<{ visibility: 'Show' | 'Hide'; actions: FilterAction[]; continue: boolean }> | null
+  blocks: Array<{
+    visibility: 'Show' | 'Hide'
+    actions: FilterAction[]
+    continue: boolean
+    /** Filter section tier slug (e.g. `t0`, `t1`, `restex`) when the block is tagged. */
+    tier?: string
+  }> | null
   reward?: string
   iconKey?: string
   flags?: { zanaMemory?: boolean }
 }
 
-export const HIDEABLE_TAB_KEYS = ['item', 'pricecheck', 'dust', 'divcards', 'regex', 'extras'] as const
+export const HIDEABLE_TAB_KEYS = [
+  'item',
+  'pricecheck',
+  'dust',
+  'uniquetiers',
+  'divcards',
+  'scarabs',
+  'timeless',
+  'warrants',
+  'regex',
+  'extras',
+] as const
 
 export type HideableTabKey = (typeof HIDEABLE_TAB_KEYS)[number]
 

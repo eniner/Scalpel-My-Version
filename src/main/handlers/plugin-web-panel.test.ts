@@ -50,9 +50,7 @@ describe('plugin-web-panel', () => {
 
   it('rejects non-https urls', async () => {
     const { ipcMain } = await import('electron')
-    const openHandler = vi
-      .mocked(ipcMain.handle)
-      .mock.calls.find((c) => c[0] === 'plugins:web-panel-open')?.[1] as (
+    const openHandler = vi.mocked(ipcMain.handle).mock.calls.find((c) => c[0] === 'plugins:web-panel-open')?.[1] as (
       _evt: unknown,
       pluginId: string,
       opts: { url: string },
@@ -62,15 +60,11 @@ describe('plugin-web-panel', () => {
 
   it('rejects disallowed hosts', async () => {
     const { ipcMain } = await import('electron')
-    const openHandler = vi
-      .mocked(ipcMain.handle)
-      .mock.calls.find((c) => c[0] === 'plugins:web-panel-open')?.[1] as (
+    const openHandler = vi.mocked(ipcMain.handle).mock.calls.find((c) => c[0] === 'plugins:web-panel-open')?.[1] as (
       _evt: unknown,
       pluginId: string,
       opts: { url: string },
     ) => void
-    expect(() =>
-      openHandler({}, 'scalpel-lab', { url: 'https://evil.example/' }),
-    ).toThrow(/not allowed/)
+    expect(() => openHandler({}, 'scalpel-lab', { url: 'https://evil.example/' })).toThrow(/not allowed/)
   })
 })

@@ -1,8 +1,9 @@
 import { clipboard } from 'electron'
 import { getItemClasses } from '@shared/data/items/item-classes'
 import { MERCENARY_WARRANT_BASE_TYPE } from '@shared/data/trade/mercenary-warrants'
+import { vaalGemType } from '@shared/data/trade/vaal-gems'
 import { endgameAreaLevel, SKILL_GEM_CLASSES } from '@shared/poe-item'
-import type { AdvancedMod, ItemRarity, PoeItem } from '@shared/types'
+import type { AdvancedMod, ItemRarity, MercenarySkill, PoeItem } from '@shared/types'
 import { getPoeVersion } from '../game-state'
 
 // Both base-name and class-size lookups seed lazily from the active game's
@@ -291,11 +292,12 @@ export function parseItemText(text: string): PoeItem | null {
   const cleanName = vestigial && name === rawBaseType ? name.replace(VESTIGIAL_PREFIX, '') : name
 
   const isGemClass = SKILL_GEM_CLASSES.has(itemClass)
-  const isVaalGem =
-    isGemClass &&
-    rarity === 'Gem' &&
-    !name.startsWith('Vaal ') &&
-    sections.some((s) => s.trim().startsWith(`Vaal ${name}`))
+  // A hybrid Vaal gem is named by its non-Vaal half, with the Vaal skill heading a
+  // later section. That section is usually "Vaal <name>", but GGG renamed a handful
+  // ("Purity of Fire" -> "Vaal Impurity of Fire"), so the Vaal name is looked up
+  // rather than built by prefixing (#589).
+  const vaalHalfName = isGemClass && rarity === 'Gem' && !name.startsWith('Vaal ') ? vaalGemType(name) : null
+  const isVaalGem = vaalHalfName != null && sections.some((s) => s.trim().startsWith(vaalHalfName))
 
   // Collect all text across sections for parsing
   const allText = sections.join('\n')
@@ -306,10 +308,12 @@ export function parseItemText(text: string): PoeItem | null {
 
   // Extract map/waystone tier from header line like "Map (Tier 12)" or "Waystone (Tier 5)"
   const tierMatch = name.match(/\(Tier (\d+)\)/) ?? baseType.match(/\(Tier (\d+)\)/)
-  // Heist job skill requirement: "Requires Engineering (Level 3)" or "(Level 3 (unmet))"
-  const heistJobLine = allLines.find((l) => /^Requires \w+.*\(Level \d+/.test(l))
-  const heistJobMatch = heistJobLine?.match(/^Requires (\w[\w -]*?)\s*\(Level (\d+)/)
-  const heistJob = heistJobMatch ? { skill: heistJobMatch[1].trim(), level: parseInt(heistJobMatch[2], 10) } : undefined
+  // Heist job skill requirements: "Requires Engineering (Level 3)" or "(Level 3 (unmet))".
+  // A contract prints exactly one; a blueprint prints one per revealed wing job (#591).
+  const heistJobs = allLines
+    .map((l) => l.match(/^Requires (\w[\w -]*?)\s*\(Level (\d+)/))
+    .filter((m): m is RegExpMatchArray => m != null)
+    .map((m) => ({ skill: m[1].trim(), level: parseInt(m[2], 10) }))
 
   // Monster level (maps) or Area Level (heist contracts/blueprints)
   const monsterLevel = extractNum(allLines, 'Monster Level:') ?? extractNum(allLines, 'Area Level:')
@@ -377,14 +381,28 @@ export function parseItemText(text: string): PoeItem | null {
   const isMercenaryWarrant = baseType === MERCENARY_WARRANT_BASE_TYPE
   const mercenaryBuild = isMercenaryWarrant ? extractStr(allLines, 'Build:') : undefined
   const mercenaryLevel = isMercenaryWarrant ? (extractNum(allLines, 'Mercenary Level:') ?? undefined) : undefined
+  const mercenarySkills = isMercenaryWarrant ? parseMercenarySkills(sections) : undefined
 
   const memoryStrands = extractNum(allLines, 'Memory Strands:')
+
+  // Allflame crafting (3.29) stamps a property line -- "Intangibility: 12%" -- on every
+  // item it touches, and each craft raises it. It is the chance the NEXT craft collapses
+  // to a single outcome, so a low number is what a crafting base sells on. Absent on
+  // anything that was never Allflame-crafted, which is why the chip is presence-gated.
+  const intangibility = extractNum(allLines, 'Intangibility:')
 
   // Heist blueprints: "Wings Revealed: 3/4"
   const wingsLine = allLines.find((l) => l.startsWith('Wings Revealed:'))
   const wingsParts = wingsLine?.split(':')[1]?.trim().split('/')
   const wingsRevealed = wingsParts ? parseInt(wingsParts[0], 10) : undefined
   const wingsTotal = wingsParts?.[1] ? parseInt(wingsParts[1], 10) : undefined
+  // Heist target: property line "Heist Target: Currency" or enchant/implicit
+  // "Heist Targets are always Enchanted Armaments".
+  const heistTargetProp = extractStr(allLines, 'Heist Target:')
+  const heistTargetsAlways = allLines
+    .map((l) => l.match(/^Heist Targets are always (.+)$/i)?.[1]?.trim())
+    .find((v): v is string => !!v)
+  const heistTarget = heistTargetProp ?? heistTargetsAlways
   // Facetor's Lens: "Stored Experience: 999,627,082" (or "750 000 000" on a
   // space-grouping client -- see parseGroupedInt)
   const storedExpLine = allLines.find((l) => l.startsWith('Stored Experience:'))
@@ -481,6 +499,18 @@ export function parseItemText(text: string): PoeItem | null {
   const reqDex = extractNum(allLines, 'Dex:') ?? 0
   const reqInt = extractNum(allLines, 'Int:') ?? 0
 
+  // "Requires Level" from the requirements section. Scoped to that section rather
+  // than read off allLines because gems print a `Level:` line in their property
+  // block *before* the requirements section -- an unscoped extractNum takes the
+  // first match and would return the gem level (parsed separately above).
+  const reqSection = sections.find((s) => s.includes('Requirements:'))
+  const requiredLevel = reqSection
+    ? (extractNum(
+        reqSection.split('\n').map((l) => l.trim()),
+        'Level:',
+      ) ?? undefined)
+    : undefined
+
   // Sockets
   const socketLine = allLines.find((l) => l.startsWith('Sockets:'))
   const sockets = socketLine ? socketLine.replace('Sockets:', '').trim() : ''
@@ -496,6 +526,10 @@ export function parseItemText(text: string): PoeItem | null {
   // already trimmed, so anchor on the brace-wrapped annotation.
   const hasVaalUniqueMod = allLines.some((l) => /^\{\s*Vaal\s+Unique\s+Modifier\b[^}]*\}$/.test(l))
   const mirrored = allLines.some((l) => l === 'Mirrored')
+  // PoE2 Well of Souls sanctification: a standalone "Sanctified" section line,
+  // like Corrupted/Mirrored. Exact match -- "Sanctified Staff" is a real PoE2
+  // base type, so a prefix/substring test would flag every such staff (#597).
+  const sanctified = allLines.some((l) => l === 'Sanctified')
   const synthesised =
     allLines.some((l) => l.startsWith('Synthesis') || l.startsWith('Synthesised')) ||
     rawBaseType.startsWith('Synthesised ')
@@ -667,7 +701,7 @@ export function parseItemText(text: string): PoeItem | null {
     }
   }
 
-  // Parse advanced mod data if available (Ctrl+Alt+C format)
+  // Parse advanced mod data if available (advanced copy format)
   const advancedMods = parseAdvancedMods(text)
 
   // If advanced mods are available, rebuild implicits and explicits from them
@@ -680,16 +714,23 @@ export function parseItemText(text: string): PoeItem | null {
         .filter((l) => !l.startsWith('(')) // Skip parenthetical descriptions
         .map(cleanAdvancedModLine)
         .filter(Boolean)
-      // For multi-line mods: push both the joined version (for genuine multi-line stats like
-      // "Passives granting Fire Resistance...\nalso grant increased Maximum Life...") AND
-      // individual lines (for hybrid mods that have two independent stats under one affix header).
-      // The stat matcher picks the best match by text length, so the right one wins.
-      if (am.type === 'implicit') {
-        for (const line of stripped) implicits.push(line)
-        if (stripped.length > 1) implicits.push(stripped.join('\n'))
-      } else {
-        for (const line of stripped) explicits.push(line)
-        if (stripped.length > 1) explicits.push(stripped.join('\n'))
+      // For multi-line mods: push the individual lines (for hybrid mods that have two
+      // independent stats under one affix header) AND every contiguous run of two or
+      // more lines. The whole-block run covers genuine multi-line stats ("Passives
+      // granting Fire Resistance...\nalso grant increased Maximum Life..."); the
+      // shorter runs cover a block that mixes the two shapes -- e.g. the "Tacati's"
+      // prefix, whose two-line trigger stat sits above an independent "increased
+      // Spell Damage" line, so neither a single line nor the whole block matches it
+      // and the mod disappeared entirely (#559). The stat matcher picks the best match
+      // by text length; dropFragmentDuplicates then discards every run that only
+      // resolved through the loose substring fallbacks, so the extra candidates cannot
+      // surface as duplicate rows.
+      const target = am.type === 'implicit' ? implicits : explicits
+      for (const line of stripped) target.push(line)
+      for (let start = 0; start < stripped.length; start++) {
+        for (let end = start + 2; end <= stripped.length; end++) {
+          target.push(stripped.slice(start, end).join('\n'))
+        }
       }
     }
   }
@@ -699,8 +740,8 @@ export function parseItemText(text: string): PoeItem | null {
   return {
     itemClass,
     rarity,
-    name: isVaalGem ? `Vaal ${cleanName}` : cleanName,
-    baseType: isVaalGem ? `Vaal ${baseType}` : baseType,
+    name: isVaalGem ? vaalGemType(cleanName) : cleanName,
+    baseType: isVaalGem ? vaalGemType(baseType) : baseType,
     mapTier,
     itemLevel,
     quality,
@@ -714,12 +755,14 @@ export function parseItemText(text: string): PoeItem | null {
     reqStr,
     reqDex,
     reqInt,
+    requiredLevel,
     corrupted,
     twiceCorrupted,
     hasVaalUniqueMod,
     identified,
     ...(unidentifiedItemTier != null ? { unidentifiedItemTier } : {}),
     mirrored,
+    sanctified,
     synthesised,
     fractured,
     transfigured,
@@ -742,6 +785,7 @@ export function parseItemText(text: string): PoeItem | null {
     imbues,
     ...(grantedSkills.length > 0 ? { grantedSkills } : {}),
     ...(memoryStrands != null ? { memoryStrands } : {}),
+    ...(intangibility != null ? { intangibility } : {}),
     ...(advancedMods.length > 0 ? { advancedMods } : {}),
     ...(mapQuantity != null ? { mapQuantity } : {}),
     ...(mapRarity != null ? { mapRarity } : {}),
@@ -761,13 +805,15 @@ export function parseItemText(text: string): PoeItem | null {
     ...(scryingArea != null ? { scryingArea } : {}),
     ...(mercenaryBuild != null ? { mercenaryBuild } : {}),
     ...(mercenaryLevel != null ? { mercenaryLevel } : {}),
+    ...(mercenarySkills != null ? { mercenarySkills } : {}),
     ...(physDamageMin != null ? { physDamageMin, physDamageMax } : {}),
     ...(eleDamageAvg != null ? { eleDamageAvg } : {}),
     ...(chaosDamageAvg != null ? { chaosDamageAvg } : {}),
     ...(attacksPerSecond != null ? { attacksPerSecond } : {}),
     ...(critChance != null ? { critChance } : {}),
     ...(itemSize ? { width: itemSize[0], height: itemSize[1] } : {}),
-    ...(heistJob ? { heistJob } : {}),
+    ...(heistJobs.length > 0 ? { heistJobs } : {}),
+    ...(heistTarget ? { heistTarget } : {}),
     ...(monsterLevel != null ? { monsterLevel } : {}),
     ...(wingsRevealed != null ? { wingsRevealed, wingsTotal } : {}),
     ...(storedExperience != null ? { storedExperience } : {}),
@@ -823,6 +869,44 @@ function extractFloat(lines: string[], prefix: string): number | undefined {
   return match ? parseFloat(match[1]) : undefined
 }
 
+/** A support line inside a Mercenary Warrant skill block, e.g.
+ *  "Greater Critical Chance (Tier: 3)". The tier is part of the support's
+ *  identity on trade (its own stat id), not a value on it. */
+const MERCENARY_SUPPORT_LINE = /\(Tier: \d+\)$/
+
+/**
+ * Skill blocks on a Mercenary Warrant. Everything between the "Build:" section
+ * and the closing "Right click this item..." description is one section per
+ * skill: the skill name on the first line, its supports below it. A skill with
+ * no supports (an aura like Grace) is a one-line section, which is why the shape
+ * check -- name line, then nothing but support lines -- is what identifies a
+ * block rather than its length.
+ */
+function parseMercenarySkills(sections: string[]): MercenarySkill[] | undefined {
+  const buildIdx = sections.findIndex((s) => s.split('\n').some((l) => l.trim().startsWith('Build:')))
+  if (buildIdx === -1) return undefined
+
+  const out: MercenarySkill[] = []
+  for (const section of sections.slice(buildIdx + 1)) {
+    const lines = section
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+    if (lines.length === 0) continue
+    // The description block closes the skill list; a trade "Note: ~b/o" section
+    // can only follow it, so stopping here covers both.
+    if (lines.some((l) => l.startsWith('Right click') || l.startsWith('Can be used'))) break
+    const [name, ...supports] = lines
+    // Skill names carry neither a tier nor a "Key: value" shape. Anything else
+    // in this stretch is a section we don't recognise -- skip it rather than
+    // emitting a chip that resolves to nothing.
+    if (MERCENARY_SUPPORT_LINE.test(name) || name.includes(':')) continue
+    if (!supports.every((l) => MERCENARY_SUPPORT_LINE.test(l))) continue
+    out.push({ name, supports })
+  }
+  return out.length > 0 ? out : undefined
+}
+
 function computeLinkedSockets(sockets: string): number {
   if (!sockets) return 0
   const groups = sockets.split(' ')
@@ -860,6 +944,7 @@ function parseModSections(sections: string[], explicits: string[], implicits: st
     'Corrupted',
     'Unidentified',
     'Mirrored',
+    'Sanctified',
     'Synthesised',
     'Right click',
     'Shift click',
@@ -978,8 +1063,8 @@ function parseModSections(sections: string[], explicits: string[], implicits: st
       for (let li = 0; li < modLines.length; li++) {
         explicits.push(modLines[li])
         // A mod too long for the item panel wraps onto the next line. A basic
-        // (Ctrl+C) copy has no advanced-mod headers to group the halves, so offer
-        // the pair joined as well. Two tells: the continuation starts lowercase
+        // copy has no advanced-mod headers to group the halves, so offer the
+        // pair joined as well. Two tells: the continuation starts lowercase
         // (most real mod lines start with a capital, a digit or a sign), or the
         // previous line ends on a dangling function word. The leftover half-line
         // rows are dropped downstream by dropFragmentDuplicates.
@@ -992,7 +1077,7 @@ function parseModSections(sections: string[], explicits: string[], implicits: st
 }
 
 /**
- * Parse advanced mod info from Ctrl+Alt+C clipboard format.
+ * Parse advanced mod info from the advanced-copy clipboard format.
  * Looks for lines like: { Prefix Modifier "Hummingbird's" (Tier: 1) -- Defences, Evasion }
  * followed by mod text lines like: 41(39-42)% increased Evasion and Energy Shield
  */
@@ -1040,6 +1125,11 @@ function parseAdvancedMods(text: string): AdvancedMod[] {
         fractured: isFractured,
         crafted: isCrafted,
         eldritch: isEldritch,
+        eldritchSource: isEldritch
+          ? modPrefix === 'searing exarch'
+            ? 'searing-exarch'
+            : 'eater-of-worlds'
+          : undefined,
         foulborn: isFoulborn,
         magnitudeMultiplier,
       }

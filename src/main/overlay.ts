@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { BrowserWindow, ipcMain, screen, webContents } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, webContents } from 'electron'
 import { OVERLAY_WINDOW_OPTS, OverlayController } from 'electron-overlay-window'
 import { uIOhook } from 'uiohook-napi'
 import { startClientLogWatcher } from './client-log'
@@ -14,6 +14,14 @@ import { getWhiteboardOverlay } from './whiteboard'
 import { POE_SIDEBAR_RATIO } from '@shared/poe-geometry'
 import { GAME_TITLES } from '@shared/contracts/game-variant'
 import { IPC_CHANNELS } from '@shared/contracts/ipc'
+import { detectRunningPoeGame } from './detect-foreground-game'
+import { BOTH_GAME_TITLES, variantFromTitleIndex } from './overlay-attach'
+
+type OverlayControllerExtras = typeof OverlayController & {
+  attachByTitles?: (win: BrowserWindow, titles: string[], options?: { preferredTitle?: string }) => void
+  setTargetTitles?: (titles: string[]) => void
+  scalpelAttachMode?: 'multi' | 'single'
+}
 
 let overlayWindow: BrowserWindow | null = null
 let overlayVisible = false
@@ -37,6 +45,8 @@ let retargetWatchdog: ReturnType<typeof setTimeout> | null = null
 // same version retargetForGame already set).
 const RETARGET_WATCHDOG_MS = 2000
 let multiTitleMode = false
+let gameWatchTimer: ReturnType<typeof setInterval> | null = null
+let overlayRelaunchArmed = false
 
 let overlayVisibilityListener: ((visible: boolean) => void) | null = null
 
@@ -339,6 +349,10 @@ export function createOverlayWindow(version: 1 | 2 = 1, options?: CreateOverlayO
 
   overlayWindow.on('closed', () => {
     overlayWindow = null
+    if (gameWatchTimer) {
+      clearInterval(gameWatchTimer)
+      gameWatchTimer = null
+    }
   })
 
   // Prevent Windows show/hide animation by using opacity instead of hide/show.
@@ -383,15 +397,29 @@ export function createOverlayWindow(version: 1 | 2 = 1, options?: CreateOverlayO
     return origIsVisible()
   }
 
-  // Attach to the PoE game window - syncs overlay bounds automatically.
-  // In multi-title mode (experimental), pass both titles so the native tracker
-  // can find either PoE1 or PoE2 without a restart. In single-title mode
-  // (stable), attach to the specific game version only.
-  if (multiTitleMode) {
-    OverlayController.attachByTitles(overlayWindow, [GAME_TITLES[1], GAME_TITLES[2]])
-  } else {
-    OverlayController.attachByTitle(overlayWindow, GAME_TITLES[version])
+  // Attach to both PoE window titles. 4.1 natives take a string[]; 4.0.2 takes
+  // one string. The overlay JS tries the array first and falls back so swapping
+  // PoE1 ↔ PoE2 still auto-detects on either native.
+  multiTitleMode = options?.multiTitle === true
+  try {
+    const oc = OverlayController as OverlayControllerExtras
+    const attachOpts = { preferredTitle: GAME_TITLES[version] }
+    if (typeof oc.attachByTitles === 'function') {
+      oc.attachByTitles(overlayWindow, [...BOTH_GAME_TITLES], attachOpts)
+    } else {
+      OverlayController.attachByTitle(
+        overlayWindow,
+        BOTH_GAME_TITLES as unknown as string,
+        attachOpts as { hasTitleBarOnMac?: boolean },
+      )
+    }
+    if (oc.scalpelAttachMode === 'single') multiTitleMode = false
+  } catch (err) {
+    lastOverlayError = err instanceof Error ? err.message : String(err)
+    console.error('[overlay] attachByTitle failed; booting without native overlay attach', lastOverlayError)
+    multiTitleMode = false
   }
+  startForegroundGameWatch(options)
 
   OverlayController.events.on('attach', (ev) => {
     lastAttachAt = Date.now()
@@ -400,10 +428,8 @@ export function createOverlayWindow(version: 1 | 2 = 1, options?: CreateOverlayO
       // so we skip titleIndex inference.
       if (!retargeting) {
         if (multiTitleMode) {
-          // Multi-title mode (experimental): use titleIndex to detect which
-          // PoE actually has focus (0 = PoE1, 1 = PoE2).
-          if (ev.titleIndex === 0 || ev.titleIndex === 1) {
-            const detected: 1 | 2 = ev.titleIndex === 0 ? 1 : 2
+          const detected = variantFromTitleIndex(ev.titleIndex)
+          if (detected) {
             if (detected !== getPoeVersion()) {
               options?.onAttachedGameVariant?.(detected)
             }
@@ -530,8 +556,46 @@ function sendGameBounds(physWidth: number, physHeight: number): void {
  *  the target game is not running, the attach never arrives, so we arm a
  *  watchdog to clear `retargeting` regardless - otherwise the flag would stick
  *  true and the next real PoE-quit detach would skip its cleanup. */
+function nativeCanRetarget(): boolean {
+  return (OverlayController as OverlayControllerExtras).scalpelAttachMode === 'multi'
+}
+
+function relaunchIntoAttachedGame(): void {
+  if (overlayRelaunchArmed || !app.isPackaged) return
+  overlayRelaunchArmed = true
+  try {
+    app.relaunch()
+    app.quit()
+  } catch (err) {
+    overlayRelaunchArmed = false
+    console.error('[overlay] relaunch after game switch failed', err)
+  }
+}
+
+function startForegroundGameWatch(options?: CreateOverlayOptions): void {
+  if (gameWatchTimer) clearInterval(gameWatchTimer)
+  const tick = (): void => {
+    let running: 1 | 2 | null = null
+    try {
+      running = detectRunningPoeGame()
+    } catch {
+      return
+    }
+    if (!running || running === getPoeVersion()) return
+    overlayAttachedVersion = running
+    options?.onAttachedGameVariant?.(running)
+    if (!multiTitleMode || !nativeCanRetarget()) relaunchIntoAttachedGame()
+  }
+  gameWatchTimer = setInterval(tick, 750)
+}
+
 export function retargetForGame(target: 1 | 2): void {
-  if (!multiTitleMode) return
+  if (!multiTitleMode || !nativeCanRetarget()) {
+    if (getPoeVersion() !== target) setPoeVersion(target)
+    overlayAttachedVersion = target
+    relaunchIntoAttachedGame()
+    return
+  }
   // Clear any prior in-flight retarget so a second switch can't compound the
   // flag state if the previous attach never landed.
   if (retargetWatchdog) clearTimeout(retargetWatchdog)
@@ -539,7 +603,7 @@ export function retargetForGame(target: 1 | 2): void {
   hideOverlay()
   setPoeVersion(target)
   overlayAttachedVersion = target
-  OverlayController.setTargetTitles([GAME_TITLES[target]])
+  ;(OverlayController as unknown as { setTargetTitles: (t: string[]) => void }).setTargetTitles([GAME_TITLES[target]])
   retargetWatchdog = setTimeout(() => {
     retargeting = false
     retargetWatchdog = null

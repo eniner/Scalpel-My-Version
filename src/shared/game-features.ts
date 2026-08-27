@@ -10,6 +10,8 @@
 export interface GameFeatures {
   /** Thaumaturgic dust explorer + the "Explore" chip shown next to dust values. */
   dustExplorer: boolean
+  /** Unique economy-tier browser (S/A/B/C/D from live ninja prices). PoE1. */
+  uniqueTiers: boolean
   /** Divination card explorer + the "Explore" chip shown on div-card items. */
   divCards: boolean
   /** Socket recolor tool + the "Recolor" chip on items with sockets. */
@@ -42,6 +44,7 @@ import type { GameVariant } from './types'
 const FEATURES_BY_VERSION: Record<GameVariant, GameFeatures> = {
   1: {
     dustExplorer: true,
+    uniqueTiers: true,
     divCards: true,
     socketRecolor: true,
     regexTool: true,
@@ -50,11 +53,12 @@ const FEATURES_BY_VERSION: Record<GameVariant, GameFeatures> = {
     scalpelWarrants: true,
     bulkBaselineCurrency: 'chaos',
     bulkExchangeBanner: 'faustus',
-    leagues: ['Mirage', 'Hardcore Mirage', 'Standard', 'Hardcore'],
+    leagues: ['Allflame', 'Hardcore Allflame', 'Standard', 'Hardcore'],
     filterFolderHint: 'Documents\\My Games\\Path of Exile',
   },
   2: {
     dustExplorer: false,
+    uniqueTiers: false,
     divCards: false,
     socketRecolor: false,
     regexTool: true,

@@ -20,13 +20,7 @@ import {
   rollOneExaltMod,
   rollOneMod,
 } from './roll'
-import type {
-  CraftDataset,
-  CraftEngineOptions,
-  CraftItemState,
-  CraftMod,
-  CraftSimulationResult,
-} from './types'
+import type { CraftDataset, CraftEngineOptions, CraftItemState, CraftMod, CraftSimulationResult } from './types'
 
 export { listCraftActions } from './actions'
 
@@ -50,7 +44,12 @@ function aggregateMods(counts: Map<string, { mod: CraftMod; hits: number }>, mod
   }
 }
 
-function toOutcomes(counts: Map<string, { mod: CraftMod; hits: number }>, samples: number, minProb = 0.0005, limit = 200): CraftSimulationResult['outcomes'] {
+function toOutcomes(
+  counts: Map<string, { mod: CraftMod; hits: number }>,
+  samples: number,
+  minProb = 0.0005,
+  limit = 200,
+): CraftSimulationResult['outcomes'] {
   return [...counts.values()]
     .map(({ mod, hits }) => ({
       text: mod.t || mod.n || mod.g,
@@ -218,7 +217,20 @@ export function simulateCraft(
     for (let i = 0; i < o.samples; i++) {
       const kind = pickNextKind(counts.p, counts.s, 1, 1, rng)
       if (!kind) continue
-      const mod = rollOneMod(data, tags, state.itemLevel, kind, blocked, counts.p, counts.s, 1, 1, rng, state.baseType, tierFloor)
+      const mod = rollOneMod(
+        data,
+        tags,
+        state.itemLevel,
+        kind,
+        blocked,
+        counts.p,
+        counts.s,
+        1,
+        1,
+        rng,
+        state.baseType,
+        tierFloor,
+      )
       if (mod) aggregateMods(modHits, [mod])
     }
     return {
@@ -280,7 +292,7 @@ export function simulateCraft(
         kind: m.kind,
         probability: 1,
       })),
-      note: 'Divine Orb randomises numeric values within each modifier\'s range — mod lines stay the same.',
+      note: "Divine Orb randomises numeric values within each modifier's range — mod lines stay the same.",
     }
   }
 

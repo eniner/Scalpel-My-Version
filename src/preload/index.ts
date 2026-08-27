@@ -12,6 +12,10 @@ import type {
   GameVariant,
   HistoryEntry,
   Manifest,
+  RadialBackdropEvent,
+  RadialOpenPayload,
+  RadialPendingState,
+  RemovalPreview,
   OverlayData,
   PoeProfileSummary,
   ProfileSettingKey,
@@ -57,10 +61,12 @@ export const api = {
     | { ok: false; requiresRestart: true; targetGame: GameVariant }
     | { ok: false; error: string }
   > => ipcRenderer.invoke('set-active-profile', id, restartIfNeeded),
-  refreshLeagues: (): Promise<{
+  refreshLeagues: (
+    force = false,
+  ): Promise<{
     leaguesPoe1: string[]
     leaguesPoe2: string[]
-  }> => ipcRenderer.invoke('refresh-leagues'),
+  }> => ipcRenderer.invoke('refresh-leagues', force),
   pickFilterFile: (): Promise<string | null> => ipcRenderer.invoke('pick-filter-file'),
   pickFilterDir: (): Promise<string | null> => ipcRenderer.invoke('pick-filter-dir'),
   scanFilterDir: (dir: string): Promise<FilterListEntry[]> => ipcRenderer.invoke('scan-filter-dir', dir),
@@ -90,6 +96,26 @@ export const api = {
     force = false,
   ): Promise<{ ok: boolean; path?: string; error?: string; conflict?: boolean }> =>
     ipcRenderer.invoke('import-online-filter', sourcePath, filterName, targetDir, force),
+  createScalpelFilter: (opts?: {
+    force?: boolean
+  }): Promise<{
+    ok: boolean
+    path?: string
+    error?: string
+    conflict?: boolean
+    warning?: string
+    stats?: { applied: number; skipped: number; conflicts: number }
+  }> => ipcRenderer.invoke('create-scalpel-filter', opts),
+  refreshScalpelFilter: (): Promise<{
+    ok: boolean
+    path?: string
+    error?: string
+    conflict?: boolean
+    warning?: string
+    stats?: { applied: number; skipped: number; conflicts: number }
+  }> => ipcRenderer.invoke('refresh-scalpel-filter'),
+  getFilterOrigin: (): Promise<{ origin: 'scalpel' | 'filterblade' | 'other' }> =>
+    ipcRenderer.invoke('get-filter-origin'),
   filterBladeUrl: (): Promise<string> => ipcRenderer.invoke('filterblade-url'),
   filterBladeScan: (
     filterDir?: string,
@@ -145,6 +171,12 @@ export const api = {
     ipcRenderer.invoke('get-filter-block', blockIndex),
   addBaseTypeToTier: (blockIndex: number, baseType: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('add-basetype-to-tier', blockIndex, baseType),
+  removeBaseTypeFromTier: (blockIndex: number, baseType: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('remove-basetype-from-tier', blockIndex, baseType),
+  deleteFilterBlock: (blockIndex: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('delete-filter-block', blockIndex),
+  moveFilterBlock: (fromIndex: number, toIndex: number): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('move-filter-block', fromIndex, toIndex),
   insertSectionRule: (opts: {
     typePath: string
     tier: string
@@ -152,11 +184,96 @@ export const api = {
     beforeBlockIndex: number
     visibility?: 'Show' | 'Hide' | 'Minimal'
     copyStyleFromIndex?: number
+    cloneConditions?: boolean
   }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('insert-section-rule', opts),
   simulateLootDrops: (
     req: import('@shared/types').LootSimRequest,
   ): Promise<{ ok: boolean; error?: string } & import('@shared/types').LootSimResult> =>
     ipcRenderer.invoke('simulate-loot-drops', req),
+  getCustomTiers: (): Promise<{ tiers: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('get-custom-tiers'),
+  saveCustomTier: (
+    tier: import('@shared/types').CustomTier,
+  ): Promise<{ ok: boolean; error?: string; tiers?: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('save-custom-tier', tier),
+  deleteCustomTier: (
+    id: string,
+  ): Promise<{ ok: boolean; error?: string; tiers?: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('delete-custom-tier', id),
+  addCustomTierItem: (
+    id: string,
+    baseType: string,
+    itemJson?: string,
+  ): Promise<{ ok: boolean; error?: string; tiers?: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('add-custom-tier-item', id, baseType, itemJson),
+  removeCustomTierItem: (
+    id: string,
+    baseType: string,
+  ): Promise<{ ok: boolean; error?: string; tiers?: import('@shared/types').CustomTier[] }> =>
+    ipcRenderer.invoke('remove-custom-tier-item', id, baseType),
+  matchFilterItem: (
+    req: import('@shared/types').FilterMatchRequest,
+  ): Promise<import('@shared/types').FilterMatchResponse> => ipcRenderer.invoke('match-filter-item', req),
+  parseItemText: (text: string): Promise<import('@shared/types').ParsedClipboardItem> =>
+    ipcRenderer.invoke('parse-item-text', text),
+  getLastEvaluatedItem: (): Promise<import('@shared/types').ParsedClipboardItem> =>
+    ipcRenderer.invoke('get-last-evaluated-item'),
+  getRecentEvaluatedItems: (): Promise<import('@shared/types').ParsedClipboardItem[]> =>
+    ipcRenderer.invoke('get-recent-evaluated-items'),
+  preflightFilterCheck: (): Promise<import('@shared/types').FilterPreflightResult> =>
+    ipcRenderer.invoke('preflight-filter-check'),
+  applySectionDelta: (
+    req: import('@shared/types').ApplySectionDeltaRequest,
+  ): Promise<import('@shared/types').ApplySectionDeltaResult> => ipcRenderer.invoke('apply-section-delta', req),
+  exportFilterIntents: (): Promise<{
+    ok: boolean
+    filterName?: string
+    intentCount?: number
+    json?: string
+    error?: string
+  }> => ipcRenderer.invoke('export-filter-intents'),
+  importFilterIntents: (payload: {
+    json: string
+    mode: 'replace' | 'merge'
+    replay?: boolean
+  }): Promise<{ ok: boolean; error?: string; imported?: number; applied?: number; skipped?: number }> =>
+    ipcRenderer.invoke('import-filter-intents', payload),
+  findFilterConditions: (query: {
+    conditionType?: string
+    valueContains?: string
+    missingAction?: string
+    typePath?: string
+  }): Promise<{
+    ok: boolean
+    error?: string
+    hits: Array<{
+      blockIndex: number
+      typePath?: string
+      tier?: string
+      label: string
+      visibility: string
+      match: string
+    }>
+  }> => ipcRenderer.invoke('find-filter-conditions', query),
+  undoSectionHistory: (typePath: string): Promise<{ ok: boolean; undone: number; error?: string }> =>
+    ipcRenderer.invoke('undo-section-history', typePath),
+  previewBaseTypeMove: (baseType: string, toBlockIndex: number): Promise<import('@shared/types').MoveConflictPreview> =>
+    ipcRenderer.invoke('preview-basetype-move', baseType, toBlockIndex),
+  diffFilterFiles: (leftPath: string, rightPath: string): Promise<import('@shared/types').FilterVersionDiff> =>
+    ipcRenderer.invoke('diff-filter-files', leftPath, rightPath),
+  diffFilterVsVersion: (versionFilename: string): Promise<import('@shared/types').FilterVersionDiff> =>
+    ipcRenderer.invoke('diff-filter-vs-version', versionFilename),
+  previewFilterReapply: (): Promise<import('@shared/types').FilterReapplyPreview> =>
+    ipcRenderer.invoke('preview-filter-reapply'),
+  applyFilterReapply: (): Promise<import('@shared/types').FilterReapplyResult> =>
+    ipcRenderer.invoke('apply-filter-reapply'),
+  filterSectionEditor: {
+    show: (): void => ipcRenderer.send('filter-section-editor:show'),
+    requestClose: (): void => ipcRenderer.send('filter-section-editor:request-close'),
+    setPinned: (pinned: boolean): Promise<{ ok: boolean; pinned: boolean }> =>
+      ipcRenderer.invoke('filter-section-editor:set-pinned', pinned),
+  },
+
   reloadFilter: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('reload-filter'),
   getUniqueVisibility: (): Promise<Record<string, 'Show' | 'Hide'>> => ipcRenderer.invoke('get-unique-visibility'),
   lookupBaseType: (
@@ -216,12 +333,25 @@ export const api = {
     itemJson: string,
   ): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('move-item-tier', baseType, fromBlockIndex, toBlockIndex, itemJson),
+  removeItemFromTier: (
+    baseType: string,
+    blockIndex: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string; removedFrom?: string[]; skipped?: { tier: string; reason: string }[] }> =>
+    ipcRenderer.invoke('remove-item-from-tier', baseType, blockIndex, itemJson),
+  hideItem: (
+    baseType: string,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string; hiddenIn?: string; removedFrom?: string[] }> =>
+    ipcRenderer.invoke('hide-item', baseType, itemJson),
+  previewFallThrough: (blockIndex: number, itemJson: string): Promise<RemovalPreview> =>
+    ipcRenderer.invoke('preview-fall-through', blockIndex, itemJson),
   batchMoveItemTier: (
     baseTypes: string[],
     fromBlockIndex: number,
     toBlockIndex: number,
     itemJson: string,
-  ): Promise<{ ok: boolean; error?: string }> =>
+  ): Promise<{ ok: boolean; error?: string; moved?: number; stranded?: string[] }> =>
     ipcRenderer.invoke('batch-move-item-tier', baseTypes, fromBlockIndex, toBlockIndex, itemJson),
   updateStackThresholds: (
     oldBoundary: number,
@@ -245,6 +375,8 @@ export const api = {
   // History / undo
   getHistory: (): Promise<HistoryEntry[]> => ipcRenderer.invoke('get-history'),
   undoEdit: (itemJson?: string): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('undo-edit', itemJson),
+  undoToEntry: (entryId: number, itemJson?: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('undo-to-entry', entryId, itemJson),
 
   // Filter versions
   listVersions: (): Promise<FilterVersion[]> => ipcRenderer.invoke('list-versions'),
@@ -302,6 +434,10 @@ export const api = {
     ipcRenderer.send('record-pref-observation', sessionId, chips),
   resetLearning: (scope: 'all' | { rarity: string; itemClass: string }): Promise<void> =>
     ipcRenderer.invoke('reset-learning', scope),
+  setLearnedPreference: (sessionId: number, chipId: string, enabled: boolean): void =>
+    ipcRenderer.send('set-learned-preference', sessionId, chipId, enabled),
+  unsetLearnedPreference: (sessionId: number, chipId: string): void =>
+    ipcRenderer.send('unset-learned-preference', sessionId, chipId),
 
   // Regex presets
   getRegexPresets: (): Promise<import('@shared/types').RegexPreset[]> => ipcRenderer.invoke('get-regex-presets'),
@@ -324,8 +460,10 @@ export const api = {
       ipcRenderer.send('timeless-tree:set-state', state),
     requestState: (): void => ipcRenderer.send('timeless-tree:request-state'),
     onState: (cb: (state: import('@shared/timeless-tree-state').TimelessTreeState) => void): (() => void) => {
-      const handler = (_: Electron.IpcRendererEvent, next: import('@shared/timeless-tree-state').TimelessTreeState): void =>
-        cb(next)
+      const handler = (
+        _: Electron.IpcRendererEvent,
+        next: import('@shared/timeless-tree-state').TimelessTreeState,
+      ): void => cb(next)
       ipcRenderer.on('timeless-tree:state', handler)
       return () => ipcRenderer.removeListener('timeless-tree:state', handler)
     },
@@ -365,11 +503,13 @@ export const api = {
     return () => ipcRenderer.removeListener('cheat-sheet:focus-category', handler)
   },
   onSecondaryOverlaySnapGhost: (
-    cb: (rect: { x: number; y: number; width: number; height: number } | null) => void,
+    cb: (
+      rect: { x: number; y: number; width: number; height: number; edges?: { left: boolean; right: boolean } } | null,
+    ) => void,
   ): (() => void) => {
     const handler = (
       _: Electron.IpcRendererEvent,
-      rect: { x: number; y: number; width: number; height: number } | null,
+      rect: { x: number; y: number; width: number; height: number; edges?: { left: boolean; right: boolean } } | null,
     ): void => cb(rect)
     ipcRenderer.on('secondary-overlay-canvas:snap-ghost', handler)
     return () => ipcRenderer.removeListener('secondary-overlay-canvas:snap-ghost', handler)
@@ -379,6 +519,9 @@ export const api = {
     ipcRenderer.on('cheat-sheet-preview:render', handler)
     return () => ipcRenderer.removeListener('cheat-sheet-preview:render', handler)
   },
+  // Secondary-overlay pin (Esc exemption). Sender-resolved in main.
+  getOverlayPinned: (): Promise<boolean> => ipcRenderer.invoke('secondary-overlay:get-pinned'),
+  setOverlayPinned: (pinned: boolean): void => ipcRenderer.send('secondary-overlay:set-pinned', pinned),
 
   // Event subscriptions
   onOverlayData: (cb: (data: OverlayData) => void): (() => void) => {
@@ -461,6 +604,7 @@ export const api = {
     }
   },
   getRecentLogLines: (count?: number): Promise<string[]> => ipcRenderer.invoke('client-log:recent-lines', count),
+  getCurrentZone: (): Promise<Zone | null> => ipcRenderer.invoke('client-log:current-zone'),
   gameConfigRead: (): Promise<{ content: string; path: string }> => ipcRenderer.invoke('plugins:game-config-read'),
   gameConfigWrite: (content: string): Promise<{ backupPath: string | null }> =>
     ipcRenderer.invoke('plugins:game-config-write', content),
@@ -479,18 +623,103 @@ export const api = {
   buildPlannerRead: (filename: string): Promise<{ path: string; content: string }> =>
     ipcRenderer.invoke('plugins:build-planner-read', filename),
   buildPlannerOpenFolder: (): Promise<{ path: string }> => ipcRenderer.invoke('plugins:build-planner-open-folder'),
-  tradeOpenSearch: (
-    item: {
+  tradeOpenSearch: (item: {
+    name: string
+    baseType: string
+    itemClass?: string
+    rarity: string
+    notes?: string
+    statPriority?: string[]
+    similarItems?: boolean
+    upgradeSearch?: boolean
+    statKinds?: string[]
+    listedTime?: string
+    priceMin?: number
+    priceMax?: number
+  }): Promise<{
+    url: string
+    queryId: string
+    total: number
+    matchedStats?: number
+    unmatchedMods?: string[]
+    similarItems?: boolean
+    upgradeSearch?: boolean
+  }> => ipcRenderer.invoke('plugins:trade-open-search', item),
+  tradePriceCheck: (item: {
+    name: string
+    baseType: string
+    itemClass?: string
+    rarity: string
+    notes?: string
+    statPriority?: string[]
+    similarItems?: boolean
+    upgradeSearch?: boolean
+    statKinds?: string[]
+    listedTime?: string
+    priceMin?: number
+    priceMax?: number
+  }): Promise<{
+    url: string
+    queryId: string
+    total: number
+    matchedStats?: number
+    unmatchedMods?: string[]
+    pricesDivine: number[]
+    cheapestDivine: number | null
+    estimateDivine: number | null
+    pricedCount: number
+  }> => ipcRenderer.invoke('plugins:trade-price-check', item),
+  tradeScanListings: (item: {
+    name: string
+    baseType: string
+    itemClass?: string
+    rarity: string
+    notes?: string
+    statPriority?: string[]
+    similarItems?: boolean
+    upgradeSearch?: boolean
+    statKinds?: string[]
+    listedTime?: string
+    priceMin?: number
+    priceMax?: number
+  }): Promise<{
+    url: string
+    queryId: string
+    league: string
+    total: number
+    matchedStats?: number
+    unmatchedMods?: string[]
+    listings: Array<{
+      id: string
       name: string
       baseType: string
-      itemClass?: string
-      rarity: string
-      notes?: string
-      statPriority?: string[]
-      similarItems?: boolean
-    },
-  ): Promise<{ url: string; queryId: string; total: number; matchedStats?: number }> =>
-    ipcRenderer.invoke('plugins:trade-open-search', item),
+      rarity?: string
+      priceAmount: number | null
+      priceCurrency: string | null
+      priceDivine: number | null
+      account: string
+      online: boolean
+      instantBuyout: boolean
+      explicitMods: string[]
+      implicitMods: string[]
+      ilvl?: number
+      whisper?: string
+      indexed?: string
+      icon?: string
+      characterName?: string
+    }>
+    pricesDivine: number[]
+    cheapestDivine: number | null
+    estimateDivine: number | null
+    pricedCount: number
+  }> => ipcRenderer.invoke('plugins:trade-scan-listings', item),
+  ninjaGetCharacterModel: (opts: {
+    account: string
+    league: string
+    name: string
+    modelVersion?: number
+  }): Promise<{ type: string; charModel: unknown; modelVersion: number }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PLUGINS.NINJA_CHARACTER_MODEL, opts),
   pricesGet: (opts?: {
     category?: string
   }): Promise<{ prices: import('@shared/types').PriceEntry[]; updatedAt: number | null }> =>
@@ -604,6 +833,7 @@ export const api = {
     queryId: string
     remainingIds: string[]
     loginRequiredPseudoIds?: string[]
+    loginRequiredMercenaryIds?: string[]
   }> => ipcRenderer.invoke('trade-search', item, statFilters, searchOptions),
   bulkExchange: (
     itemName: string,
@@ -629,7 +859,20 @@ export const api = {
     limit?: number
     onlineOnly?: boolean
     pricedOnly?: boolean
+    sort?: 'asc' | 'desc'
+    maxAskDivine?: number | null
+    excludeJokeCurrencies?: boolean
+    wantSkills?: string[]
+    skillMatchMode?: 'all' | 'any'
+    wantSupports?: import('@shared/warrants').WantSupportFilter[]
+    supportPresenceMode?: import('@shared/warrants').SupportPresenceMode
+    supportLinkOrder?: import('@shared/warrants').SupportLinkOrder
+    linkSkill?: string | null
   }): Promise<import('@shared/warrants').WarrantScanResult> => ipcRenderer.invoke('warrants-scan', opts),
+  warrantsCatalog: (): Promise<{
+    skills: string[]
+    supports: import('@shared/warrants').WantSupportFilter[]
+  }> => ipcRenderer.invoke('warrants-catalog'),
   checkBulkItem: (
     itemName: string,
     baseType: string,
@@ -637,6 +880,8 @@ export const api = {
     rarity?: string,
     zanaMemory?: boolean,
   ): Promise<boolean> => ipcRenderer.invoke('check-bulk-item', itemName, baseType, itemClass, rarity, zanaMemory),
+  exchangeDetails: (name: string): Promise<import('@shared/contracts/exchange').ExchangeDetails | null> =>
+    ipcRenderer.invoke('exchange-details', name),
   mapRegexTrade: (params: {
     tier: number
     avoidTexts: string[]
@@ -720,7 +965,7 @@ export const api = {
     wantTexts: string[]
     wantMode: 'any' | 'all'
     wantValues: Record<number, number>
-    rarity: { normal: boolean; magic: boolean }
+    rarity: { normal: boolean; magic: boolean; rare: boolean }
     typeFlags: Record<string, boolean>
     uses: { enabled: boolean; value: number }
   }): Promise<{
@@ -889,8 +1134,7 @@ export const api = {
 
   // Auto-update
   downloadUpdate: (): Promise<void> => ipcRenderer.invoke('download-update'),
-  installUpdate: (): Promise<{ ok: true } | { ok: false; error: string }> =>
-    ipcRenderer.invoke('install-update'),
+  installUpdate: (): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('install-update'),
   getUpdateState: (): Promise<{
     updateVersion: string | null
     updateReady: boolean
@@ -974,6 +1218,48 @@ export const api = {
      *  mounts after an async version probe) pull the show event when it
      *  missed the original push. */
     requestShownState: (): void => ipcRenderer.send('whiteboard:request-shown-state'),
+  },
+  // Screen capture source resolution for the whiteboard live-mirror feature
+  screen: {
+    getGameWindowSource: (): Promise<{ sourceId: string; gameSize: { w: number; h: number } } | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SCREEN.GET_GAME_WINDOW_SOURCE),
+    onSourceInvalidated: (cb: () => void): (() => void) => {
+      const handler = (): void => cb()
+      ipcRenderer.on(IPC_CHANNELS.SCREEN.SOURCE_INVALIDATED_EVENT, handler)
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.SCREEN.SOURCE_INVALIDATED_EVENT, handler)
+    },
+    onSourceMaybeStale: (handler: () => void): (() => void) => {
+      ipcRenderer.on(IPC_CHANNELS.SCREEN.SOURCE_MAYBE_STALE_EVENT, handler)
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.SCREEN.SOURCE_MAYBE_STALE_EVENT, handler)
+    },
+  },
+  // Radial menu
+  onRadialOpen: (cb: (payload: RadialOpenPayload) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, payload: RadialOpenPayload): void => cb(payload)
+    ipcRenderer.on(IPC_CHANNELS.RADIAL.OPEN_EVENT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.RADIAL.OPEN_EVENT, handler)
+  },
+  onRadialClose: (cb: () => void): (() => void) => {
+    const handler = (): void => cb()
+    ipcRenderer.on(IPC_CHANNELS.RADIAL.CLOSE_EVENT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.RADIAL.CLOSE_EVENT, handler)
+  },
+  onRadialBackdrop: (cb: (backdrop: RadialBackdropEvent) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, backdrop: RadialBackdropEvent): void => cb(backdrop)
+    ipcRenderer.on(IPC_CHANNELS.RADIAL.BACKDROP_EVENT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.RADIAL.BACKDROP_EVENT, handler)
+  },
+  radialPending: (): Promise<RadialPendingState> => ipcRenderer.invoke(IPC_CHANNELS.RADIAL.PENDING),
+  radialFire: (sliceId: string): void => ipcRenderer.send(IPC_CHANNELS.RADIAL.FIRE, sliceId),
+  radialCancel: (): void => ipcRenderer.send(IPC_CHANNELS.RADIAL.CANCEL),
+  launcherList: (): Promise<import('@shared/launcher').LauncherPayload> => ipcRenderer.invoke('launcher:list'),
+  launcherRun: (action: string): void => ipcRenderer.send('launcher:run', action),
+  launcherClose: (): void => ipcRenderer.send('launcher:close'),
+  onLauncherItems: (cb: (payload: import('@shared/launcher').LauncherPayload) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, payload: import('@shared/launcher').LauncherPayload): void =>
+      cb(payload)
+    ipcRenderer.on('launcher:items', handler)
+    return () => ipcRenderer.removeListener('launcher:items', handler)
   },
   // Plugins
   listInstalledPlugins: (): Promise<
@@ -1082,6 +1368,16 @@ export const api = {
     ipcRenderer.on('plugin-overlay:init', handler)
     return () => ipcRenderer.removeListener('plugin-overlay:init', handler)
   },
+  onPluginOverlayVisibility: (cb: (visible: boolean) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, visible: boolean): void => cb(visible)
+    ipcRenderer.on('plugin-overlay:visibility', handler)
+    return () => ipcRenderer.removeListener('plugin-overlay:visibility', handler)
+  },
+  onPluginOverlayEdgeFlush: (cb: (edges: { left: boolean; right: boolean }) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, edges: { left: boolean; right: boolean }): void => cb(edges)
+    ipcRenderer.on('plugin-overlay:edge-flush', handler)
+    return () => ipcRenderer.removeListener('plugin-overlay:edge-flush', handler)
+  },
   pluginTriggerMainHotkey: (opts?: {
     showOverlay?: boolean
     dispatch?: boolean
@@ -1091,8 +1387,11 @@ export const api = {
     pluginId: string,
     opts: {
       title: string
+      icon?: string
       hotkeyLabel?: string
       defaultSize?: { width: number; height: number }
+      defaultPosition?: { fracX: number; fracY: number }
+      snapPositions?: { fracX: number; fracY: number }[]
       mode?: 'window' | 'annotation'
     },
   ): Promise<void> => ipcRenderer.invoke('plugins:register-overlay', pluginId, opts),
@@ -1165,12 +1464,8 @@ export const api = {
       marksmanEnabled?: boolean
     },
   ) => ipcRenderer.invoke('plugins:craft-mod-pool', pluginId, opts),
-  craftSearchBases: (
-    pluginId: string,
-    query: string,
-    limit?: number,
-    itemClass?: string,
-  ) => ipcRenderer.invoke('plugins:craft-search-bases', pluginId, query, limit, itemClass),
+  craftSearchBases: (pluginId: string, query: string, limit?: number, itemClass?: string) =>
+    ipcRenderer.invoke('plugins:craft-search-bases', pluginId, query, limit, itemClass),
   craftListItemClasses: (pluginId: string) => ipcRenderer.invoke('plugins:craft-list-item-classes', pluginId),
   craftSearchMods: (
     pluginId: string,
@@ -1183,12 +1478,30 @@ export const api = {
       limit?: number
     },
   ) => ipcRenderer.invoke('plugins:craft-search-mods', pluginId, opts),
+  craftGetCatalog: (pluginId: string) => ipcRenderer.invoke('plugins:craft-get-catalog', pluginId),
   pluginCaptureGameWindow: (
     region?: import('../plugin-sdk/src/types').GameRect,
   ): Promise<import('../plugin-sdk/src/types').GameCapture | null> =>
     ipcRenderer.invoke('plugins:capture-game-window', region),
   pluginGetCursorPosition: (): Promise<{ x: number; y: number } | null> =>
     ipcRenderer.invoke('plugins:get-cursor-position'),
+  pluginMediaGetSession: (): Promise<import('../plugin-sdk/src/types').MediaSession | null> =>
+    ipcRenderer.invoke('plugins:media-get'),
+  pluginMediaCommand: (command: 'play-pause' | 'next' | 'previous'): void => {
+    ipcRenderer.send('plugins:media-command', command)
+  },
+  onMediaChange: (cb: (session: import('../plugin-sdk/src/types').MediaSession | null) => void): (() => void) => {
+    const handler = (
+      _: Electron.IpcRendererEvent,
+      session: import('../plugin-sdk/src/types').MediaSession | null,
+    ): void => cb(session)
+    ipcRenderer.send('plugins:media-watch')
+    ipcRenderer.on('plugins:media-changed', handler)
+    return () => {
+      ipcRenderer.removeListener('plugins:media-changed', handler)
+      ipcRenderer.send('plugins:media-unwatch')
+    }
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)

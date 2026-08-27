@@ -38,6 +38,8 @@ docs/
 .wrangler/
 test-maps.md
 scripts/local/
+typecheck-out*.txt
+typecheck-errors*.txt
 
 # OS
 .DS_Store

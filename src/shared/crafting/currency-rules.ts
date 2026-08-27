@@ -18,10 +18,18 @@ export function simKeyForCurrencyName(name: string, cat?: string): string | null
   if (n === 'exalted orb' || n.startsWith('greater exalted') || n.startsWith('perfect exalted')) return 'exalt'
   if (n === 'orb of annulment') return 'annul'
   if (n === 'orb of alteration') return 'alteration'
-  if (n === 'orb of transmutation' || n.startsWith('greater orb of transmutation') || n.startsWith('perfect orb of transmutation')) {
+  if (
+    n === 'orb of transmutation' ||
+    n.startsWith('greater orb of transmutation') ||
+    n.startsWith('perfect orb of transmutation')
+  ) {
     return 'transmutation'
   }
-  if (n === 'orb of augmentation' || n.startsWith('greater orb of augmentation') || n.startsWith('perfect orb of augmentation')) {
+  if (
+    n === 'orb of augmentation' ||
+    n.startsWith('greater orb of augmentation') ||
+    n.startsWith('perfect orb of augmentation')
+  ) {
     return 'augmentation'
   }
   if (n === 'regal orb' || n.startsWith('greater regal') || n.startsWith('perfect regal')) return 'regal'

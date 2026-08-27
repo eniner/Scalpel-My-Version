@@ -4,6 +4,7 @@ const POE1_ONLY_CHAT_COMMANDS: ReadonlySet<string> = new Set(['/menagerie', '/de
 
 const POE1_ONLY_APP_MACROS: ReadonlySet<string> = new Set([
   'openDust',
+  'openUniqueTiers',
   'openDivCards',
   'openScarabs',
   'openTimeless',

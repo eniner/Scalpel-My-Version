@@ -3,12 +3,12 @@ import { OverlayController } from 'electron-overlay-window'
 import type Store from 'electron-store'
 import { isTownOrHideout } from '@shared/is-town-or-hideout'
 import { IPC_CHANNELS } from '@shared/contracts/ipc'
-import type { AppSettings, FilterFile, MatchResult, OverlayData, PoeItem, TierGroup, TierSibling } from '@shared/types'
+import type { AppSettings, OverlayData, PoeItem } from '@shared/types'
+import { buildTierGroup } from './filter/tier-group'
 import { getCurrentZone } from './client-log'
 import { snapshotClipboard } from './clipboard-preserve'
 import { getProfileBackedSetting } from './profiles/profile-settings'
 import {
-  evaluateBlock,
   findMatchingBlocks,
   findQualityBreakpoints,
   findStackSizeBreakpoints,
@@ -18,77 +18,11 @@ import { getCurrentFilter } from './filter-state'
 import { getPoeVersion } from './game-state'
 import { sendCtrlCToPoE } from './hotkeys'
 import { focusGameWindow, getOverlayWindow, showOverlay } from './overlay'
+import { advancedCopyTracker } from './trade/advanced-copy'
 import { readItemFromClipboard } from './trade/clipboard'
-import {
-  getUniquesByBase,
-  lookupItemPrice,
-  lookupPrice,
-  lookupPriceForItem,
-  lookupUniquePriceForBase,
-  refreshPrices,
-} from './trade/prices'
+import { buildUnidCandidates, lookupItemPrice, lookupPrice, lookupPriceForItem, refreshPrices } from './trade/prices'
 import { ensureStatsLoaded, matchItemMods } from './trade/trade'
 import { beginSession, decisionsForSession } from './learning'
-
-// ---- Tier group builder ----------------------------------------------------
-
-export function buildTierGroup(filter: FilterFile, activeMatch: MatchResult, item: PoeItem): TierGroup | undefined {
-  const tag = activeMatch.block.tierTag
-  if (!tag) return undefined
-
-  const siblings: TierSibling[] = []
-  for (let i = 0; i < filter.blocks.length; i++) {
-    const b = filter.blocks[i]
-    if (b.tierTag && b.tierTag.typePath === tag.typePath) {
-      const evaluation = evaluateBlock(b, item)
-      siblings.push({
-        tier: b.tierTag.tier,
-        visibility: b.visibility,
-        blockIndex: i,
-        block: b,
-        match: {
-          block: b,
-          blockIndex: i,
-          isFirstMatch: i === activeMatch.blockIndex,
-          evaluatedConditions: evaluation.evaluatedConditions,
-          hasUnknowns: evaluation.hasUnknowns,
-        },
-      })
-    }
-  }
-
-  if (siblings.length <= 1) return undefined
-
-  // If siblings with this base type are differentiated only by threshold conditions
-  // (StackSize, Quality, MemoryStrands), the slider handles navigation - hide the dropdown.
-  // But if different tiers have different base type lists, that's normal tiering.
-  const baseType = item.baseType
-  const siblingsWithBaseType = siblings.filter((s) =>
-    s.block.conditions.some((c) => c.type === 'BaseType' && c.values.includes(baseType)),
-  )
-  if (siblingsWithBaseType.length > 1) {
-    // Check if these siblings have the same base type list (threshold-only differentiation)
-    const thresholdTypes = new Set(['StackSize', 'Quality', 'MemoryStrands'])
-    const allSameBaseTypes = siblingsWithBaseType.every((s) => {
-      const btValues = s.block.conditions
-        .filter((c) => c.type === 'BaseType')
-        .flatMap((c) => c.values)
-        .sort()
-        .join(',')
-      const firstBtValues = siblingsWithBaseType[0].block.conditions
-        .filter((c) => c.type === 'BaseType')
-        .flatMap((c) => c.values)
-        .sort()
-        .join(',')
-      return btValues === firstBtValues
-    })
-    const differByThresholdOnly =
-      allSameBaseTypes && siblingsWithBaseType.some((s) => s.block.conditions.some((c) => thresholdTypes.has(c.type)))
-    if (differByThresholdOnly) return undefined
-  }
-
-  return { typePath: tag.typePath, siblings, currentTier: tag.tier }
-}
 
 // ---- Shared evaluation helper ----------------------------------------------
 
@@ -217,21 +151,7 @@ export async function preloadPriceCheck(item: PoeItem, store: Store<AppSettings>
   const priceInfo = lookupItemPrice(item)
 
   // For unidentified uniques, find all possible uniques for this base type
-  const unidCandidates: Array<{ name: string; chaosValue: number }> = []
-  if (item.rarity === 'Unique' && !item.identified) {
-    const uniquesByBase = getUniquesByBase()
-    const names = uniquesByBase[item.baseType] ?? []
-    const isStandard = league.toLowerCase() === 'standard'
-    for (const name of names) {
-      // Disambiguate same-name uniques by the item's base type; falls back
-      // to the name-only entry when no variant key matches.
-      const price = lookupUniquePriceForBase(name, item.baseType)
-      // In non-Standard leagues, skip items with no price (not obtainable this league)
-      if (!isStandard && !price) continue
-      unidCandidates.push({ name, chaosValue: price?.chaosValue ?? 0 })
-    }
-    unidCandidates.sort((a, b) => b.chaosValue - a.chaosValue)
-  }
+  const unidCandidates = item.rarity === 'Unique' && !item.identified ? buildUnidCandidates(item.baseType) : []
 
   await ensureStatsLoaded()
   const statFilters = matchItemMods(
@@ -256,6 +176,7 @@ export async function preloadPriceCheck(item: PoeItem, store: Store<AppSettings>
       gemLevel: item.gemLevel,
       corrupted: item.corrupted,
       mirrored: item.mirrored,
+      sanctified: item.sanctified,
       identified: item.identified,
       influence: item.influence,
       mapTier: item.mapTier,
@@ -276,13 +197,15 @@ export async function preloadPriceCheck(item: PoeItem, store: Store<AppSettings>
       imbues: item.imbues,
       grantedSkills: item.grantedSkills,
       memoryStrands: item.memoryStrands,
+      intangibility: item.intangibility,
       physDamageMin: item.physDamageMin,
       physDamageMax: item.physDamageMax,
       eleDamageAvg: item.eleDamageAvg,
       chaosDamageAvg: item.chaosDamageAvg,
       attacksPerSecond: item.attacksPerSecond,
       critChance: item.critChance,
-      heistJob: item.heistJob,
+      heistJobs: item.heistJobs,
+      heistTarget: item.heistTarget,
       monsterLevel: item.monsterLevel,
       wingsRevealed: item.wingsRevealed,
       wingsTotal: item.wingsTotal,
@@ -307,6 +230,8 @@ export async function preloadPriceCheck(item: PoeItem, store: Store<AppSettings>
       scryingArea: item.scryingArea,
       mercenaryBuild: item.mercenaryBuild,
       mercenaryLevel: item.mercenaryLevel,
+      mercenarySkills: item.mercenarySkills,
+      requiredLevel: item.requiredLevel,
     },
     item.advancedMods,
     store.get('priceCheckDefaultPercent') ?? 90,
@@ -335,8 +260,18 @@ export async function preloadPriceCheck(item: PoeItem, store: Store<AppSettings>
 let hotkeyProcessing = false
 let consecutiveClipboardFailures = 0
 
+/** Poll the clipboard for a parseable item, giving PoE `tries` x 50ms to land it. */
+async function pollClipboardForItem(tries: number): Promise<PoeItem | null> {
+  for (let i = 0; i < tries; i++) {
+    const item = readItemFromClipboard()
+    if (item) return item
+    await new Promise((r) => setTimeout(r, 50))
+  }
+  return null
+}
+
 /**
- * Capture an item from PoE's clipboard. Sends Ctrl+Alt+C, polls for content,
+ * Capture an item from PoE's clipboard. Sends Ctrl+C, polls for content,
  * falls back to windowed mode if needed. Returns the parsed item or null.
  *
  * The user's prior clipboard contents are stashed on entry and restored on exit
@@ -355,34 +290,42 @@ async function captureItemFromClipboard(
   const showOverlayFlag = opts?.showOverlay ?? true
   const restoreClip = snapshotClipboard()
 
-  // Hotkeys are also valid while a gameplay overlay owns focus. Hand input
-  // back to PoE before copying so that path is as immediate as game focus.
-  if (!OverlayController.targetHasFocus) focusGameWindow()
-  clipboard.clear()
-  await sendCtrlCToPoE()
-
-  // Poll for clipboard content
   let item: PoeItem | null = null
-  for (let i = 0; i < 3; i++) {
-    item = readItemFromClipboard()
-    if (item) break
-    await new Promise((r) => setTimeout(r, 50))
-  }
-
-  // Fallback for windowed mode
-  if (!item) {
+  // Focusing the game and injecting keys are both native calls that can throw.
+  // The clipboard is borrowed (and cleared) by then, so hand it back on the way
+  // out no matter how we leave - a leaked borrow holds the user's content
+  // hostage and blocks any overlapping flow's restore too (#562).
+  try {
+    // Hotkeys are also valid while a gameplay overlay owns focus. Hand input
+    // back to PoE before copying so that path is as immediate as game focus.
+    if (!OverlayController.targetHasFocus) focusGameWindow()
+    const withAlt = advancedCopyTracker.needsAlt()
     clipboard.clear()
-    focusGameWindow()
-    await new Promise((r) => setTimeout(r, 50))
-    await sendCtrlCToPoE()
-    for (let i = 0; i < 10; i++) {
-      item = readItemFromClipboard()
-      if (item) break
-      await new Promise((r) => setTimeout(r, 50))
-    }
-  }
+    await sendCtrlCToPoE({ withAlt })
 
-  restoreClip()
+    item = await pollClipboardForItem(3)
+
+    // Fallback for windowed mode
+    if (!item) {
+      clipboard.clear()
+      focusGameWindow()
+      await new Promise((r) => setTimeout(r, 50))
+      await sendCtrlCToPoE({ withAlt })
+      item = await pollClipboardForItem(10)
+    }
+
+    // A modded item that came back without advanced-mod headers means this client
+    // still wants Alt held to emit the advanced description. Confirm with a second
+    // copy before latching -- see advanced-copy.ts. Costs nothing once both games
+    // honour a plain Ctrl+C (#560), since the probe never fires.
+    if (item && advancedCopyTracker.shouldProbe(item)) {
+      clipboard.clear()
+      await sendCtrlCToPoE({ withAlt: true })
+      item = advancedCopyTracker.recordProbe(await pollClipboardForItem(3)) ?? item
+    }
+  } finally {
+    restoreClip()
+  }
 
   if (!item) {
     consecutiveClipboardFailures++

@@ -11,8 +11,11 @@ const capturedRequests: Array<{ url: string; method: string; body?: string }> = 
 // unaffected; response-parsing tests set this to feed a real fetch payload.
 let mockFetchBody: string | null = null
 
+// Same, for `/search/` requests -- error-body tests set this to a GGG rejection.
+let mockSearchBody: string | null = null
+
 interface CapturedTradeFilterGroup {
-  filters: Record<string, { min?: number; option?: string }>
+  filters: Record<string, { min?: number; max?: number; option?: string }>
 }
 
 interface CapturedTradeStatGroup {
@@ -31,6 +34,7 @@ interface CapturedTradeBody {
       weapon_filters: CapturedTradeFilterGroup
       map_filters?: CapturedTradeFilterGroup
       misc_filters?: CapturedTradeFilterGroup
+      trade_filters?: CapturedTradeFilterGroup
     }
     name?: string
     stats: Array<CapturedTradeStatGroup>
@@ -52,7 +56,9 @@ vi.mock('electron', () => ({
   // the way APT/EE2 do. Tests don't exercise the value, just need it to exist.
   // `on` covers the before-quit listener windowing/index.ts registers at module
   // scope (pulled in transitively via overlay.ts).
-  app: { userAgentFallback: 'Scalpel-Test/1.0', on: vi.fn() },
+  // `isReady` is what diagnostics.ts gates on before touching userData; returning
+  // false makes recordMainBreadcrumb a no-op instead of a crash on the error paths.
+  app: { userAgentFallback: 'Scalpel-Test/1.0', on: vi.fn(), isReady: () => false },
   net: {
     request: vi.fn((opts: { url: string; method: string }) => {
       const entry = { url: opts.url, method: opts.method } as {
@@ -84,9 +90,11 @@ vi.mock('electron', () => ({
               },
             })
             const body =
-              mockFetchBody != null && entry.url.includes('/fetch/')
-                ? mockFetchBody
-                : '{"result":[],"total":0,"id":"q"}'
+              mockSearchBody != null && entry.url.includes('/search/')
+                ? mockSearchBody
+                : mockFetchBody != null && entry.url.includes('/fetch/')
+                  ? mockFetchBody
+                  : '{"result":[],"total":0,"id":"q"}'
             ;(dataCb as ((chunk: unknown) => void) | null)?.(body)
             ;(endCb as (() => void) | null)?.()
           })
@@ -121,6 +129,7 @@ import {
   type StatFilter,
 } from './trade'
 import { parseItemText } from './clipboard'
+import { TRANSFIGURED_GEM_DISC } from '@shared/data/trade/transfigured-gems'
 import { setPoeVersion } from '../game-state'
 import { getUniquesByBase, _setUniquesByBaseForTests } from './prices'
 import { matchItemMods, _setStatEntriesForTests } from './stat-matcher'
@@ -166,6 +175,70 @@ describe('buildGemTypeField', () => {
 
   it('does not double-prepend "Vaal " when baseType already starts with it', () => {
     expect(buildGemTypeField('Vaal Fireball', true)).toBe('Vaal Fireball')
+  })
+
+  // A base skill whose own name contains " of " makes the first " of " the wrong
+  // split point -- "Wave of Conviction of Trarthus" is Wave of Conviction, not Wave.
+  // The truncated option is rejected outright: "Discriminator did not match the
+  // specified item base type" (#589).
+  it.each([
+    ['Wave of Conviction of Trarthus', 'Wave of Conviction', 'alt_y'],
+    ['Eye of Winter of Finality', 'Eye of Winter', 'alt_x'],
+    ['Eye of Winter of Transience', 'Eye of Winter', 'alt_y'],
+    ['Orb of Storms of Squalls', 'Orb of Storms', 'alt_x'],
+    ['Rain of Arrows of Artillery', 'Rain of Arrows', 'alt_x'],
+    ['Rain of Arrows of Saturation', 'Rain of Arrows', 'alt_y'],
+  ])('splits %s on the transfiguration suffix, not the first " of "', (baseType, option, discriminator) => {
+    expect(buildGemTypeField(baseType, false)).toEqual({ option, discriminator })
+  })
+
+  // GGG renamed a handful of Vaal halves, so "Vaal " + base skill is a base type the
+  // trade API does not know ("Vaal Purity of Fire"). The clipboard names a hybrid gem
+  // by its non-Vaal half, which is what reaches buildGemTypeField (#589).
+  it.each([
+    ['Purity of Fire', 'Vaal Impurity of Fire'],
+    ['Purity of Ice', 'Vaal Impurity of Ice'],
+    ['Purity of Lightning', 'Vaal Impurity of Lightning'],
+    ['Dominating Blow', 'Vaal Domination'],
+  ])('resolves the renamed Vaal half of %s', (baseType, expected) => {
+    expect(buildGemTypeField(baseType, true)).toBe(expected)
+  })
+
+  it('resolves the renamed Vaal half of a transfigured gem', () => {
+    // Vaal Domination (Dominating Blow of Inspiring) on trade.
+    expect(buildGemTypeField('Dominating Blow of Inspiring', true)).toEqual({
+      option: 'Vaal Domination',
+      discriminator: 'alt_x',
+    })
+  })
+
+  it('knows the transfigured gems added after the map was last refreshed', () => {
+    expect(buildGemTypeField('Reap of Butchery', false)).toEqual({ option: 'Reap', discriminator: 'alt_x' })
+    expect(buildGemTypeField('Chain Hook of Angling', false)).toEqual({ option: 'Chain Hook', discriminator: 'alt_x' })
+    expect(buildGemTypeField('Divine Blast of Radiance', false)).toEqual({
+      option: 'Divine Blast',
+      discriminator: 'alt_x',
+    })
+    expect(buildGemTypeField('Holy Hammers of Spirals', false)).toEqual({
+      option: 'Holy Hammers',
+      discriminator: 'alt_x',
+    })
+    expect(buildGemTypeField('Holy Sweep of Hammerfalls', false)).toEqual({
+      option: 'Holy Sweep',
+      discriminator: 'alt_x',
+    })
+  })
+
+  // Generic guard for the truncation class above: whatever the map grows to, the
+  // option has to be the whole base skill and the remainder a single suffix.
+  it('derives a whole base skill for every transfigured gem in the map', () => {
+    for (const name of Object.keys(TRANSFIGURED_GEM_DISC)) {
+      const field = buildGemTypeField(name, false) as { option: string }
+      expect(field.option, name).not.toBe('')
+      expect(name.startsWith(`${field.option} of `), name).toBe(true)
+      const suffix = name.slice(field.option.length + 4)
+      expect(suffix.includes(' of '), name).toBe(false)
+    }
   })
 })
 
@@ -385,6 +458,65 @@ describe('parseFetchedListings', () => {
     const [listing] = parseFetchedListings([entry])
     const data = listing.itemData!
     expect(data.memoryStrands).toBe(26)
+  })
+
+  it('extracts Allflame intangibility, whose property name ships in raw tag form (#588)', () => {
+    // Real shape from /api/trade/fetch: GGG has not localised this one yet, so the
+    // name arrives as "[Intangibility|Intangibility]" -- type 110 is what to match on.
+    const entry: FetchEntry = {
+      id: 'f8',
+      listing: baseListing,
+      item: {
+        name: 'Oblivion Grip',
+        baseType: 'Manifold Ring',
+        typeLine: 'Manifold Ring',
+        frameType: 2,
+        properties: [{ name: '[Intangibility|Intangibility]', values: [['67%', 0]], type: 110 }],
+      },
+    }
+
+    const [listing] = parseFetchedListings([entry])
+    expect(listing.itemData!.intangibility).toBe(67)
+  })
+
+  it('carries a Mercenary Warrant kit onto the listing, supports and tiers intact', () => {
+    // Real shape from /api/trade/fetch: `mercenarySkills`, each with an icon and
+    // the supports linked to it. An aura ships with no `supports` array at all.
+    const entry: FetchEntry = {
+      id: 'w1',
+      listing: baseListing,
+      item: {
+        name: '',
+        baseType: 'Mercenary Warrant',
+        typeLine: 'Mercenary Warrant',
+        frameType: 0,
+        mercenarySkills: [
+          {
+            name: 'Bladefall',
+            icon: 'https://web.poecdn.com/bladefall.png',
+            supports: [
+              { name: 'Brutality', tier: 2 },
+              { name: 'Greater Faster Casting', tier: 3 },
+            ],
+          },
+          { name: 'Grace', icon: 'https://web.poecdn.com/grace.png' },
+        ],
+      },
+    }
+
+    const [listing] = parseFetchedListings([entry])
+
+    expect(listing.itemData!.mercenarySkills).toEqual([
+      {
+        name: 'Bladefall',
+        icon: 'https://web.poecdn.com/bladefall.png',
+        supports: [
+          { name: 'Brutality', tier: 2 },
+          { name: 'Greater Faster Casting', tier: 3 },
+        ],
+      },
+      { name: 'Grace', icon: 'https://web.poecdn.com/grace.png', supports: [] },
+    ])
   })
 
   it('leaves memoryStrands undefined for an item without the property', () => {
@@ -842,6 +974,52 @@ describe('searchTrade filter-group dispatch', () => {
     expect(body.query.filters?.type_filters?.filters?.rarity).toBeUndefined()
   })
 
+  it('unique with a printed name and no base searches by name only', async () => {
+    setPoeVersion(2)
+    await searchTrade(
+      'Fate of the Vaal',
+      { name: 'Headhunter', baseType: '', itemClass: 'Belts', rarity: 'Unique' },
+      [],
+      { tradeStatus: 'any' },
+    )
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.name).toBe('Headhunter')
+    expect(body.query.type).toBeUndefined()
+  })
+
+  it('unique with a base and no printed name searches type + rarity:unique', async () => {
+    setPoeVersion(2)
+    await searchTrade(
+      'Fate of the Vaal',
+      { name: '', baseType: 'Heavy Belt', itemClass: 'Belts', rarity: 'Unique' },
+      [],
+      { tradeStatus: 'any' },
+    )
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.name).toBeUndefined()
+    expect(body.query.type).toBe('Heavy Belt')
+    expect(body.query.filters?.type_filters?.filters?.rarity).toEqual({ option: 'unique' })
+  })
+
+  it('sends divine min/max on trade_filters.price when a price band is set', async () => {
+    setPoeVersion(2)
+    await searchTrade(
+      'Fate of the Vaal',
+      { name: 'Temporalis', baseType: '', itemClass: 'Body Armours', rarity: 'Unique' },
+      [],
+      { tradeStatus: 'any', priceMin: 1800, priceMax: 1900, priceCurrency: 'divine' },
+    )
+    const body = parseCapturedBody(capturedRequests.find((r) => r.url.includes('/search/')))
+    expect(body.query.name).toBe('Temporalis')
+    expect(body.query.filters.trade_filters?.filters.price).toEqual({
+      min: 1800,
+      max: 1900,
+      option: 'divine',
+    })
+  })
+
   it('vestigial unique sends the stripped name/type and misc_filters.vestigial (#533)', async () => {
     setPoeVersion(1)
     const vestigialUnique = {
@@ -869,6 +1047,30 @@ describe('searchTrade filter-group dispatch', () => {
     expect(body.query.name).toBe('Tabula Rasa')
     expect(body.query.type).toBe('Simple Robe')
     expect(body.query.filters.misc_filters?.filters.vestigial).toEqual({ option: 'true' })
+  })
+
+  it('an enabled intangibility row sends misc_filters.intangibility as a bare max (#588)', async () => {
+    setPoeVersion(1)
+    const craftedRing = { name: '', baseType: 'Diamond Ring', itemClass: 'Rings', rarity: 'Rare' }
+    const filters: StatFilter[] = [
+      { id: 'misc.intangibility', text: 'Intangibility', type: 'gem', enabled: true, value: 12, min: null, max: 12 },
+    ]
+    await searchTrade('Allflame', craftedRing, filters, { tradeStatus: 'any' })
+    const body = parseCapturedBody(capturedRequests.find((r) => r.url.includes('/search/')))
+    // No min: listings that never got Allflame-crafted carry no Intangibility property
+    // at all, and a min would drop those -- they are the best comps, not the worst.
+    expect(body.query.filters.misc_filters?.filters.intangibility).toEqual({ max: 12 })
+  })
+
+  it('leaves intangibility out of the query while the row is off', async () => {
+    setPoeVersion(1)
+    const craftedRing = { name: '', baseType: 'Diamond Ring', itemClass: 'Rings', rarity: 'Rare' }
+    const filters: StatFilter[] = [
+      { id: 'misc.intangibility', text: 'Intangibility', type: 'gem', enabled: false, value: 12, min: null, max: 12 },
+    ]
+    await searchTrade('Allflame', craftedRing, filters, { tradeStatus: 'any' })
+    const body = parseCapturedBody(capturedRequests.find((r) => r.url.includes('/search/')))
+    expect(body.query.filters.misc_filters?.filters.intangibility).toBeUndefined()
   })
 
   it('flipping the vestigial chip to "no" sends misc_filters.vestigial with option false', async () => {
@@ -954,6 +1156,52 @@ describe('searchTrade filter-group dispatch', () => {
     expect(body.query.filters.misc_filters?.filters.mutated).toEqual({ option: 'true' })
   })
 
+  it.each([
+    ['yes', 'true'],
+    ['no', 'false'],
+  ] as const)('sanctified chipState "%s" sends misc_filters.sanctified:%s on a PoE2 rare (#597)', async (chipState, option) => {
+    setPoeVersion(2)
+    const sanctifiedRare = {
+      name: 'Storm Caller',
+      baseType: 'Sapphire Ring',
+      itemClass: 'Rings',
+      rarity: 'Rare',
+    }
+    const filters: StatFilter[] = [
+      {
+        id: 'misc.sanctified',
+        text: 'Sanctified',
+        type: 'misc',
+        enabled: false,
+        chipState,
+        value: null,
+        min: null,
+        max: null,
+      },
+    ]
+    await searchTrade('Runes of Aldur', sanctifiedRare, filters, {
+      tradeStatus: 'any',
+      tradePriceOption: 'chaos_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    expect(req).toBeDefined()
+    const body = parseCapturedBody(req)
+    expect(body.query.filters.misc_filters?.filters.sanctified).toEqual({ option })
+  })
+
+  it('a sanctified chip left on "any" (no chipState) sends no sanctified filter', async () => {
+    setPoeVersion(2)
+    const rare = { name: 'Storm Caller', baseType: 'Sapphire Ring', itemClass: 'Rings', rarity: 'Rare' }
+    const filters: StatFilter[] = [
+      { id: 'misc.sanctified', text: 'Sanctified', type: 'misc', enabled: false, value: null, min: null, max: null },
+    ]
+    await searchTrade('Runes of Aldur', rare, filters, { tradeStatus: 'any', tradePriceOption: 'chaos_divine' })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    expect(req).toBeDefined()
+    const body = parseCapturedBody(req)
+    expect(body.query.filters.misc_filters?.filters?.sanctified).toBeUndefined()
+  })
+
   describe('unidentified unique map name resolution (#470)', () => {
     // trade.ts didn't import prices.ts before #470, so no other test in this file
     // depends on uniques-by-base content -- safe to seed per-test and restore after.
@@ -1033,7 +1281,37 @@ describe('searchTrade filter-group dispatch', () => {
       expect(harbingerBody.query.name).toBe('The Beachhead')
     })
 
-    it('unid unique map with unknown base falls back to sending the base as name', async () => {
+    it('unid unique map on the generic "Map (Tier N)" base searches Map type at unique rarity', async () => {
+      // Post-atlas-rework clients print every map base as "Map (Tier N)" -- the
+      // base no longer says WHICH unique map dropped, so there is no name to
+      // resolve and the by-name path cannot work. The search must go out as the
+      // generic Map type at unique rarity with the tier pinned; the unid chip
+      // narrows the comps to unidentified listings (the gamble market).
+      setPoeVersion(1)
+      _setUniquesByBaseForTests({ 'Machinarium Map': ["Doryani's Machinarium"] })
+      const unidUniqueMap = {
+        name: 'Map (Tier 16)',
+        baseType: 'Map (Tier 16)',
+        itemClass: 'Maps',
+        rarity: 'Unique',
+      }
+      const filters: StatFilter[] = [
+        { id: 'misc.identified', text: 'Unidentified', type: 'misc', enabled: true, value: null, min: null, max: null },
+      ]
+      await searchTrade('Mirage', unidUniqueMap, filters, { tradeStatus: 'any' })
+      const req = capturedRequests.find((r) => r.url.includes('/search/'))
+      const body = parseCapturedBody(req)
+      expect(body.query.name).toBeUndefined()
+      expect(body.query.type).toEqual({ option: 'Map', discriminator: 'map' })
+      expect(body.query.filters.type_filters.filters.rarity).toEqual({ option: 'unique' })
+      expect(body.query.filters.map_filters?.filters.map_tier).toEqual({ min: 16, max: 16 })
+      expect(body.query.filters.misc_filters?.filters.identified).toEqual({ option: 'false' })
+    })
+
+    it('unid unique map with an unknown tierless base still avoids the name GGG rejects', async () => {
+      // Sending a map base as query.name is a guaranteed "Unknown item name"
+      // rejection, so even a base we cannot parse a tier from must go out as
+      // the generic unique-map search, just without the tier pin.
       setPoeVersion(1)
       _setUniquesByBaseForTests({})
       const unidUniqueMap = {
@@ -1048,7 +1326,10 @@ describe('searchTrade filter-group dispatch', () => {
       await searchTrade('Mirage', unidUniqueMap, filters, { tradeStatus: 'any' })
       const req = capturedRequests.find((r) => r.url.includes('/search/'))
       const body = parseCapturedBody(req)
-      expect(body.query.name).toBe('Some Future Map')
+      expect(body.query.name).toBeUndefined()
+      expect(body.query.type).toEqual({ option: 'Map', discriminator: 'map' })
+      expect(body.query.filters.type_filters.filters.rarity).toEqual({ option: 'unique' })
+      expect(body.query.filters.map_filters?.filters?.map_tier).toBeUndefined()
     })
 
     it('identified unique map still searches by its real name', async () => {
@@ -1340,6 +1621,108 @@ describe('searchTrade filter-group dispatch', () => {
     expect(body.query.filters.type_filters.filters.category).toEqual({ option: 'jewel' })
   })
 
+  it('Abyss Jewels route to jewel.abyss category', async () => {
+    setPoeVersion(1)
+    const eye = {
+      name: '',
+      baseType: 'Murderous Eye Jewel',
+      itemClass: 'Abyss Jewels',
+      rarity: 'Rare',
+    }
+    await searchTrade('Mirage', eye, [], { tradeStatus: 'any', tradePriceOption: 'chaos_divine' })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.filters.type_filters.filters.category).toEqual({ option: 'jewel.abyss' })
+    expect(body.query.type).toBeUndefined()
+  })
+
+  it('Flasks route to flask category', async () => {
+    setPoeVersion(1)
+    const flask = {
+      name: '',
+      baseType: 'Divine Life Flask',
+      itemClass: 'Flasks',
+      rarity: 'Magic',
+    }
+    await searchTrade('Mirage', flask, [], { tradeStatus: 'any', tradePriceOption: 'chaos_divine' })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.filters.type_filters.filters.category).toEqual({ option: 'flask' })
+  })
+
+  it('Utility Flasks route to flask category with the base pinned', async () => {
+    // PoE1 splits the flask family on the "Item Class:" line; Utility/Hybrid were
+    // missing from the category map. The basetype chip defaults on for flasks, so
+    // the category search stays pinned to the base -- flask bases are separate
+    // markets and an unpinned mod search would mix them.
+    setPoeVersion(1)
+    const flask = {
+      name: '',
+      baseType: 'Granite Flask',
+      itemClass: 'Utility Flasks',
+      rarity: 'Magic',
+    }
+    const baseChip: StatFilter = {
+      id: 'misc.basetype',
+      text: 'Granite Flask',
+      type: 'misc',
+      enabled: true,
+      value: null,
+      min: null,
+      max: null,
+    }
+    await searchTrade('Mirage', flask, [baseChip], { tradeStatus: 'any', tradePriceOption: 'chaos_divine' })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.filters.type_filters.filters.category).toEqual({ option: 'flask' })
+    expect(body.query.type).toBe('Granite Flask')
+  })
+
+  it('Tinctures route to tincture category', async () => {
+    setPoeVersion(1)
+    const tincture = {
+      name: '',
+      baseType: 'Ashbark Tincture',
+      itemClass: 'Tinctures',
+      rarity: 'Magic',
+    }
+    await searchTrade('Mirage', tincture, [], { tradeStatus: 'any', tradePriceOption: 'chaos_divine' })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.filters.type_filters.filters.category).toEqual({ option: 'tincture' })
+  })
+
+  it('PoE2 Life Flasks route to flask category', async () => {
+    setPoeVersion(2)
+    const flask = {
+      name: '',
+      baseType: 'Transcendent Life Flask',
+      itemClass: 'Life Flasks',
+      rarity: 'Magic',
+    }
+    await searchTrade('Fate of the Vaal', flask, [], { tradeStatus: 'any', tradePriceOption: 'exalted_divine' })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.filters.type_filters.filters.category).toEqual({ option: 'flask' })
+  })
+
+  // A category the API doesn't publish is worse than no category at all: the
+  // router drops the query.type fallback whenever it has one, so the search
+  // goes out with an unknown category and nothing to fall back on.
+  it('PoE2 Charms route to flask.charm category', async () => {
+    setPoeVersion(2)
+    const charm = {
+      name: '',
+      baseType: 'Amethyst Charm',
+      itemClass: 'Charms',
+      rarity: 'Magic',
+    }
+    await searchTrade('Fate of the Vaal', charm, [], { tradeStatus: 'any', tradePriceOption: 'exalted_divine' })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.filters.type_filters.filters.category).toEqual({ option: 'flask.charm' })
+  })
+
   it('PoE2 rune_sockets filter lands under equipment_filters alongside defence stats', async () => {
     setPoeVersion(2)
     const withRunes: StatFilter[] = [
@@ -1612,6 +1995,70 @@ describe('searchTrade filter-group dispatch', () => {
     const allFilters = body.query.filters as Record<string, { filters: Record<string, unknown> }>
     expect(allFilters.type_filters).toBeDefined()
     expect(allFilters.type_filters.filters.ilvl).toEqual({ max: 80 })
+  })
+
+  it.each([
+    1, 2,
+  ] as const)('PoE%i enabled misc.req_level row lands in req_filters.filters.lvl as a max cap', async (version) => {
+    setPoeVersion(version)
+    const helmet = {
+      name: '',
+      baseType: 'Iron Hat',
+      itemClass: 'Helmets',
+      rarity: 'Rare',
+    }
+    const reqLevelRow: StatFilter[] = [
+      {
+        id: 'misc.req_level',
+        text: 'Level Requirement',
+        type: 'gem',
+        enabled: true,
+        value: 40,
+        min: null,
+        max: 40,
+      },
+    ]
+    await searchTrade('Dread Visor', helmet, reqLevelRow, {
+      tradeStatus: 'any',
+      tradePriceOption: version === 1 ? 'chaos_divine' : 'exalted_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    const allFilters = body.query.filters as Record<string, { filters: Record<string, unknown> }>
+    expect(allFilters.req_filters).toBeDefined()
+    expect(allFilters.req_filters.filters.lvl).toEqual({ max: 40 })
+    // misc_filters has no lvl key -- routing it there would be silently dropped
+    expect(allFilters.misc_filters?.filters?.lvl).toBeUndefined()
+    expect(allFilters.type_filters?.filters?.lvl).toBeUndefined()
+  })
+
+  it('disabled misc.req_level row leaves req_filters out of the query', async () => {
+    setPoeVersion(1)
+    const helmet = {
+      name: '',
+      baseType: 'Iron Hat',
+      itemClass: 'Helmets',
+      rarity: 'Rare',
+    }
+    const reqLevelRow: StatFilter[] = [
+      {
+        id: 'misc.req_level',
+        text: 'Level Requirement',
+        type: 'gem',
+        enabled: false,
+        value: 40,
+        min: null,
+        max: 40,
+      },
+    ]
+    await searchTrade('Dread Visor', helmet, reqLevelRow, {
+      tradeStatus: 'any',
+      tradePriceOption: 'chaos_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    const allFilters = body.query.filters as Record<string, { filters: Record<string, unknown> }>
+    expect(allFilters.req_filters).toBeUndefined()
   })
 
   it('PoE2 enabled misc.quality (equipment) row lands in type_filters.filters.quality and NOT in misc_filters.filters.quality', async () => {
@@ -2183,6 +2630,20 @@ describe('isBulkExchangeItem (PoE2 slug-gated routing)', () => {
     expect(isBulkExchangeItem('Map Fragments', 'Divine Vessel', 'Divine Vessel', 'Normal')).toBe(true)
   })
 
+  it('does NOT route a unique Sanctum relic to bulk -- regular search carries the real listings (#600)', () => {
+    setPoeVersion(1)
+    // GGG lists an exchange slug per unique relic NAME, and Unique rarity has no
+    // generated-name skip, so the name lookup finds it -- same shape as Vaal
+    // Aspects (#551). The regular search indexes the exchange offers too, so
+    // routing to it loses nothing, while several relic markets are near-empty
+    // (The Gilded Chalice: 1 offer measured mid-league).
+    expect(isBulkExchangeItem('Relics', 'The Night Lamp', 'Urn Relic', 'Unique')).toBe(false)
+    expect(isBulkExchangeItem('Relics', 'The Gilded Chalice', 'Processional Relic', 'Unique')).toBe(false)
+    // The slugs stay in the map -- they are real GGG exchange ids, it is the
+    // routing that must not use them.
+    expect(getBulkExchangeId('The Night Lamp', 'Urn Relic')).toBe('the-night-lamp')
+  })
+
   it('does NOT route a Vaal Aspect piece to bulk -- the exchange market is dead (#551)', () => {
     setPoeVersion(1)
     for (const name of ['Ambition', 'Beauty', 'Cooperation', 'Curiosity']) {
@@ -2191,6 +2652,33 @@ describe('isBulkExchangeItem (PoE2 slug-gated routing)', () => {
     // The slugs themselves stay in the map -- they are real GGG exchange ids,
     // it is the routing that must not use them.
     expect(getBulkExchangeId('Ambition', 'Vaal Aspect')).toBe('ambition')
+  })
+
+  it('routes the 3.27 Trarthan scarabs to bulk with live exchange ids', () => {
+    setPoeVersion(1)
+    const scarabs: Array<[string, string]> = [
+      ['Trarthan Scarab', 'trarthan-scarab'],
+      ['Trarthan Scarab of Infamy', 'trarthan-scarab-of-infamy'],
+      ['Trarthan Scarab of Renown', 'trarthan-scarab-of-renown'],
+      ['Trarthan Scarab of Surprising Alliances', 'trarthan-scarab-of-surprising-alliances'],
+    ]
+    for (const [name, id] of scarabs) {
+      expect(getBulkExchangeId(name, name)).toBe(id)
+      expect(isBulkExchangeItem('Scarabs', name, name, 'Currency')).toBe(true)
+    }
+  })
+
+  it('tracks the 3.27 scarab rework renames and removals', () => {
+    setPoeVersion(1)
+    // Emptiness was renamed Descending and got a fresh id -- the old id is
+    // delisted, and a delisted id silently blanks the exchange query (#471).
+    expect(getBulkExchangeId('Abyss Scarab of Descending', 'Abyss Scarab of Descending')).toBe(
+      'abyss-scarab-of-descending',
+    )
+    // Harbinger scarabs left the game (and the exchange list) in 3.27, so they
+    // must fall back to regular search where legacy listings still exist.
+    expect(getBulkExchangeId('Harbinger Scarab', 'Harbinger Scarab')).toBeNull()
+    expect(isBulkExchangeItem('Scarabs', 'Harbinger Scarab', 'Harbinger Scarab', 'Currency')).toBe(false)
   })
 
   it('does NOT route a Rare item whose generated title collides with a currency name (#501)', () => {
@@ -2322,6 +2810,46 @@ describe('searchWaystonesByRegex', () => {
     expect(body.query.filters.type_filters.filters.category).toEqual({ option: 'map.waystone' })
     expect(body.query.filters.map_filters?.filters.map_tier).toEqual({ min: 14, max: 14 })
     expect(body.query.filters.misc_filters?.filters.corrupted).toEqual({ option: 'true' })
+  })
+
+  // The regex builders used to send the price filter only for the exalted/divine
+  // pair, silently ignoring every other buyout currency the user picked.
+  it.each(['mirror', 'chaos', 'annul'])('sends the %s buyout currency', async (option) => {
+    await searchWaystonesByRegex(
+      'Standard',
+      14,
+      [],
+      [],
+      'any',
+      {},
+      {},
+      { corrupted: false, uncorrupted: false, delirious: false, anyPack: false },
+      { packSize: null, monsterEffectiveness: null, monsterRarity: null, itemRarity: null, dropChance: null },
+      'any',
+      option,
+      true,
+    )
+    const body = parseCapturedBody(capturedRequests.find((r) => r.url.includes('/search/')))
+    expect(body.query.filters.trade_filters?.filters.price).toEqual({ min: null, max: null, option })
+  })
+
+  it('omits the price filter for the equivalent pseudo-option', async () => {
+    await searchWaystonesByRegex(
+      'Standard',
+      14,
+      [],
+      [],
+      'any',
+      {},
+      {},
+      { corrupted: false, uncorrupted: false, delirious: false, anyPack: false },
+      { packSize: null, monsterEffectiveness: null, monsterRarity: null, itemRarity: null, dropChance: null },
+      'any',
+      'exalted_equivalent',
+      true,
+    )
+    const body = parseCapturedBody(capturedRequests.find((r) => r.url.includes('/search/')))
+    expect(body.query.filters.trade_filters?.filters.price).toBeUndefined()
   })
 
   it('matches the exact waystone stat, not a tablet-scoped fuzzy match', async () => {
@@ -2937,6 +3465,7 @@ describe('searchTrade scrying orb handling (#513)', () => {
 describe('searchTrade mercenary warrant handling', () => {
   beforeEach(() => {
     capturedRequests.length = 0
+    mockSearchBody = null
     _resetRateLimitsForTests()
     setPoeVersion(1)
   })
@@ -2968,10 +3497,34 @@ describe('searchTrade mercenary warrant handling', () => {
     type: 'gem',
   }
 
-  async function warrantSearchBody(filters: StatFilter[]) {
-    await searchTrade('Allflame', warrant, filters, { tradeStatus: 'any' })
-    return parseCapturedBody(capturedRequests.find((r) => r.url.includes('/search/')))
+  async function warrantSearch(filters: StatFilter[], opts: { loggedIn?: boolean } = {}) {
+    const result = await searchTrade('Allflame', warrant, filters, { tradeStatus: 'any', ...opts })
+    return { result, body: parseCapturedBody(capturedRequests.find((r) => r.url.includes('/search/'))) }
   }
+
+  async function warrantSearchBody(filters: StatFilter[]) {
+    return (await warrantSearch(filters)).body
+  }
+
+  const skillChip = (id: string, text: string, enabled = true): StatFilter => ({
+    id,
+    text,
+    value: null,
+    min: null,
+    max: null,
+    enabled,
+    type: 'mercenary',
+  })
+
+  const supportChip = (id: string, text: string, skillId: string, enabled = true): StatFilter => ({
+    ...skillChip(id, text, enabled),
+    mercenarySkillId: skillId,
+  })
+
+  const BLADEFALL = 'mercenary.skill_37202'
+  const TRARTHUS = 'mercenary.skill_59477'
+  const BRUTALITY = 'mercenary.support_64271'
+  const GR_FASTER_CAST = 'mercenary.support_8607'
 
   it('sends the build discriminator when the build chip is enabled', async () => {
     const body = await warrantSearchBody([buildChip])
@@ -3026,9 +3579,333 @@ describe('searchTrade mercenary warrant handling', () => {
     expect(body.query.filters?.misc_filters?.filters?.ilvl).toEqual({ min: 83 })
   })
 
+  it('sends bare skills as plain presence stats in the and group', async () => {
+    const body = await warrantSearchBody([
+      buildChip,
+      levelChip,
+      skillChip(BLADEFALL, 'Bladefall'),
+      skillChip(TRARTHUS, 'Bladefall of Trarthus'),
+    ])
+
+    // No value on either: presence-only stats.
+    expect(body.query.stats).toEqual([
+      {
+        type: 'and',
+        filters: [
+          { id: BLADEFALL, value: {} },
+          { id: TRARTHUS, value: {} },
+        ],
+      },
+    ])
+  })
+
+  it('scopes an enabled support to its skill in a mercenary group', async () => {
+    const body = await warrantSearchBody([
+      buildChip,
+      levelChip,
+      skillChip(BLADEFALL, 'Bladefall'),
+      supportChip(GR_FASTER_CAST, 'Greater Faster Casting (Tier: 3)', BLADEFALL),
+    ])
+
+    // The skill heads the group, so it must not also ride in the and group -- and
+    // the group takes no value (sending one made it match every warrant).
+    expect(body.query.stats).toEqual([{ type: 'mercenary', filters: [{ id: BLADEFALL }, { id: GR_FASTER_CAST }] }])
+  })
+
+  it('gives each skill its own group, so a shared support scopes to both', async () => {
+    const body = await warrantSearchBody([
+      buildChip,
+      skillChip(BLADEFALL, 'Bladefall'),
+      supportChip(BRUTALITY, 'Brutality (Tier: 2)', BLADEFALL),
+      skillChip(TRARTHUS, 'Bladefall of Trarthus'),
+      supportChip(BRUTALITY, 'Brutality (Tier: 2)', TRARTHUS),
+    ])
+
+    expect(body.query.stats).toEqual([
+      { type: 'mercenary', filters: [{ id: BLADEFALL }, { id: BRUTALITY }] },
+      { type: 'mercenary', filters: [{ id: TRARTHUS }, { id: BRUTALITY }] },
+    ])
+  })
+
+  it('keeps the skill in the group even when its own row is off', async () => {
+    // A support-only group matches every warrant, so the head is not optional.
+    const body = await warrantSearchBody([
+      buildChip,
+      skillChip(BLADEFALL, 'Bladefall', false),
+      supportChip(GR_FASTER_CAST, 'Greater Faster Casting (Tier: 3)', BLADEFALL),
+    ])
+
+    expect(body.query.stats).toEqual([{ type: 'mercenary', filters: [{ id: BLADEFALL }, { id: GR_FASTER_CAST }] }])
+  })
+
+  it('degrades supports to unscoped and flags the result when not logged in', async () => {
+    // An anonymous query fits exactly one stat group, so scoping is off the table;
+    // the supports still filter, just anywhere on the mercenary.
+    const { body, result } = await warrantSearch(
+      [
+        buildChip,
+        skillChip(BLADEFALL, 'Bladefall'),
+        supportChip(GR_FASTER_CAST, 'Greater Faster Casting (Tier: 3)', BLADEFALL),
+      ],
+      { loggedIn: false },
+    )
+
+    expect(body.query.stats).toEqual([
+      {
+        type: 'and',
+        filters: [
+          { id: BLADEFALL, value: {} },
+          { id: GR_FASTER_CAST, value: {} },
+        ],
+      },
+    ])
+    expect(result.loginRequiredMercenaryIds).toEqual([GR_FASTER_CAST])
+  })
+
+  it('sets no login flag when logged in', async () => {
+    const { result } = await warrantSearch([
+      buildChip,
+      skillChip(BLADEFALL, 'Bladefall'),
+      supportChip(GR_FASTER_CAST, 'Greater Faster Casting (Tier: 3)', BLADEFALL),
+    ])
+
+    expect(result.loginRequiredMercenaryIds).toBeUndefined()
+  })
+
+  it('searchNeedsLogin: true only when an enabled support would scope a group', () => {
+    // Without the login check the handler defaults to loggedIn: true, which
+    // emits scoped groups anonymously -- two of those 400 on the guest
+    // complexity budget and the search comes back as a silent zero.
+    expect(
+      searchNeedsLogin([
+        buildChip,
+        skillChip(BLADEFALL, 'Bladefall'),
+        supportChip(GR_FASTER_CAST, 'Greater Faster Casting (Tier: 3)', BLADEFALL),
+      ]),
+    ).toBe(true)
+    // Bare skills stay flat in the and group at any login state.
+    expect(searchNeedsLogin([buildChip, skillChip(BLADEFALL, 'Bladefall')])).toBe(false)
+    // Disabled support rows never enter the query.
+    expect(searchNeedsLogin([supportChip(GR_FASTER_CAST, 'Greater Faster Casting (Tier: 3)', BLADEFALL, false)])).toBe(
+      false,
+    )
+  })
+
+  it('gives a complexity rejection the Greg wording instead of reporting zero results', async () => {
+    mockSearchBody = JSON.stringify({
+      error: { code: 2, message: 'Query is too complex.\nLogging in will increase this limit.' },
+    })
+
+    await expect(warrantSearch([buildChip, skillChip(BLADEFALL, 'Bladefall')])).rejects.toThrow(
+      'This trade is too complicated for the API unless you are logged in. Blame Greg. Log in.',
+    )
+  })
+
+  it('passes other trade-API rejections through with their own message', async () => {
+    mockSearchBody = JSON.stringify({ error: { code: 2, message: 'Invalid query' } })
+
+    await expect(warrantSearch([buildChip, skillChip(BLADEFALL, 'Bladefall')])).rejects.toThrow(
+      "GGG's trade API rejected this search: Invalid query",
+    )
+  })
+
+  it('leaves disabled skill and support rows out of the query', async () => {
+    const body = await warrantSearchBody([
+      buildChip,
+      skillChip(BLADEFALL, 'Bladefall', false),
+      supportChip(GR_FASTER_CAST, 'Greater Faster Casting (Tier: 3)', BLADEFALL, false),
+    ])
+
+    // Only the empty and group the query always carries -- no mercenary group.
+    expect(body.query.stats).toEqual([{ type: 'and', filters: [] }])
+  })
+
   it('keeps warrants off the bulk exchange', () => {
     // Map Fragments bulk by default, but a warrant is one specific mercenary --
     // there is no fungible exchange listing for it.
     expect(isBulkExchangeItem('Map Fragments', 'Mercenary Warrant', 'Mercenary Warrant', 'Normal')).toBe(false)
+  })
+})
+
+describe('searchTrade unenchanted Blueprint NOT Enchant Modifiers', () => {
+  const blueprintItem = {
+    name: 'Blueprint: Bunker',
+    baseType: 'Blueprint: Bunker',
+    itemClass: 'Blueprints',
+    rarity: 'Normal',
+  }
+
+  const wingsChips: StatFilter[] = [
+    {
+      id: 'heist.heist_wings',
+      text: 'Wings Revealed: 3',
+      value: 3,
+      min: 3,
+      max: null,
+      enabled: true,
+      type: 'heist',
+    },
+    {
+      id: 'heist.heist_max_wings',
+      text: 'Total Wings: 3',
+      value: 3,
+      min: 3,
+      max: null,
+      enabled: true,
+      type: 'heist',
+    },
+  ]
+
+  const excludeOn: StatFilter = {
+    id: 'misc.exclude_enchanted',
+    text: 'Exclude Enchanted',
+    value: null,
+    min: null,
+    max: null,
+    enabled: true,
+    type: 'misc',
+  }
+
+  const excludeOff: StatFilter = { ...excludeOn, enabled: false }
+
+  beforeEach(() => {
+    capturedRequests.length = 0
+    _resetRateLimitsForTests()
+    setPoeVersion(1)
+    _setStatEntriesForTests([
+      { id: 'pseudo.pseudo_number_of_enchant_mods', text: '# Enchant Modifiers', type: 'pseudo' },
+    ])
+  })
+
+  it('injects a not group with Enchant Modifiers when Exclude Enchanted is on', async () => {
+    await searchTrade('Mirage', blueprintItem, [...wingsChips, excludeOn], {
+      tradeStatus: 'any',
+      tradePriceOption: 'chaos_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    const notGroup = body.query.stats.find((g) => g.type === 'not')
+    expect(notGroup).toBeDefined()
+    expect(notGroup?.filters).toEqual([{ id: 'pseudo.pseudo_number_of_enchant_mods', value: {} }])
+    // Chip must not leak into heist_filters or misc_filters
+    const heist = (body.query.filters as { heist_filters?: CapturedTradeFilterGroup }).heist_filters
+    expect(heist?.filters.heist_wings).toEqual({ min: 3 })
+    expect(heist?.filters.exclude_enchanted).toBeUndefined()
+    const misc = (body.query.filters as { misc_filters?: CapturedTradeFilterGroup }).misc_filters
+    expect(misc?.filters.exclude_enchanted).toBeUndefined()
+  })
+
+  it('omits the not group when Exclude Enchanted is off', async () => {
+    await searchTrade('Mirage', blueprintItem, [...wingsChips, excludeOff], {
+      tradeStatus: 'any',
+      tradePriceOption: 'chaos_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.stats.find((g) => g.type === 'not')).toBeUndefined()
+  })
+
+  it('omits the not group when the chip is absent (enchanted default)', async () => {
+    await searchTrade('Mirage', blueprintItem, wingsChips, {
+      tradeStatus: 'any',
+      tradePriceOption: 'chaos_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.stats.find((g) => g.type === 'not')).toBeUndefined()
+  })
+})
+
+describe('searchTrade plain originator map NOT Elder influence (#556)', () => {
+  const mapItem = {
+    name: '',
+    baseType: 'Map (Tier 16)',
+    itemClass: 'Maps',
+    rarity: 'Rare',
+    zanaMemory: true,
+  }
+
+  const originatorChip: StatFilter = {
+    id: 'implicit.stat_2696470877',
+    text: "Area is Influenced by the Originator's Memories",
+    value: null,
+    min: null,
+    max: null,
+    enabled: true,
+    type: 'implicit',
+  }
+
+  const excludeOn: StatFilter = {
+    id: 'misc.exclude_elder',
+    text: 'Exclude Elder',
+    value: null,
+    min: null,
+    max: null,
+    enabled: true,
+    type: 'misc',
+  }
+
+  const excludeOff: StatFilter = { ...excludeOn, enabled: false }
+
+  beforeEach(() => {
+    capturedRequests.length = 0
+    _resetRateLimitsForTests()
+    setPoeVersion(1)
+    // The real catalog flattens this stat: the option is baked into the id and the
+    // entry carries no option group. Seeded verbatim so the assertions below prove
+    // the id ships bare (a `|N` id paired with value.option matches nothing).
+    _setStatEntriesForTests([
+      { id: 'implicit.stat_1792283443|2', text: 'Area is influenced by The Elder', type: 'implicit' },
+    ])
+  })
+
+  it('injects a not group with the bare Elder implicit id when Exclude Elder is on', async () => {
+    await searchTrade('Mirage', mapItem, [originatorChip, excludeOn], {
+      tradeStatus: 'any',
+      tradePriceOption: 'chaos_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    const notGroup = body.query.stats.find((g) => g.type === 'not')
+    expect(notGroup).toBeDefined()
+    expect(notGroup?.filters).toEqual([{ id: 'implicit.stat_1792283443|2', value: {} }])
+    // The originator implicit still has to reach the and group -- the exclusion narrows
+    // the originator market, it does not replace it.
+    const andGroup = body.query.stats.find((g) => g.type === 'and')
+    expect(andGroup?.filters).toEqual([{ id: 'implicit.stat_2696470877', value: {} }])
+    // Chip must not leak into misc_filters
+    const misc = (body.query.filters as { misc_filters?: CapturedTradeFilterGroup }).misc_filters
+    expect(misc?.filters.exclude_elder).toBeUndefined()
+  })
+
+  it('omits the not group when Exclude Elder is off', async () => {
+    await searchTrade('Mirage', mapItem, [originatorChip, excludeOff], {
+      tradeStatus: 'any',
+      tradePriceOption: 'chaos_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.stats.find((g) => g.type === 'not')).toBeUndefined()
+  })
+
+  it('omits the not group when the chip is absent (Elder map, or a plain map)', async () => {
+    await searchTrade('Mirage', mapItem, [originatorChip], {
+      tradeStatus: 'any',
+      tradePriceOption: 'chaos_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.stats.find((g) => g.type === 'not')).toBeUndefined()
+  })
+
+  it('breadcrumbs instead of emitting a broken group when the stat is missing from the catalog', async () => {
+    _setStatEntriesForTests([])
+    await searchTrade('Mirage', mapItem, [originatorChip, excludeOn], {
+      tradeStatus: 'any',
+      tradePriceOption: 'chaos_divine',
+    })
+    const req = capturedRequests.find((r) => r.url.includes('/search/'))
+    const body = parseCapturedBody(req)
+    expect(body.query.stats.find((g) => g.type === 'not')).toBeUndefined()
   })
 })

@@ -89,13 +89,18 @@ export function ScalpelWarrants(): JSX.Element {
       <div className="shrink-0 space-y-1">
         <div className="text-[13px] font-semibold text-text">Scalpel Warrants</div>
         <p className="text-text-dim leading-snug">
-          Live Mercenary Warrant market scan. Groups identical skill + support link packages and ranks
-          them by ask price (chaos-equivalent via poe.ninja rates).
+          Live Mercenary Warrant market scan. Groups identical skill + support link packages and ranks them by ask price
+          (chaos-equivalent via poe.ninja rates).
         </p>
       </div>
 
       <div className="shrink-0 flex flex-wrap items-center gap-2">
-        <button type="button" className="primary text-[11px] px-3 py-1.5" disabled={loading} onClick={() => void scan()}>
+        <button
+          type="button"
+          className="primary text-[11px] px-3 py-1.5"
+          disabled={loading}
+          onClick={() => void scan()}
+        >
           {loading ? 'Scanning trade…' : 'Scan trade'}
         </button>
         <label className="flex items-center gap-1 text-text-dim">
@@ -138,8 +143,8 @@ export function ScalpelWarrants(): JSX.Element {
 
       {result && (
         <div className="shrink-0 text-[11px] text-text-dim">
-          {result.league}: fetched {result.fetched} of {result.total.toLocaleString()} priced warrants ·{' '}
-          {groups.length} unique skill packages
+          {result.league}: fetched {result.fetched} of {result.total.toLocaleString()} priced warrants · {groups.length}{' '}
+          unique skill packages
           {result.scannedAt ? ` · ${new Date(result.scannedAt).toLocaleTimeString()}` : ''}
         </div>
       )}
@@ -147,8 +152,8 @@ export function ScalpelWarrants(): JSX.Element {
       <div className="flex-1 min-h-0 overflow-auto border border-border/60 rounded">
         {!result && !loading && (
           <div className="p-4 text-text-dim text-[11px]">
-            Hit Scan trade to pull live Mercenary Warrant listings. Rankings use median chaos value of
-            identical skill-link fingerprints.
+            Hit Scan trade to pull live Mercenary Warrant listings. Rankings use median chaos value of identical
+            skill-link fingerprints.
           </div>
         )}
         {loading && <div className="p-4 text-text-dim text-[11px]">Fetching warrants (rate-limited)…</div>}

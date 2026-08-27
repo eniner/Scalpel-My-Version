@@ -11,6 +11,7 @@ beforeEach(() => {
     setProfileSettingForGame: vi.fn(async (_v: number, _k: string, _val: unknown) => baseSettings),
     suspendHotkeys: vi.fn(),
     resumeHotkeys: vi.fn(),
+    filterSectionEditor: { show: vi.fn(), requestClose: vi.fn(), setPinned: vi.fn() },
   }
 })
 
@@ -43,11 +44,12 @@ function renderPanel(overrides: Partial<Parameters<typeof ExtraFeaturesPanel>[0]
 }
 
 describe('ExtraFeaturesPanel', () => {
-  it('renders all four feature cards', () => {
+  it('renders all feature cards', () => {
     renderPanel()
     expect(screen.getByText('Cheat Sheets')).toBeInTheDocument()
     expect(screen.getByText('Regex Remote')).toBeInTheDocument()
     expect(screen.getByText('Whiteboard')).toBeInTheDocument()
+    expect(screen.getByText('Filter Section Editor')).toBeInTheDocument()
     expect(screen.getByText('Plugins')).toBeInTheDocument()
   })
 

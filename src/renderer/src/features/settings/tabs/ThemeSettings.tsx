@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AppSettings } from '@shared/types'
 import type { ThemePalette, ThemePreset } from '@shared/theme/palette'
-import { PRESETS, CUSTOM_THEME_ID } from '@shared/theme/presets'
+import { PRESETS, PRESET_GROUPS, CUSTOM_THEME_ID } from '@shared/theme/presets'
+import { FONT_PACKAGES } from '@shared/theme/fonts'
 import { resolveActivePalette } from '@shared/theme/active'
-import { applyPalette, applyVars } from '@renderer/shared/apply-theme'
+import { contrastRatio } from '@shared/color'
+import { applyPalette, applyVars, applyFontPackage } from '@renderer/shared/apply-theme'
 import { CollapsibleSection } from '@renderer/shared/CollapsibleSection'
 
 interface EyeDropperResult {
@@ -30,35 +32,92 @@ interface Props {
   updateMany: (patch: Partial<AppSettings>) => void
 }
 
-// Order = how the swatches and color inputs are listed in the editor.
-const FIELDS: Array<{ key: keyof ThemePalette; label: string }> = [
-  { key: 'bgSolid', label: 'Background' },
-  { key: 'bgCard', label: 'Card' },
-  { key: 'accent', label: 'Accent' },
-  { key: 'match', label: 'Match' },
-  { key: 'secondaryMatch', label: 'Secondary match' },
-  { key: 'text', label: 'Text' },
-  { key: 'textDim', label: 'Dim text' },
-  { key: 'border', label: 'Border' },
-  { key: 'danger', label: 'Danger' },
-  { key: 'warn', label: 'Warning' },
-  { key: 'dangerBg', label: 'Danger background' },
-  { key: 'hideColor', label: 'Filter: Hide' },
-  { key: 'showColor', label: 'Filter: Show' },
-  { key: 'minimalColor', label: 'Filter: Minimal' },
+const HEX = /^#[0-9a-fA-F]{6}$/
+
+const FIELD_GROUPS: Array<{ label: string; fields: Array<{ key: keyof ThemePalette; label: string }> }> = [
+  {
+    label: 'Surfaces',
+    fields: [
+      { key: 'bgSolid', label: 'Background' },
+      { key: 'bgCard', label: 'Card' },
+      { key: 'border', label: 'Border' },
+    ],
+  },
+  {
+    label: 'Type',
+    fields: [
+      { key: 'text', label: 'Text' },
+      { key: 'textDim', label: 'Dim text' },
+      { key: 'accent', label: 'Accent' },
+    ],
+  },
+  {
+    label: 'Highlights',
+    fields: [
+      { key: 'match', label: 'Match' },
+      { key: 'secondaryMatch', label: 'Secondary match' },
+    ],
+  },
+  {
+    label: 'Alerts',
+    fields: [
+      { key: 'danger', label: 'Danger' },
+      { key: 'warn', label: 'Warning' },
+      { key: 'dangerBg', label: 'Danger background' },
+    ],
+  },
+  {
+    label: 'Filter',
+    fields: [
+      { key: 'hideColor', label: 'Filter: Hide' },
+      { key: 'showColor', label: 'Filter: Show' },
+      { key: 'minimalColor', label: 'Filter: Minimal' },
+    ],
+  },
 ]
+
+function PresetChip({
+  preset,
+  selected,
+  dirty,
+  onSelect,
+}: {
+  preset: ThemePreset
+  selected: boolean
+  dirty: boolean
+  onSelect: () => void
+}): JSX.Element {
+  const { bgSolid, bgCard, accent, match } = preset.palette
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      title={preset.name}
+      className={`text-[11px] px-2 py-1.5 min-w-[7.5rem] flex flex-col gap-1.5 items-stretch rounded-md border ${
+        selected ? 'border-accent bg-bg-card text-text' : 'border-transparent text-text-dim hover:border-border'
+      }`}
+    >
+      <span className="flex h-3.5 overflow-hidden rounded-sm" aria-hidden="true">
+        {[bgSolid, bgCard, accent, match].map((c, i) => (
+          <span key={i} className="flex-1" style={{ background: c }} />
+        ))}
+      </span>
+      <span className="flex items-center justify-between gap-1 leading-none">
+        <span>{preset.name}</span>
+        {selected && dirty && <span className="text-[9px] text-accent">edited</span>}
+      </span>
+    </button>
+  )
+}
 
 export function ThemeSettings({ settings, update, updateMany }: Props): JSX.Element {
   const EyeDropperApi = (window as unknown as { EyeDropper?: EyeDropperCtor }).EyeDropper
 
-  // Working palette is local; live-applied to THIS window only until saved.
   const [working, setWorking] = useState<ThemePalette>(() =>
     resolveActivePalette(settings.themeId, settings.customThemePalette ?? null),
   )
   const [dirty, setDirty] = useState(false)
 
-  // Keep working in sync when settings change from elsewhere and we have no
-  // unsaved edits (e.g. a preset broadcast from another window).
   useEffect(() => {
     if (!dirty) setWorking(resolveActivePalette(settings.themeId, settings.customThemePalette ?? null))
   }, [settings.themeId, settings.customThemePalette, dirty])
@@ -72,18 +131,15 @@ export function ThemeSettings({ settings, update, updateMany }: Props): JSX.Elem
   }
 
   const editColor = (key: keyof ThemePalette, value: string): void => {
-    const next = { ...working, [key]: value }
+    const next = { ...working, [key]: value.toLowerCase() }
     setWorking(next)
     setDirty(true)
-    // Live preview only - no cache write per drag frame.
     applyVars(next)
   }
 
   const saveCustom = (): void => {
-    // Atomic write so the in-memory settings mirror gets both keys (avoids a stale-closure clobber that reset the working palette).
     updateMany({ customThemePalette: working, themeId: CUSTOM_THEME_ID })
     setDirty(false)
-    // Re-apply with cache write so this window's pre-paint cache reflects the saved theme.
     applyPalette(working)
   }
 
@@ -96,29 +152,27 @@ export function ThemeSettings({ settings, update, updateMany }: Props): JSX.Elem
 
   const pickFromScreen = async (key: keyof ThemePalette): Promise<void> => {
     if (!EyeDropperApi) return
-    // Suspend uIOhook before opening EyeDropper - uIOhook would otherwise eat the
-    // eyedropper's commit-click. Relies on the IPC being fast relative to the user-activation window.
     await window.api.suspendInputHook()
     try {
       const { sRGBHex } = await new EyeDropperApi().open()
       editColor(key, sRGBHex)
     } catch {
-      // cancelled (Esc) or failed - no-op
+      // cancelled
     } finally {
       await window.api.resumeInputHook()
     }
   }
 
-  // The saved custom palette shows up as a single "Custom" chip alongside the
-  // built-in presets. customThemePalette is null until the user saves one, and
-  // it is overwritten in place on each save, so there is only ever one "Custom".
   const presetList: ThemePreset[] = useMemo(
     () =>
       settings.customThemePalette
-        ? [...PRESETS, { id: CUSTOM_THEME_ID, name: 'Custom', palette: settings.customThemePalette }]
+        ? [...PRESETS, { id: CUSTOM_THEME_ID, name: 'Custom', group: 'core', palette: settings.customThemePalette }]
         : PRESETS,
     [settings.customThemePalette],
   )
+
+  const textContrast = contrastRatio(working.text, working.bgSolid)
+  const dimContrast = contrastRatio(working.textDim, working.bgSolid)
 
   return (
     <>
@@ -126,28 +180,58 @@ export function ThemeSettings({ settings, update, updateMany }: Props): JSX.Elem
 
       <section>
         <label>Presets</label>
-        <div className="flex flex-wrap gap-1.5 mt-[6px]">
-          {presetList.map((p) => {
-            const selected = !dirty && settings.themeId === p.id
+        <p className="text-[10px] text-text-dim mt-1 mb-0">
+          Click a theme to apply it. Use Customize to tweak colors, then save as Custom.
+        </p>
+        {PRESET_GROUPS.map((group) => {
+          const items = presetList.filter((p) => p.group === group.id)
+          if (items.length === 0) return null
+          return (
+            <div key={group.id} className="mt-2">
+              <div className="text-[10px] uppercase tracking-wide text-text-dim mb-1">{group.label}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {items.map((p) => (
+                  <PresetChip
+                    key={p.id}
+                    preset={p}
+                    selected={settings.themeId === p.id}
+                    dirty={dirty && settings.themeId === p.id}
+                    onSelect={() => selectPreset(p.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </section>
+
+      <section>
+        <label>Font package</label>
+        <p className="text-[10px] text-text-dim mt-1 mb-0">
+          Uses Windows system fonts plus bundled Fontin. Path of Exile keeps loot labels in Fontin.
+        </p>
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {FONT_PACKAGES.map((pack) => {
+            const selected = (settings.fontPackageId ?? 'fontin') === pack.id
             return (
               <button
-                key={p.id}
-                onClick={() => selectPreset(p.id)}
-                title={p.name}
-                className={`text-[11px] px-3 py-1.5 flex items-center gap-2 ${
-                  selected ? 'bg-accent text-bg-solid' : 'text-text-dim'
+                key={pack.id}
+                type="button"
+                title={pack.blurb}
+                onClick={() => {
+                  applyFontPackage(pack.id)
+                  update('fontPackageId', pack.id)
+                }}
+                className={`text-left text-[11px] px-2.5 py-1.5 min-w-[7.5rem] rounded-md border ${
+                  selected
+                    ? 'border-accent bg-bg-card text-text'
+                    : 'border-transparent text-text-dim hover:border-border'
                 }`}
               >
-                <span className="flex">
-                  {[p.palette.bgCard, p.palette.accent].map((c, i) => (
-                    <span
-                      key={i}
-                      className="w-3 h-3 inline-block"
-                      style={{ background: c, boxShadow: '0 1px 2px rgba(0, 0, 0, 0.5)' }}
-                    />
-                  ))}
+                <span className="block leading-tight" style={{ fontFamily: pack.ui }}>
+                  {pack.name}
                 </span>
-                {p.name}
+                <span className="block text-[9px] text-text-dim mt-0.5 leading-tight">{pack.blurb}</span>
               </button>
             )
           })}
@@ -157,34 +241,57 @@ export function ThemeSettings({ settings, update, updateMany }: Props): JSX.Elem
       <section>
         <CollapsibleSection title={<label className="cursor-pointer">Customize</label>}>
           <>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-[6px]">
-              {FIELDS.map((f) => (
-                <label key={f.key} className="flex items-center justify-between gap-2 text-[11px] text-text-dim">
-                  <span>{f.label}</span>
-                  <span className="flex items-center gap-1.5">
-                    {EyeDropperApi && (
-                      <button
-                        type="button"
-                        title="Pick color from screen"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          void pickFromScreen(f.key)
-                        }}
-                        className="text-text-dim cursor-pointer flex items-center px-1"
-                      >
-                        <DropperIcon />
-                      </button>
-                    )}
-                    <input
-                      type="color"
-                      value={working[f.key]}
-                      onChange={(e) => editColor(f.key, e.target.value)}
-                      className="w-8 h-6 bg-transparent cursor-pointer"
-                    />
-                  </span>
-                </label>
-              ))}
-            </div>
+            {FIELD_GROUPS.map((group) => (
+              <div key={group.label} className="mt-2">
+                <div className="text-[10px] uppercase tracking-wide text-text-dim mb-1">{group.label}</div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  {group.fields.map((f) => (
+                    <label key={f.key} className="flex items-center justify-between gap-2 text-[11px] text-text-dim">
+                      <span>{f.label}</span>
+                      <span className="flex items-center gap-1.5">
+                        {EyeDropperApi && (
+                          <button
+                            type="button"
+                            title="Pick color from screen"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              void pickFromScreen(f.key)
+                            }}
+                            className="text-text-dim cursor-pointer flex items-center px-1"
+                          >
+                            <DropperIcon />
+                          </button>
+                        )}
+                        <input
+                          type="color"
+                          value={working[f.key]}
+                          onChange={(e) => editColor(f.key, e.target.value)}
+                          className="w-8 h-6 bg-transparent cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          spellCheck={false}
+                          aria-label={`${f.label} hex`}
+                          value={working[f.key]}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            if (HEX.test(v)) editColor(f.key, v)
+                          }}
+                          className="w-[4.6rem] h-6 px-1 text-[10px] font-mono bg-bg-solid text-text border border-border rounded-sm"
+                        />
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {(textContrast < 4.5 || dimContrast < 3) && (
+              <p className="text-[10px] text-warn mt-2 mb-0">
+                {textContrast < 4.5
+                  ? `Body text contrast is ${textContrast.toFixed(1)}:1 against the background (aim for 4.5:1).`
+                  : `Dim text contrast is ${dimContrast.toFixed(1)}:1 (aim for 3:1).`}
+              </p>
+            )}
             <div className="flex gap-1.5 mt-3">
               <button
                 onClick={saveCustom}

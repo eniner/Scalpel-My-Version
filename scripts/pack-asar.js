@@ -3,14 +3,31 @@ const fs = require('node:fs')
 const path = require('node:path')
 const crypto = require('node:crypto')
 
+// Optional overrides, used only by scripts/update-smoke.mjs, which needs two throwaway
+// asars (a pretend "old" install and the "new" release) built from one compiled tree.
+// With no flags passed this behaves exactly as release CI invokes it.
+const argOf = (flag) => {
+  const hit = process.argv.find((a) => a.startsWith(`--${flag}=`))
+  return hit ? hit.slice(flag.length + 3) : null
+}
+
 const projectRoot = path.join(__dirname, '..')
 const outDir = path.join(projectRoot, 'out')
 const distDir = path.join(projectRoot, 'dist')
 const tempAppDir = path.join(distDir, '.asar-staging')
-const version = require('../package.json').version
+const version = argOf('version') ?? require('../package.json').version
+const nameOverride = argOf('name')
+const outOverride = argOf('out')
 
 // Native modules -- included in ASAR but .node binaries are unpacked
-const NATIVE_MODULES = ['electron-overlay-window', 'uiohook-napi']
+const NATIVE_MODULES = [
+  'electron-overlay-window',
+  'uiohook-napi',
+  '@coooookies/windows-smtc-monitor',
+  '@coooookies/windows-smtc-monitor-win32-x64-msvc',
+  'koffi',
+  '@koromix/koffi-win32-x64',
+]
 
 // Packages to fully exclude from the asar
 const EXCLUDE = new Set([
@@ -75,6 +92,10 @@ const pkgData = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'
 delete pkgData.repository
 delete pkgData.build
 delete pkgData.devDependencies
+// `version` is what app.getVersion() reports and what the updater compares against;
+// `name` decides the userData directory, so the smoke run can isolate its profile.
+pkgData.version = version
+if (nameOverride) pkgData.name = nameOverride
 fs.writeFileSync(path.join(tempAppDir, 'package.json'), JSON.stringify(pkgData, null, 2))
 
 // Copy only production node_modules (preserving nested structure)
@@ -96,6 +117,13 @@ for (const mod of NATIVE_MODULES) {
     fs.mkdirSync(path.dirname(dest), { recursive: true })
     fs.cpSync(src, dest, { recursive: true, dereference: true })
   }
+}
+
+const overlayJsPatch = path.join(projectRoot, 'scripts', 'overlay-window-index.js')
+const overlayJsDest = path.join(nodeModulesDest, 'electron-overlay-window', 'dist', 'index.js')
+if (fs.existsSync(overlayJsPatch) && fs.existsSync(path.dirname(overlayJsDest))) {
+  fs.copyFileSync(overlayJsPatch, overlayJsDest)
+  console.log('Patched electron-overlay-window for PoE1+PoE2 title attach')
 }
 
 // Prune unnecessary files from copied node_modules
@@ -125,7 +153,7 @@ function pruneDir(dir) {
 pruneDir(nodeModulesDest)
 
 // Create output directory
-const versionDir = path.join(distDir, `v${version}`)
+const versionDir = outOverride ? path.resolve(outOverride) : path.join(distDir, `v${version}`)
 if (!fs.existsSync(versionDir)) fs.mkdirSync(versionDir, { recursive: true })
 
 // Pack the asar (unpack .node native binaries so they can be loaded at runtime)
@@ -192,6 +220,9 @@ asar
       nativeModules: {
         'electron-overlay-window': require('../node_modules/electron-overlay-window/package.json').version,
         'uiohook-napi': require('../node_modules/uiohook-napi/package.json').version,
+        '@coooookies/windows-smtc-monitor': require('../node_modules/@coooookies/windows-smtc-monitor/package.json')
+          .version,
+        koffi: require('../node_modules/koffi/package.json').version,
       },
       brickedReleases,
       brickedMessage,
@@ -206,5 +237,5 @@ asar
     console.log(`Packed app.asar (${(size / 1024 / 1024).toFixed(1)} MB)`)
     console.log(`SHA512: ${sha512}`)
     console.log(`Manifest: ${manifestPath}`)
-    console.log(`\nArtifacts in dist/v${version}/`)
+    console.log(`\nArtifacts in ${path.relative(projectRoot, versionDir)}/`)
   })

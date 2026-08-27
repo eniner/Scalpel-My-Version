@@ -15,3 +15,22 @@ export function hexToRgba(hex: string, alpha: number): string {
   const [r, g, b] = parseHex(hex)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
+
+function channelLuminance(channel: number): number {
+  const s = channel / 255
+  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+}
+
+export function relativeLuminance(hex: string): number {
+  const [r, g, b] = parseHex(hex)
+  return 0.2126 * channelLuminance(r) + 0.7152 * channelLuminance(g) + 0.0722 * channelLuminance(b)
+}
+
+/** WCAG contrast ratio of two #rrggbb colors. */
+export function contrastRatio(a: string, b: string): number {
+  const l1 = relativeLuminance(a)
+  const l2 = relativeLuminance(b)
+  const hi = Math.max(l1, l2)
+  const lo = Math.min(l1, l2)
+  return (hi + 0.05) / (lo + 0.05)
+}

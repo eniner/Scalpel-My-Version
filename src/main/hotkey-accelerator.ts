@@ -24,6 +24,8 @@ const EXTRA_KEYS: Record<string, number> = {
   F11: UiohookKey.F11,
   F12: UiohookKey.F12,
   Space: UiohookKey.Space,
+  Grave: UiohookKey.Backquote,
+  Backquote: UiohookKey.Backquote,
   Tab: UiohookKey.Tab,
   Escape: UiohookKey.Escape,
   Delete: UiohookKey.Delete,

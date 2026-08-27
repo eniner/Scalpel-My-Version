@@ -13,13 +13,10 @@ export function register(store: Store<AppSettings>): void {
     return `${process.env.USERPROFILE}\\Documents\\My Games\\Path of Exile${suffix}`
   }
 
-  ipcMain.handle(
-    'detect-active-game-filter',
-    (_event, filterDirOverride?: string): DetectActiveFilterResult => {
-      const version = (store.get('poeVersion') === 2 ? 2 : 1) as GameVariant
-      return detectActiveFilter(version, app.getPath('documents'), filterDirOverride)
-    },
-  )
+  ipcMain.handle('detect-active-game-filter', (_event, filterDirOverride?: string): DetectActiveFilterResult => {
+    const version = (store.get('poeVersion') === 2 ? 2 : 1) as GameVariant
+    return detectActiveFilter(version, app.getPath('documents'), filterDirOverride)
+  })
 
   ipcMain.handle('pick-filter-file', async (event) => {
     const sender = BrowserWindow.fromWebContents(event.sender)

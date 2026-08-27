@@ -1,4 +1,4 @@
-import { app, clipboard, crashReporter, ipcMain, screen } from 'electron'
+import { app, crashReporter, ipcMain, screen } from 'electron'
 import { installEarlyDiagnostics, recordMainBreadcrumb, recordMainDiagnostic } from './diagnostics'
 
 // Prevent unhandled JS exceptions from crashing the native overlay thread
@@ -30,7 +30,6 @@ installEarlyDiagnostics()
 crashReporter.start({ uploadToServer: false })
 
 import { execSync } from 'node:child_process'
-import { uIOhook, UiohookKey } from 'uiohook-napi'
 import Store from 'electron-store'
 import { OverlayController } from 'electron-overlay-window'
 import { hideOverlay, showOverlay, getOverlayWindow, setCloseOnClickOutside, setWindowInputFocused } from './overlay'
@@ -40,6 +39,8 @@ import {
   setHotkey,
   setPriceCheckHotkey,
   setPriceCheckHandler,
+  setLauncherHotkey,
+  setLauncherHandler,
   setEscapeHandler,
   stopHotkeyListener,
   setChatCommands,
@@ -49,6 +50,8 @@ import {
   resumeHotkeys,
   setStashScrollEnabled,
   setStashScrollModifier,
+  pasteRegexToPoESearch,
+  sendChatCommand,
 } from './hotkeys'
 import { refreshLeagues } from './trade/leagues'
 import { resolvePresetRegex } from './trade/beast-preset'
@@ -66,23 +69,29 @@ import {
 } from './evaluation'
 import { initLearning } from './learning'
 import { initMainLocale } from './locale'
-import { snapshotClipboard } from './clipboard-preserve'
 import { flushAll as flushPluginStorage } from './plugins/storage'
 import { registerCheatSheetProtocol } from './cheat-sheet-protocol'
 import { registerScalpelInternalProtocol, registerScalpelInternalSchemePrivileges } from './plugins/protocol'
 import { registerScalpelPluginProtocol, registerScalpelPluginSchemePrivileges } from './plugins/plugin-protocol'
+import { getRegisteredPluginTabs } from './plugins/tab-registry'
+import { getInstalledPlugins } from './plugins/manager'
 import {
   registerCheatSheetsOverlay,
   applyCheatSheetHotkeys,
   setCheatSheetsBeforeShow,
   getCheatSheetsOverlay,
+  toggleCheatSheets,
 } from './cheat-sheets'
 import { registerWhiteboardOverlay, toggleWhiteboard } from './whiteboard'
 import { registerTimelessTreeOverlay } from './timeless-tree'
+import { registerFilterSectionEditorOverlay, toggleFilterSectionEditor } from './filter-section-editor'
 import { togglePluginOverlay } from './plugin-overlay'
+import { initLauncher, registerLauncherOverlay, showLauncherAtCursor } from './launcher'
+import { normalizeLauncherStyle } from '@shared/launcher'
 import { registerPinnedZoneOverlay, applyPinnedZoneEnabled } from './pinned-zone'
 import { getOverlayAnchor, setMainOverlayGetter, setOnLeaveScalpel, subscribeToPoeMoves } from './windowing'
 import { initAppMacrosRefresh, withPluginHotkeys } from './app-macros'
+import { runRadialPluginIconMigration, runRadialScaleMigration } from './radial-scale-migration'
 import { runRegexMacroMigration } from './regex-macro-migration'
 import {
   applyRegexPreset,
@@ -92,6 +101,18 @@ import {
   toggleRegexRemote,
 } from './regex-remote'
 import { detectPanelStateOnce, getCurrentPanelState } from './panel-detection'
+import {
+  registerRadialMenuOverlay,
+  toggleRadialMenu,
+  fireRadialSlice,
+  cancelRadialMenu,
+  getPendingRadialState,
+} from './radial-menu'
+import { captureRadialBackdrop } from './radial-backdrop'
+import { warpCursorTo } from './cursor-warp'
+import { getGameCursorPosition } from './screen-capture/cursor'
+import { pluginSliceIcon, RADIAL_MACRO_ACTION, type RadialMenuSettings } from '@shared/contracts/radial'
+import { IPC_CHANNELS } from '@shared/contracts/ipc'
 import type { AppSettings, CheatSheetsSettings, GameVariant, LegacyAppSettings, RegexPreset } from '@shared/types'
 import { initProfileStore } from './profiles/store'
 import {
@@ -107,6 +128,9 @@ import { registerAllIpc } from './app/register-ipc'
 import { createTray, refreshTrayMenu } from './app/tray'
 import { startLiveServices } from './app/lifecycle'
 import { getOverlayAttachStrategy } from './experimental'
+import { switchGameContext } from './experimental/game-switch-coordinator'
+import { detectRunningPoeGame } from './detect-foreground-game'
+import { resolveInitialGameVersion } from './overlay-attach'
 
 // ---- Linux display-server setup --------------------------------------------
 
@@ -140,6 +164,9 @@ const store = new Store<AppSettings>({
   defaults: {
     hotkey: 'CommandOrControl+D',
     priceCheckHotkey: 'CommandOrControl+A',
+    launcherHotkey: 'Grave',
+    launcherSliceMode: 'names',
+    launcherStyle: 'classic',
     overlayOpacity: 0.95,
     overlayScale: 1,
     openSide: 'both',
@@ -154,7 +181,7 @@ const store = new Store<AppSettings>({
     previewVolume: 0.25,
     priceCheckDefaultPercent: 90,
     adaptiveDefaultsMode: 'eager',
-    tradeDefaultToBase: false,
+    tradeAffixesPrechecked: 'default',
     tradePoe2CraftingReadyDefault: true,
     chatCommands: [],
     appMacros: [],
@@ -168,11 +195,13 @@ const store = new Store<AppSettings>({
     developerMode: false,
     themeId: 'default',
     customThemePalette: null,
+    fontPackageId: 'fontin',
     locale: 'en',
     pluginRegistryUrl: undefined,
     startInTray: true,
     pluginAutoUpdate: false,
     appWindowPosition: undefined,
+    radialMenu: { slices: [] },
     [ACTIVE_PROFILE_ID_KEY]: '',
     [LAST_PROFILE_ID_POE1_KEY]: '',
     [LAST_PROFILE_ID_POE2_KEY]: '',
@@ -189,14 +218,47 @@ if (store.get('openSide') === undefined) store.set('openSide', 'both')
 if ((store.get('tradeStatus') as string) === 'any') store.set('tradeStatus', 'available')
 if (store.get('themeId') === undefined) store.set('themeId', 'default')
 if (store.get('customThemePalette') === undefined) store.set('customThemePalette', null)
+if (store.get('fontPackageId') === undefined) store.set('fontPackageId', 'fontin')
 if (store.get('adaptiveDefaultsMode') === undefined) store.set('adaptiveDefaultsMode', 'eager')
 if (store.get('startInTray') === undefined) store.set('startInTray', true)
 if (store.get('pluginAutoUpdate') === undefined) store.set('pluginAutoUpdate', false)
 if (store.get('locale') === undefined) store.set('locale', 'en')
+if (store.get('radialMenu') === undefined) store.set('radialMenu', { slices: [] })
+if (store.get('launcherSliceMode') === undefined) store.set('launcherSliceMode', 'names')
+if (store.get('launcherStyle') === undefined) store.set('launcherStyle', 'classic')
+store.set('launcherStyle', normalizeLauncherStyle(store.get('launcherStyle')))
+{
+  const macros = store.get('appMacros') ?? []
+  const launcherMacro = macros.find((m) => m.action === 'openLauncher')
+  if (store.get('launcherHotkey') === undefined) {
+    store.set(
+      'launcherHotkey',
+      launcherMacro?.hotkey && launcherMacro.hotkey !== 'CommandOrControl+Shift+Space' ? launcherMacro.hotkey : 'Grave',
+    )
+  }
+  const withoutLauncher = macros.filter((m) => m.action !== 'openLauncher')
+  if (withoutLauncher.length !== macros.length) store.set('appMacros', withoutLauncher)
+}
+
+// tradeDefaultToBase (boolean) became tradeAffixesPrechecked (three-way). Gate on the OLD
+// key's presence, not on the new one being undefined: the new key is in `defaults`, so
+// store.get() always resolves it and an undefined-check would never fire. The old key is
+// present in every pre-migration config and absent on a fresh install, and the delete
+// makes this a one-shot.
+{
+  const legacyStore = store as Store<AppSettings & { tradeDefaultToBase?: boolean }>
+  const legacyBase = legacyStore.get('tradeDefaultToBase')
+  if (legacyBase !== undefined) {
+    if (legacyBase === true) store.set('tradeAffixesPrechecked', 'base')
+    legacyStore.delete('tradeDefaultToBase')
+  }
+}
 
 initMainLocale(store, () => refreshTrayMenu())
 
-const profileStore = initProfileStore(app.getPath('userData'))
+const profileStore = initProfileStore(app.getPath('userData'), (variant) =>
+  store.get(variant === 2 ? 'leaguesPoe2' : 'leaguesPoe1'),
+)
 
 if (store.get(ACTIVE_PROFILE_ID_KEY) === undefined) store.set(ACTIVE_PROFILE_ID_KEY, '')
 if (store.get(LAST_PROFILE_ID_POE1_KEY) === undefined) store.set(LAST_PROFILE_ID_POE1_KEY, '')
@@ -257,6 +319,12 @@ if (!IS_E2E)
   })
 
 runRegexMacroMigration(store)
+// Before any renderer reads settings: the ring's base geometry absorbed a legacy
+// 0.7 scale, so a stored scale has to be un-multiplied or the menu halves.
+runRadialScaleMigration(store)
+// Same window, same reason: the ring's plugin-art precedence flipped, so stored
+// plugin slices have to be re-pointed before anything renders them.
+runRadialPluginIconMigration(store)
 setEvaluationStore(store)
 initLearning(store, store.get('poeVersion'))
 initAppMacrosRefresh(() => store.get('appMacros') ?? [])
@@ -283,8 +351,28 @@ const installDir = IS_E2E ? process.cwd() : applyPendingUpdate()
 
 app.whenReady().then(() => {
   recordMainBreadcrumb('session-start')
-  if (!IS_E2E)
-    getOverlayAttachStrategy(store).createInitialOverlay((store.get(PROFILE_VERSION_KEY) as GameVariant) ?? 1)
+  if (!IS_E2E) {
+    try {
+      const stored = (store.get(PROFILE_VERSION_KEY) as GameVariant) ?? 1
+      let running: GameVariant | null = null
+      try {
+        running = detectRunningPoeGame()
+      } catch {
+        running = null
+      }
+      const initial = resolveInitialGameVersion(stored, running)
+      if (running && running !== stored) {
+        try {
+          switchGameContext(store, running)
+        } catch (err) {
+          recordMainDiagnostic('game-detect-switch-failed', err instanceof Error ? err.message : String(err))
+        }
+      }
+      getOverlayAttachStrategy(store).createInitialOverlay(initial)
+    } catch (err) {
+      recordMainDiagnostic('overlay-attach-failed', err instanceof Error ? err.message : String(err))
+    }
+  }
   setMainOverlayGetter(getOverlayWindow)
   if (!IS_E2E) setOnLeaveScalpel(() => suspendHotkeys())
   createAppWindow(store)
@@ -310,6 +398,13 @@ app.whenReady().then(() => {
     setHotkey(hotkey)
     setPriceCheckHandler(onPriceCheckFired)
     setPriceCheckHotkey(store.get('priceCheckHotkey'))
+    setLauncherHandler(() => {
+      const main = getOverlayWindow()
+      if (main && !main.isDestroyed() && main.isVisible()) hideOverlay()
+      getCheatSheetsOverlay()?.hide()
+      showLauncherAtCursor()
+    })
+    setLauncherHotkey(store.get('launcherHotkey'))
     setEscapeHandler(() => hideOverlay())
     setChatCommands(store.get('chatCommands') ?? [])
   }
@@ -320,22 +415,12 @@ app.whenReady().then(() => {
   const APP_MACRO_VIEWS: Record<string, string> = {
     openSettings: 'setup',
     openDust: 'dust',
+    openUniqueTiers: 'uniquetiers',
     openDivCards: 'divcards',
     openScarabs: 'scarabs',
     openTimeless: 'timeless',
     openWarrants: 'warrants',
     openRegex: 'regex',
-  }
-  const pasteRegexToSearch = (regex: string): void => {
-    const restoreClip = snapshotClipboard()
-    clipboard.writeText(regex)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
-    uIOhook.keyTap(UiohookKey.F)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
-    uIOhook.keyTap(UiohookKey.V)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
-    setTimeout(restoreClip, 100)
   }
 
   // Beasts presets re-derive against cached poe.ninja prices so a hotkey bound
@@ -371,7 +456,9 @@ app.whenReady().then(() => {
           OverlayController.focusTarget()
         } catch {}
       },
-      paste: pasteRegexToSearch,
+      paste: (regex) => {
+        void pasteRegexToPoESearch(regex)
+      },
       defer: (fn) => setTimeout(fn, 50),
       resolveRegex: presetRegex,
     })
@@ -383,9 +470,26 @@ app.whenReady().then(() => {
     } catch {}
   })
 
-  setAppMacroHandler((action, tag, presetId) => {
+  const dispatchAppMacro = (action: string, tag?: string, presetId?: string): void => {
+    if (action === 'openLauncher') {
+      const main = getOverlayWindow()
+      if (main && !main.isDestroyed() && main.isVisible()) hideOverlay()
+      getCheatSheetsOverlay()?.hide()
+      showLauncherAtCursor()
+      return
+    }
+    if (action === 'toggleCheatSheets') {
+      const main = getOverlayWindow()
+      if (main && !main.isDestroyed() && main.isVisible()) hideOverlay()
+      toggleCheatSheets()
+      return
+    }
+    if (action === RADIAL_MACRO_ACTION) {
+      toggleRadialMenu()
+      return
+    }
     if (action === 'pasteRegex') {
-      if (currentRegex) pasteRegexToSearch(currentRegex)
+      if (currentRegex) void pasteRegexToPoESearch(currentRegex)
       return
     }
     if (action === 'useSavedRegex') {
@@ -396,7 +500,7 @@ app.whenReady().then(() => {
         ? presets.find((p) => p.id === presetId)
         : presets.find((p) => p.tags?.some((t) => t.text === tag && (!t.source || t.source === 'custom')))
       const regex = preset ? presetRegex(preset) : undefined
-      if (regex) pasteRegexToSearch(regex)
+      if (regex) void pasteRegexToPoESearch(regex)
       return
     }
     if (action === 'closeOverlay') {
@@ -408,6 +512,13 @@ app.whenReady().then(() => {
       if (main && !main.isDestroyed() && main.isVisible()) hideOverlay()
       getCheatSheetsOverlay()?.hide()
       toggleWhiteboard()
+      return
+    }
+    if (action === 'toggleFilterSectionEditor') {
+      const main = getOverlayWindow()
+      if (main && !main.isDestroyed() && main.isVisible()) hideOverlay()
+      getCheatSheetsOverlay()?.hide()
+      toggleFilterSectionEditor()
       return
     }
     if (action === 'toggleRegexRemote') {
@@ -454,7 +565,8 @@ app.whenReady().then(() => {
       overlayWin.webContents.send('open-view', view)
       showOverlay()
     }
-  })
+  }
+  setAppMacroHandler(dispatchAppMacro)
   setAppMacros(withPluginHotkeys((store.get('appMacros') as AppSettings['appMacros']) ?? []))
 
   const patchCheatSheets = (patch: Partial<CheatSheetsSettings>): void => {
@@ -470,6 +582,7 @@ app.whenReady().then(() => {
   applyCheatSheetHotkeys(getProfileBackedSetting(store, 'cheatSheets'))
   registerWhiteboardOverlay()
   registerTimelessTreeOverlay()
+  registerFilterSectionEditorOverlay()
   registerRegexRemoteOverlay({
     onAnchorChanged: (anchor) => {
       getRegexRemoteOverlay()?.send('regex-remote:mount-changed', regexRemoteFlushLeft(anchor))
@@ -480,6 +593,49 @@ app.whenReady().then(() => {
     getTargetBounds: () => OverlayController.targetBounds,
     getPanelState: () => getCurrentPanelState(),
   })
+  registerRadialMenuOverlay({
+    getSlices: () => (store.get('radialMenu') as RadialMenuSettings | undefined)?.slices ?? [],
+    getScale: () => (store.get('radialMenu') as RadialMenuSettings | undefined)?.scale,
+    isDev: () => store.get('developerMode') === true,
+    getGameCursor: getGameCursorPosition,
+    getScreenCursor: () => screen.getCursorScreenPoint(),
+    // Tab icon, else the manifest's - see pluginSliceIcon. Resolved at open
+    // rather than stored, so an install or an in-place update is picked up
+    // without anything having to invalidate a cache.
+    getPluginIcon: (pluginId) =>
+      pluginSliceIcon(
+        getRegisteredPluginTabs().get(pluginId)?.icon,
+        getInstalledPlugins().find((p) => p.manifest.id === pluginId)?.manifest.iconUrl,
+      ),
+    captureBackdrop: captureRadialBackdrop,
+    warpTo: warpCursorTo,
+    focusGame: () => {
+      try {
+        OverlayController.focusTarget()
+      } catch {}
+    },
+    defer: (fn) => setTimeout(fn, 50),
+    fire: {
+      filter: () => void onHotkeyFired(),
+      pricecheck: () => void onPriceCheckFired(),
+      appmacro: (action, presetId) => dispatchAppMacro(action, undefined, presetId),
+      // Same fire-and-forget contract as the chat hotkey path: a paste that
+      // never got focus (or the clipboard) rejects, and that is a diagnostic.
+      chat: (command, autoSubmit) => {
+        sendChatCommand(command, autoSubmit).catch((e) => recordMainDiagnostic('chat-command', e))
+      },
+      cheatsheet: (categoryId) => toggleCheatSheets(categoryId),
+    },
+  })
+  ipcMain.on(IPC_CHANNELS.RADIAL.FIRE, (_event, sliceId: string) => fireRadialSlice(String(sliceId)))
+  ipcMain.on(IPC_CHANNELS.RADIAL.CANCEL, () => cancelRadialMenu())
+  ipcMain.handle(IPC_CHANNELS.RADIAL.PENDING, () => getPendingRadialState())
+  initLauncher({
+    dispatch: dispatchAppMacro,
+    getSliceMode: () => store.get('launcherSliceMode') ?? 'names',
+    getStyle: () => normalizeLauncherStyle(store.get('launcherStyle')),
+  })
+  registerLauncherOverlay()
   registerPinnedZoneOverlay({
     storedAnchor: () => getProfileBackedSetting(store, 'cheatSheets')?.pinnedAnchor,
     onAnchorChanged: (anchor) => patchCheatSheets({ pinnedAnchor: anchor }),

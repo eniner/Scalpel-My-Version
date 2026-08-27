@@ -1,4 +1,14 @@
-import { Setting, CloseSmall, ChartHistogram, Flask, Buy, AllApplication } from '@icon-park/react'
+import {
+  Setting,
+  CloseSmall,
+  ChartHistogram,
+  Flask,
+  Buy,
+  AllApplication,
+  Search,
+  Filter,
+  Ranking,
+} from '@icon-park/react'
 import type { HideableTabKey, OverlayData } from '@shared/types'
 import type { GameFeatures } from '@shared/game-features'
 import { getCurrencyIcons } from '../shared/icons'
@@ -38,25 +48,48 @@ export function TitleBar({
 }: TitleBarProps): JSX.Element {
   const fallbackIcon = getCurrencyIcons(poeVersion ?? 1).baseline
   return (
-    <div
-      className="flex items-center justify-between px-3.5 py-2.5 border-b border-border cursor-grab"
-      onMouseDown={onMouseDown}
-    >
-      <span className="text-accent font-bold tracking-[1px] flex items-center gap-1.5">
-        <img src={appIcon} alt="" className="w-4 h-4" />
-        Scalpel
-        <span className="text-[9px] text-accent font-medium opacity-60 self-end mb-px -ml-0.5">
-          {m.settings_beta_version({ version: __APP_VERSION__ })}
-          {poeVersion ? ` / PoE${poeVersion}` : ''}
+    <div className="flex flex-col border-b border-border cursor-grab w-full min-w-0" onMouseDown={onMouseDown}>
+      <div className="flex items-center justify-between gap-2 px-3.5 pt-2.5">
+        <span className="text-accent font-bold tracking-[1px] flex items-center gap-1.5 shrink-0">
+          <img src={appIcon} alt="" className="w-4 h-4" />
+          Scalpel
+          <span className="text-[9px] text-accent font-medium opacity-60 self-end mb-px -ml-0.5">
+            {m.settings_beta_version({ version: __APP_VERSION__ })}
+            {poeVersion ? ` / PoE${poeVersion}` : ''}
+          </span>
         </span>
-      </span>
-      <div className="flex gap-1.5 items-center">
+        <div className="flex gap-1.5 items-center shrink-0">
+          <button
+            type="button"
+            onClick={() => window.api.filterSectionEditor.show()}
+            title="Filter Section Editor"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center"
+          >
+            <Filter size={16} {...IP} />
+          </button>
+          <button
+            onClick={() => onSetView('setup')}
+            title={m.tray_settings()}
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center"
+            style={{
+              background: view === 'setup' ? 'var(--accent)' : undefined,
+              color: view === 'setup' ? '#171821' : undefined,
+            }}
+          >
+            <Setting size={16} {...IP} />
+          </button>
+          <button onClick={onClose} className="btn-bounce btn-ghost w-[30px] h-[30px] flex items-center justify-center">
+            <CloseSmall size={16} {...IP} />
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5 items-center justify-end px-3.5 pb-2.5 pt-1.5 w-full">
         {/* Tools tab -- only visible when active */}
         {view === 'tools' && (
           <button
             onClick={() => onSetView('tools')}
             title={m.feature_tools()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center bg-accent text-[#171821]"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center bg-accent text-[#171821] shrink-0"
           >
             <Flask size={16} {...IP} />
           </button>
@@ -68,19 +101,32 @@ export function TitleBar({
           <button
             onClick={() => onSetView('audit')}
             title={m.feature_price_audit()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center bg-accent text-[#171821]"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center bg-accent text-[#171821] shrink-0"
           >
             <ChartHistogram size={16} {...IP} />
           </button>
         )}
-        {/* Item icon -- always navigates back to search results */}
+        {/* Search tab -- the one button that's always here, in the same slot, whether or
+            not anything is copied. Opens the same view a dry-fired hotkey lands on. */}
+        <button
+          onClick={() => onSetView('no-item')}
+          title={m.overlay_no_item_title()}
+          className="btn-bounce w-[30px] h-[30px] flex items-center justify-center shrink-0"
+          style={{
+            background: view === 'no-item' ? 'var(--accent)' : undefined,
+            color: view === 'no-item' ? '#171821' : undefined,
+          }}
+        >
+          <Search size={16} {...IP} />
+        </button>
+        {/* Item icon -- always visible (origin 1.0.2); dimmed until something is copied. */}
         {!hiddenTabs.has('item') && (
           <button
             onClick={() => {
               if (overlayData) onSetView('item')
             }}
             title={m.feature_filter_editor()}
-            className="btn-bounce p-0.5 w-[30px] h-[30px] flex items-center justify-center"
+            className="btn-bounce p-0.5 w-[30px] h-[30px] flex items-center justify-center shrink-0"
             style={{
               background: view === 'item' ? 'var(--accent)' : undefined,
               color: view === 'item' ? '#171821' : undefined,
@@ -117,7 +163,7 @@ export function TitleBar({
             onClick={() => hasPriceCheckData && onSetView('pricecheck')}
             disabled={!hasPriceCheckData}
             title={hasPriceCheckData ? m.feature_price_checker() : m.titlebar_price_checker_empty()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center disabled:cursor-default"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center disabled:cursor-default shrink-0"
             style={{
               background: view === 'pricecheck' ? 'var(--accent)' : undefined,
               color: view === 'pricecheck' ? '#171821' : undefined,
@@ -131,7 +177,7 @@ export function TitleBar({
           <button
             onClick={() => onSetView('dust')}
             title={m.feature_dust_explorer()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 shrink-0"
             style={{
               background: view === 'dust' ? 'var(--accent)' : undefined,
             }}
@@ -139,11 +185,24 @@ export function TitleBar({
             <img src={dustIconAsset} alt="" className="w-[18px] h-[18px] object-contain" />
           </button>
         )}
+        {features.uniqueTiers && !hiddenTabs.has('uniquetiers') && (
+          <button
+            onClick={() => onSetView('uniquetiers')}
+            title={m.feature_unique_tiers()}
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center shrink-0"
+            style={{
+              background: view === 'uniquetiers' ? 'var(--accent)' : undefined,
+              color: view === 'uniquetiers' ? '#171821' : undefined,
+            }}
+          >
+            <Ranking size={16} {...IP} />
+          </button>
+        )}
         {features.divCards && !hiddenTabs.has('divcards') && (
           <button
             onClick={() => onSetView('divcards')}
             title={m.feature_div_card_explorer()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 text-[15px]"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 text-[15px] shrink-0"
             style={{
               background: view === 'divcards' ? 'var(--accent)' : undefined,
             }}
@@ -155,7 +214,7 @@ export function TitleBar({
           <button
             onClick={() => onSetView('scarabs')}
             title={m.feature_scarab_atlas()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 shrink-0"
             style={{
               background: view === 'scarabs' ? 'var(--accent)' : undefined,
             }}
@@ -171,7 +230,7 @@ export function TitleBar({
           <button
             onClick={() => onSetView('timeless')}
             title={m.feature_timeless_jewels()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 text-[11px] font-bold"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 text-[11px] font-bold shrink-0"
             style={{
               background: view === 'timeless' ? 'var(--accent)' : undefined,
               color: view === 'timeless' ? '#171821' : undefined,
@@ -184,7 +243,7 @@ export function TitleBar({
           <button
             onClick={() => onSetView('warrants')}
             title={m.feature_scalpel_warrants()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 text-[10px] font-bold"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 text-[10px] font-bold shrink-0"
             style={{
               background: view === 'warrants' ? 'var(--accent)' : undefined,
               color: view === 'warrants' ? '#171821' : undefined,
@@ -197,7 +256,7 @@ export function TitleBar({
           <button
             onClick={() => onSetView('regex')}
             title={m.feature_regex_tool()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center p-0.5 shrink-0"
             style={{
               background: view === 'regex' ? 'var(--accent)' : undefined,
             }}
@@ -219,7 +278,7 @@ export function TitleBar({
             // svg in an outer span, for example). CSS wins over the SVG's
             // width/height attrs, so plugin authors don't need to set sizing.
             const base =
-              'btn-bounce w-[30px] h-[30px] flex items-center justify-center [&_svg]:w-4 [&_svg]:h-4 [&_svg]:block'
+              'btn-bounce w-[30px] h-[30px] flex items-center justify-center shrink-0 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:block'
             const className = view === `plugin:${t.pluginId}` ? `${base} bg-accent text-[#171821]` : base
             return (
               <button
@@ -235,7 +294,7 @@ export function TitleBar({
           <button
             onClick={() => onSetView('extras')}
             title={m.feature_extra_features()}
-            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center"
+            className="btn-bounce w-[30px] h-[30px] flex items-center justify-center shrink-0"
             style={{
               background: view === 'extras' ? 'var(--accent)' : undefined,
               color: view === 'extras' ? '#171821' : undefined,
@@ -244,19 +303,6 @@ export function TitleBar({
             <AllApplication size={16} {...IP} />
           </button>
         )}
-        <button
-          onClick={() => onSetView('setup')}
-          className="btn-bounce w-[30px] h-[30px] flex items-center justify-center"
-          style={{
-            background: view === 'setup' ? 'var(--accent)' : undefined,
-            color: view === 'setup' ? '#171821' : undefined,
-          }}
-        >
-          <Setting size={16} {...IP} />
-        </button>
-        <button onClick={onClose} className="btn-bounce btn-ghost w-[30px] h-[30px] flex items-center justify-center">
-          <CloseSmall size={16} {...IP} />
-        </button>
       </div>
     </div>
   )

@@ -55,11 +55,7 @@ function sumMatchingProbability(outcomes: CraftOutcome[], query: string, kind: '
     .reduce((s, o) => s + o.probability, 0)
 }
 
-function exaltPoolOutcomes(
-  data: CraftDataset,
-  state: CraftItemState,
-  tierFloor: number,
-): CraftOutcome[] {
+function exaltPoolOutcomes(data: CraftDataset, state: CraftItemState, tierFloor: number): CraftOutcome[] {
   const pool = allEligibleForExalt(data, state, { maxPrefix: 3, maxSuffix: 3, tierFloor })
   const sections = poolToSections(pool, 'all')
   return groupedOutcomesToFlat(sections.flatMap((s) => s.groups))
@@ -176,12 +172,12 @@ export function computeTargetHit(data: CraftDataset, query: TargetCraftQuery): T
     matchingOutcomes = rolledPreviewFromHits(data, modHits, trials, q, kind)
     note = `Monte Carlo (${samples} alt rolls): any magic mod line matches target.`
   } else if (sim === 'alchemy') {
-  const mc = monteCarloTarget(data, query.state, query.actionId, q, kind, samples, query.omens)
+    const mc = monteCarloTarget(data, query.state, query.actionId, q, kind, samples, query.omens)
     hitPerAttempt = mc.hitRate
     matchingOutcomes = mc.outcomes.filter((o) => modMatchesTargetQuery(o, q, kind))
     note = `Monte Carlo (${samples} alchemy): any of four rare mods matches target.`
   } else if (sim === 'transmutation' || sim === 'augmentation') {
-  const mc = monteCarloTarget(data, query.state, query.actionId, q, kind, samples, query.omens)
+    const mc = monteCarloTarget(data, query.state, query.actionId, q, kind, samples, query.omens)
     hitPerAttempt = mc.hitRate
     matchingOutcomes = mc.outcomes.filter((o) => modMatchesTargetQuery(o, q, kind))
     note = `Monte Carlo (${samples} rolls) for this action.`

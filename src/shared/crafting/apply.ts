@@ -1,15 +1,9 @@
 import { labelForActionId, resolveSimActionId } from './actions'
 import { tierFloorForCurrency } from './currency-rules'
-import {
-  boneAppliesToBase,
-  boneById,
-  makeRevealChoices,
-  pickVeiledKind,
-  rollDesecrationChoices,
-} from './desecration'
+import { boneAppliesToBase, boneById, makeRevealChoices, pickVeiledKind, rollDesecrationChoices } from './desecration'
 import { essenceForcedMod } from './essence'
 import { consumeOmens, resolveOmenEffect, simKeyToOmenMethod, validateOmens } from './omens'
-import { getBaseTags, rollTagsForState } from './pool'
+import { countByKind, getBaseTags, rollTagsForState } from './pool'
 import {
   cloneItemState,
   craftModToItemMod,
@@ -19,13 +13,7 @@ import {
   rollMods,
   rollOneExaltMod,
 } from './roll'
-import type {
-  CraftApplyOptions,
-  CraftApplyResult,
-  CraftDataset,
-  CraftItemMod,
-  CraftItemState,
-} from './types'
+import type { CraftApplyOptions, CraftApplyResult, CraftDataset, CraftItemMod, CraftItemState } from './types'
 
 function fail(state: CraftItemState, actionId: string, label: string, error: string): CraftApplyResult {
   return { ok: false, state, actionId, label, message: error, error }
@@ -112,9 +100,15 @@ function applyDesecrationReveal(
     )
     const next = cloneItemState(state)
     next.revealChoices = makeRevealChoices(newMods, choices.veiledKind, choices.rerollsLeft - 1)
-    return ok(next, actionId, label, `Rerolled desecration choices (${next.revealChoices.rerollsLeft} reroll(s) left).`, {
-      revealChoices: next.revealChoices,
-    })
+    return ok(
+      next,
+      actionId,
+      label,
+      `Rerolled desecration choices (${next.revealChoices.rerollsLeft} reroll(s) left).`,
+      {
+        revealChoices: next.revealChoices,
+      },
+    )
   }
 
   const pick = opts?.pickIndex

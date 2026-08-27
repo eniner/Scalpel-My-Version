@@ -16,6 +16,7 @@ import { FilterPanel } from '../features/filter/FilterPanel'
 import { SettingsPanel } from '../features/settings/SettingsPanel'
 import { SocketRecolor } from '../components/SocketRecolor'
 import { DustExplorer } from '../features/dust-explorer'
+import { UniqueTiersExplorer } from '../features/unique-tiers'
 import { DivCardExplorer } from '../features/div-card-explorer'
 import { ScarabAtlas } from '../features/scarab-atlas'
 import { TimelessJewels } from '../features/timeless-jewels'
@@ -35,7 +36,7 @@ import { SisterOverlay } from './SisterOverlay'
 import { TierItemsSister } from './TierItemsSister'
 import { getActiveMatch } from '../shared/activeMatch'
 import { ItemSearchCombobox } from '../components/ItemSearchCombobox'
-import { Clipboard } from '@icon-park/react'
+import { Search } from '@icon-park/react'
 import {
   IP,
   iconMap,
@@ -47,7 +48,6 @@ import {
   mergeIconCache,
 } from '../shared/constants'
 import { initManifest, getManifest } from '../shared/manifest'
-import { prettyHotkey } from '../components/primitives/hotkey-utils'
 import { createTryHotkey } from '../components/primitives/hotkey-collisions'
 import { PluginErrorBanner } from '../plugins/PluginErrorBanner'
 import { usePluginAutoUpdate } from '../plugins/use-plugin-auto-update'
@@ -412,11 +412,21 @@ export default function App(): JSX.Element {
         if (v === 'audit') {
           auditPending.current = true
         } else {
-          const valid = ['setup', 'dust', 'divcards', 'scarabs', 'timeless', 'warrants', 'regex'] as const
+          const valid = [
+            'setup',
+            'dust',
+            'uniquetiers',
+            'divcards',
+            'scarabs',
+            'timeless',
+            'warrants',
+            'regex',
+          ] as const
           if (!valid.includes(v as (typeof valid)[number])) return
           // Don't reopen tabs that the active game has disabled (e.g. regex on PoE2).
           const active = getGameFeatures(settings?.poeVersion ?? 1)
           if (v === 'dust' && !active.dustExplorer) return
+          if (v === 'uniquetiers' && !active.uniqueTiers) return
           if (v === 'divcards' && !active.divCards) return
           if (v === 'scarabs' && !active.scarabAtlas) return
           if (v === 'timeless' && !active.timelessJewels) return
@@ -523,6 +533,9 @@ export default function App(): JSX.Element {
   useEffect(() => {
     if (isHidden) {
       window.api.reportPanelRect([])
+      // Dock ghost is a sibling of the panel, so it survives panel hide. Clear it
+      // so a stuck snapTarget can't leave a faded dashed box over the game.
+      setSnapTarget(null)
       return
     }
     const tick = (): void => {
@@ -651,8 +664,12 @@ export default function App(): JSX.Element {
           sEl.style.transition = 'transform 0.2s ease-out'
           setTranslate(sEl, targetDx, 0)
         }
-        const onEnd = (): void => {
+        let settled = false
+        const settle = (): void => {
+          if (settled) return
+          settled = true
           el.removeEventListener('transitionend', onEnd)
+          window.clearTimeout(settleTimer)
           // Set final position directly on the DOM - React may skip the
           // transform update if the value matches what it last rendered
           el.style.left = `${targetMountX}px`
@@ -664,13 +681,32 @@ export default function App(): JSX.Element {
           if (snap !== cursorSide) {
             setCursorSide(snap)
           }
+          // Always clear the dock ghost — transitionend can miss when the view
+          // remounts mid-snap (e.g. price-check opening), which left a faded
+          // dashed box stuck over the game.
           setSnapTarget(null)
           skipAnimRef.current = true
         }
+        const onEnd = (ev: TransitionEvent): void => {
+          // Only the wrapper's own transform settles the snap. transitionend
+          // bubbles, so any transition-* inside the panel (hover colors flip as
+          // the panel slides under a stationary cursor) would otherwise settle
+          // us mid-slide and cut the animation short.
+          if (ev.target !== el || ev.propertyName !== 'transform') return
+          settle()
+        }
         el.addEventListener('transitionend', onEnd)
+        // Fallback if transitionend never fires (0-distance snap, remount, etc.).
+        // Comfortably longer than the 200ms transition: firing this early would
+        // clear the transition mid-slide and visibly jump the panel, and being
+        // late costs nothing since it only runs when the event was already lost.
+        const settleTimer = window.setTimeout(settle, 400)
       } else {
         panelRef.current?.classList.remove('panel-unmounted')
         setDragOffset({ ...dragOffsetRef.current })
+        // Clear even when not snapping / wrapper missing — otherwise a prior
+        // in-range hover leaves the ghost visible after mouseup.
+        setSnapTarget(null)
       }
     }
     window.addEventListener('mousemove', onMove)
@@ -679,6 +715,7 @@ export default function App(): JSX.Element {
 
   const isFullHeightView =
     view === 'dust' ||
+    view === 'uniquetiers' ||
     view === 'divcards' ||
     view === 'scarabs' ||
     view === 'timeless' ||
@@ -816,8 +853,8 @@ export default function App(): JSX.Element {
           rightMountX={rightMountX}
           panelTop={PANEL_TOP}
           panelWidth={PANEL_WIDTH}
-          panelHeight={panelRef.current?.offsetHeight ?? 0}
-          snapTarget={snapTarget}
+          panelHeight={isHidden ? 0 : (panelRef.current?.offsetHeight ?? 0)}
+          snapTarget={isHidden ? null : snapTarget}
           overlayScale={settings?.overlayScale}
         />
         <div
@@ -976,11 +1013,7 @@ export default function App(): JSX.Element {
                 )}
                 {view === 'no-item' && (
                   <>
-                    <Notice
-                      icon={<Clipboard size={32} {...IP} />}
-                      title={m.overlay_no_item_title()}
-                      body={m.overlay_no_item_body({ hotkey: prettyHotkey(settings?.hotkey) || 'Ctrl+Shift+F' })}
-                    />
+                    <Notice icon={<Search size={32} {...IP} />} title={m.overlay_no_item_title()} />
                     <div className="px-6 pb-6">
                       <ItemSearchCombobox />
                     </div>
@@ -1051,6 +1084,17 @@ export default function App(): JSX.Element {
                     <DustExplorer onSelectItem={() => setView('item')} onPriceCheckItem={() => setView('pricecheck')} />
                   </div>
                 )}
+                {features.uniqueTiers && (
+                  <div
+                    className="flex-col flex-1 min-h-0"
+                    style={{ display: view === 'uniquetiers' ? 'flex' : 'none' }}
+                  >
+                    <UniqueTiersExplorer
+                      onSelectItem={() => setView('item')}
+                      onPriceCheckItem={() => setView('pricecheck')}
+                    />
+                  </div>
+                )}
                 {features.divCards && (
                   <div className="flex-col flex-1 min-h-0" style={{ display: view === 'divcards' ? 'flex' : 'none' }}>
                     <DivCardExplorer onSelectItem={() => setView('item')} />
@@ -1105,6 +1149,9 @@ export default function App(): JSX.Element {
                     onSettingsChange={(s) => setSettings(s)}
                     update={updateSetting}
                     tryHotkey={regexTryHotkey}
+                    pluginTabs={pluginTabs.map((t) => ({ pluginId: t.pluginId, label: t.label, icon: t.icon }))}
+                    hiddenPluginTabIds={new Set(settings.hiddenPluginTabIds ?? [])}
+                    onOpenPlugin={(pluginId) => setView(`plugin:${pluginId}`)}
                     onOpenSettingsTab={(tab) => {
                       setSettingsTabRequest((prev) => ({ tab, n: (prev?.n ?? 0) + 1 }))
                       setView('setup')

@@ -113,6 +113,9 @@ let lastFetchTime = 0
 // from priceMap because it retains display-case names + category slugs that the
 // lowercased lookup map discards.
 let priceEntries: PriceEntry[] = []
+// Lazily built name -> ninjaType index over priceEntries. Nulled on every
+// snapshot swap so it can't outlive the entries it was derived from.
+let ninjaTypeByName: Map<string, string> | null = null
 let priceEntriesUpdatedAt: number | null = null
 const priceUpdateListeners = new Set<() => void>()
 
@@ -295,7 +298,14 @@ export function processDenseResponse(resp: DenseResponse, entriesOut: PriceEntry
       pricesByVariant.set(`${name.toLowerCase()}|${line.variant ?? ''}`, info)
       if (isDivCards) divCardPriceMap.set(name.toLowerCase(), info)
 
-      entriesOut.push({ name, category, chaosValue: chaos, divineValue: info.divineValue, graph: line.graph })
+      entriesOut.push({
+        name,
+        category,
+        chaosValue: chaos,
+        divineValue: info.divineValue,
+        graph: line.graph,
+        ninjaType: overview.type,
+      })
     }
   }
 
@@ -328,6 +338,7 @@ export function processDenseResponse(resp: DenseResponse, entriesOut: PriceEntry
         category: 'currency',
         chaosValue: info.chaosValue,
         divineValue: info.divineValue,
+        ninjaType: 'Currency',
       })
     }
   }
@@ -347,6 +358,7 @@ function resetCache(league: string, now: number): void {
   divCardPriceMap = new Map()
   gemNames = new Set()
   priceEntries = []
+  ninjaTypeByName = null
   lastFetchTime = now
 }
 
@@ -372,6 +384,7 @@ export async function refreshPrices(league: string): Promise<void> {
       uniqueBaseMapPoe2 = result.uniquesByBase
       saveCachedUniquesByBasePoe2(result.uniquesByBase)
       priceEntries = result.entries
+      ninjaTypeByName = null
       priceEntriesUpdatedAt = now
       notifyPriceUpdate()
       return
@@ -382,6 +395,7 @@ export async function refreshPrices(league: string): Promise<void> {
     processDenseResponse(resp, freshEntries)
     buildUniquesByBaseFromDense(resp)
     priceEntries = freshEntries
+    ninjaTypeByName = null
     priceEntriesUpdatedAt = now
     notifyPriceUpdate()
   } catch (e) {
@@ -404,6 +418,20 @@ export function getPriceEntries(category?: string): { prices: PriceEntry[]; upda
   return { prices, updatedAt: priceEntriesUpdatedAt }
 }
 
+/** poe.ninja's raw overview type for an item ('DivinationCard', 'Ritual', ...),
+ *  or undefined when the current snapshot doesn't price it. Backs the exchange
+ *  details fetch, whose `type` param rejects the kebab `category` slug. Built
+ *  off priceEntries so both games share one code path. */
+export function getNinjaType(name: string): string | undefined {
+  if (ninjaTypeByName === null) {
+    ninjaTypeByName = new Map()
+    for (const e of priceEntries) {
+      if (e.ninjaType) ninjaTypeByName.set(e.name.toLowerCase(), e.ninjaType)
+    }
+  }
+  return ninjaTypeByName.get(name.toLowerCase())
+}
+
 /** Subscribe to "price snapshot refreshed" events. Fires after each successful
  *  refreshPrices(). Returns an unsubscribe function. */
 export function subscribePriceUpdates(cb: () => void): () => void {
@@ -417,6 +445,7 @@ export function subscribePriceUpdates(cb: () => void): () => void {
  *  the update emitter so subscriber wiring can be asserted. */
 export function _setPriceEntriesForTests(entries: PriceEntry[], updatedAt: number | null): void {
   priceEntries = entries
+  ninjaTypeByName = null
   priceEntriesUpdatedAt = updatedAt
   notifyPriceUpdate()
 }
@@ -491,8 +520,44 @@ export function getUniquesByBase(): Record<string, string[]> {
   return getPoeVersion() === 2 ? uniqueBaseMapPoe2 : uniqueBaseMap
 }
 
+// Post-atlas-rework clients print every map base as the generic "Map (Tier N)",
+// so an unid unique map's base cannot say which unique dropped, and listings
+// for a single unique span several tiers (Death and Taxes trades at T13 and
+// T16 at once), so the tier cannot narrow the pool either. Offer every unique
+// map instead (#579's never-hide policy): the names under the legacy " Map"
+// base keys, plus the Distant Memory series whose legacy base was their own
+// name and so never needed a base key.
+const DISTANT_MEMORY_MAPS = [
+  'Altered Distant Memory',
+  'Augmented Distant Memory',
+  'Rewritten Distant Memory',
+  'Twisted Distant Memory',
+]
+const GENERIC_MAP_BASE = /^Map \(Tier \d+\)$/
+let uniqueMapNames: string[] | null = null
+function getUniqueMapNames(): string[] {
+  if (!uniqueMapNames) {
+    const names = new Set<string>(DISTANT_MEMORY_MAPS)
+    for (const [base, list] of Object.entries(uniqueInfoPoe1)) {
+      if (base.endsWith(' Map')) for (const n of list) names.add(n)
+    }
+    uniqueMapNames = [...names]
+  }
+  return uniqueMapNames
+}
+
+/** Names an unidentified unique on `baseType` could be: the uniques-by-base
+ *  entry when the base is a real one, or every unique map when the base is
+ *  the generic "Map (Tier N)" the modern PoE1 client prints. */
+function namesForUnidBase(baseType: string): string[] | undefined {
+  const direct = getUniquesByBase()[baseType]
+  if (direct) return direct
+  if (getPoeVersion() === 1 && GENERIC_MAP_BASE.test(baseType)) return getUniqueMapNames()
+  return undefined
+}
+
 export function lookupBestUniquePrice(baseType: string): PriceInfo | undefined {
-  const names = getUniquesByBase()[baseType]
+  const names = namesForUnidBase(baseType)
   if (!names) return undefined
   let best: PriceInfo | undefined
   for (const name of names) {
@@ -504,12 +569,31 @@ export function lookupBestUniquePrice(baseType: string): PriceInfo | undefined {
   return best
 }
 
+/** The "which unique is this?" picker shown for an unidentified unique, priced
+ *  where poe.ninja has data and sorted most-valuable first.
+ *
+ *  Every unique on the base is offered, priced or not. This used to skip
+ *  unpriced names outside Standard on the theory that no price meant not
+ *  obtainable this league, but ninja only publishes uniques with enough
+ *  listings: String of Servitude has no ninja entry in *any* league, so an
+ *  unid Heavy Belt could never be identified as one (#579). ~146 names across
+ *  the PoE1 base map were hidden the same way. Unpriced candidates land at the
+ *  bottom, where the UI renders them without a price chip. */
+export function buildUnidCandidates(baseType: string): Array<{ name: string; chaosValue: number }> {
+  const names = namesForUnidBase(baseType) ?? []
+  // lookupUniquePriceForBase disambiguates same-name uniques by base type and
+  // falls back to the name-only entry when no variant key matches.
+  return names
+    .map((name) => ({ name, chaosValue: lookupUniquePriceForBase(name, baseType)?.chaosValue ?? 0 }))
+    .sort((a, b) => b.chaosValue - a.chaosValue)
+}
+
 /** Pick the price entry to display for an item. Identified uniques -- and every
  *  non-unique -- resolve by their own name/variant via lookupPriceForItem. An
  *  *unidentified* unique doesn't expose its name in the clipboard (PoE shows
  *  only the base), so the only thing we can price it by is its base: we estimate
  *  with the most valuable unique that drops on that base. This mirrors the
- *  best-case unidCandidates list shown alongside it in preloadPriceCheck. */
+ *  best-case buildUnidCandidates list shown alongside it in preloadPriceCheck. */
 export function lookupItemPrice(item: NinjaItemRef & { identified?: boolean }): PriceInfo | undefined {
   if (item.rarity === 'Unique' && !item.identified) {
     return lookupBestUniquePrice(item.baseType) ?? lookupPriceForItem(item)

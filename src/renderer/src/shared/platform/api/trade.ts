@@ -6,6 +6,7 @@
  * check or trade screens.
  */
 
+import type { ExchangeDetails } from '@shared/contracts/exchange'
 import type { PoeItem } from '@shared/contracts/items'
 import type { PriceInfo } from '@shared/contracts/prices'
 
@@ -112,6 +113,7 @@ export function tradeSearch(
   queryId: string
   remainingIds: string[]
   loginRequiredPseudoIds?: string[]
+  loginRequiredMercenaryIds?: string[]
 }> {
   return window.api.tradeSearch(item, statFilters, searchOptions)
 }
@@ -147,6 +149,10 @@ export function checkBulkItem(
   zanaMemory?: boolean,
 ): Promise<boolean> {
   return window.api.checkBulkItem(itemName, baseType, itemClass, rarity, zanaMemory)
+}
+
+export function exchangeDetails(name: string): Promise<ExchangeDetails | null> {
+  return window.api.exchangeDetails(name)
 }
 
 export function fetchMoreListings(

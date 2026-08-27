@@ -7,7 +7,11 @@ import { DEFAULT_PALETTE } from '@shared/theme/presets'
 import { ThemeSettings } from './ThemeSettings'
 import { applyPalette, applyVars } from '@renderer/shared/apply-theme'
 
-vi.mock('../../../shared/apply-theme', () => ({ applyPalette: vi.fn(), applyVars: vi.fn() }))
+vi.mock('../../../shared/apply-theme', () => ({
+  applyPalette: vi.fn(),
+  applyVars: vi.fn(),
+  applyFontPackage: vi.fn(),
+}))
 
 const mockApply = vi.mocked(applyPalette)
 const mockApplyVars = vi.mocked(applyVars)
@@ -68,7 +72,7 @@ describe('ThemeSettings custom save sequence', () => {
     // Exactly one "Custom" chip, and it is the selected preset (bg-accent class).
     const customChips = screen.getAllByRole('button', { name: /Custom/ }).filter((b) => b.textContent === 'Custom')
     expect(customChips).toHaveLength(1)
-    expect(customChips[0].className).toContain('bg-accent')
+    expect(customChips[0].className).toContain('border-accent')
 
     // Saving again (no new edits) must not create a second "Custom" chip.
     // The Customize section stayed open after the first save (CollapsibleSection

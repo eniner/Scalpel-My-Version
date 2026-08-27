@@ -4,6 +4,7 @@ export const APP_MACRO_DEFS = [
   { id: 'openSettings', label: 'Open Settings' },
   { id: 'openAudit', label: 'Open Audit' },
   { id: 'openDust', label: 'Open Dust Explorer' },
+  { id: 'openUniqueTiers', label: 'Open Unique Tiers' },
   { id: 'openDivCards', label: 'Open Div Card Explorer' },
   { id: 'openScarabs', label: 'Open Scarab Atlas' },
   { id: 'openTimeless', label: 'Open Timeless Jewels' },

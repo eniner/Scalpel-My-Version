@@ -96,10 +96,7 @@ export function poolToGroups(pool: Array<CraftMod & { weight: number }>): ModGro
   return groups.sort((a, b) => b.groupChance - a.groupChance || a.group.localeCompare(b.group))
 }
 
-export function poolToSections(
-  pool: Array<CraftMod & { weight: number }>,
-  kind: 'all' | 'p' | 's',
-): ModPoolSection[] {
+export function poolToSections(pool: Array<CraftMod & { weight: number }>, kind: 'all' | 'p' | 's'): ModPoolSection[] {
   if (kind === 'p') {
     const pPool = pool.filter((m) => m.k === 'p')
     const groups = poolToGroups(pPool)

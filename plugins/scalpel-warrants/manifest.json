@@ -1,0 +1,12 @@
+{
+  "manifestVersion": 1,
+  "id": "scalpel-warrants",
+  "version": "1.1.1",
+  "name": "Scalpel Warrants",
+  "description": "Mercenary Warrant market scanner - find skill+support packages, whisper sellers, travel to hideout (PoE1)",
+  "author": "eniner",
+  "homepage": "https://github.com/eniner/scalpel-warrants",
+  "iconUrl": "https://raw.githubusercontent.com/eniner/scalpel-warrants/main/icon.svg",
+  "scalpelMinVersion": ">=0.9.16-rc1",
+  "poeVersions": [1]
+}

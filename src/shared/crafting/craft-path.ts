@@ -152,10 +152,7 @@ export const CRAFT_PATH_PRESETS: Array<{
     id: 'alt-regal',
     name: 'Alt → Regal',
     desc: 'Alt until target, then regal (target can be on magic or rare).',
-    steps: [
-      { actionId: 'currency:Orb of Alteration', repeatUntilHit: true },
-      { actionId: 'currency:Regal Orb' },
-    ],
+    steps: [{ actionId: 'currency:Orb of Alteration', repeatUntilHit: true }, { actionId: 'currency:Regal Orb' }],
   },
   {
     id: 'scour-alt-regal',

@@ -39,49 +39,73 @@ export type PluginContextFactoryDeps = {
       rarity: string
       notes?: string
       statPriority?: string[]
-    }) => Promise<{ url: string; queryId: string; total: number; matchedStats?: number }>
+      similarItems?: boolean
+      upgradeSearch?: boolean
+      statKinds?: string[]
+      listedTime?: string
+      priceMin?: number
+      priceMax?: number
+    }) => Promise<{
+      url: string
+      queryId: string
+      total: number
+      matchedStats?: number
+      unmatchedMods?: string[]
+    }>
+    priceCheck: (item: {
+      name: string
+      baseType: string
+      itemClass?: string
+      rarity: string
+      notes?: string
+      statPriority?: string[]
+      similarItems?: boolean
+      upgradeSearch?: boolean
+      statKinds?: string[]
+      listedTime?: string
+      priceMin?: number
+      priceMax?: number
+    }) => Promise<{
+      url: string
+      queryId: string
+      total: number
+      matchedStats?: number
+      unmatchedMods?: string[]
+      pricesDivine: number[]
+      cheapestDivine: number | null
+      estimateDivine: number | null
+      pricedCount: number
+    }>
+    scanListings: (item: {
+      name: string
+      baseType: string
+      itemClass?: string
+      rarity: string
+      notes?: string
+      statPriority?: string[]
+      similarItems?: boolean
+      upgradeSearch?: boolean
+      statKinds?: string[]
+      listedTime?: string
+      priceMin?: number
+      priceMax?: number
+    }) => Promise<import('../../../plugin-sdk/src/types').PluginListingScanResult>
+    scanWarrants: import('../../../plugin-sdk/src/types').TradeApi['scanWarrants']
+    warrantsCatalog: import('../../../plugin-sdk/src/types').TradeApi['warrantsCatalog']
+    whisperSeller: import('../../../plugin-sdk/src/types').TradeApi['whisperSeller']
+    visitHideout: import('../../../plugin-sdk/src/types').TradeApi['visitHideout']
+    getAuth: import('../../../plugin-sdk/src/types').TradeApi['getAuth']
+    login: import('../../../plugin-sdk/src/types').TradeApi['login']
   }
+  ninja?: import('../../../plugin-sdk/src/types').NinjaApi
+  filter: import('../../../plugin-sdk/src/types').FilterApi
   webPanel: {
     open: (opts: { url: string; title?: string; width?: number; height?: number }) => Promise<void>
     navigate: (url: string) => Promise<void>
     close: () => Promise<void>
   }
   readClipboardText: () => Promise<string>
-  craft: {
-    listActions: (item: import('@shared/types').PoeItem) => Promise<
-      Array<{ id: string; label: string; description: string; applies: boolean; reason?: string }>
-    >
-    simulate: (
-      item: import('@shared/types').PoeItem,
-      actionId: string,
-    ) => Promise<{
-      actionId: string
-      label: string
-      samples: number
-      modCountChances?: Array<{ count: number; probability: number }>
-      outcomes: Array<{ text: string; group: string; kind: 'p' | 's'; probability: number; weight?: number; ilvl?: number }>
-      note?: string
-    }>
-    modPool: (opts: {
-      baseType: string
-      itemLevel: number
-      kind?: 'all' | 'p' | 's'
-      item?: import('@shared/types').PoeItem | null
-      context?: 'fresh' | 'item'
-      poolSource?: 'craft' | 'marksman' | 'desecrated' | 'all'
-      marksmanEnabled?: boolean
-    }) => Promise<{
-      baseType: string
-      itemLevel: number
-      kind: 'all' | 'p' | 's'
-      context: 'fresh' | 'item'
-      modCount: number
-      totalWeight: number
-      outcomes: Array<{ text: string; group: string; kind: 'p' | 's'; probability: number; weight?: number; ilvl?: number }>
-      note: string
-    }>
-    searchBases: (query: string, limit?: number) => Promise<string[]>
-  }
+  craft: import('../../../plugin-sdk/src/types').CraftApi
   prices: {
     getPrices: (opts?: {
       category?: string
@@ -107,6 +131,13 @@ export type PluginContextFactoryDeps = {
     region?: import('../../../plugin-sdk/src/types').GameRect,
   ) => Promise<import('../../../plugin-sdk/src/types').GameCapture | null>
   getCursorPosition: () => Promise<{ x: number; y: number } | null>
+  media: {
+    getSession: () => Promise<import('../../../plugin-sdk/src/types').MediaSession | null>
+    onChange: (handler: (session: import('../../../plugin-sdk/src/types').MediaSession | null) => void) => () => void
+    playPause: () => void
+    next: () => void
+    previous: () => void
+  }
   registerOverlay: (pluginId: string, opts: import('../../../plugin-sdk/src/types').RegisterOverlayOptions) => void
   openOverlay: (pluginId: string) => void
   closeOverlay: (pluginId: string) => void

@@ -7,6 +7,7 @@ export type BuiltinView =
   | 'audit'
   | 'tools'
   | 'dust'
+  | 'uniquetiers'
   | 'divcards'
   | 'scarabs'
   | 'timeless'

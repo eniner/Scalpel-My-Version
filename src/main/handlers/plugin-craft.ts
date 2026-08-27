@@ -8,6 +8,7 @@ import {
   itemStateFromPoeItem,
   listCraftActions,
   listItemClasses,
+  loadCoeCatalog,
   searchBaseTypes,
   searchModTiers,
   simulateCraft,
@@ -53,13 +54,7 @@ export function registerPluginCraftHandlers(): void {
 
   ipcMain.handle(
     'plugins:craft-simulate',
-    (
-      _evt,
-      _pluginId: string,
-      item: PoeItem,
-      actionId: string,
-      opts?: CraftResolveOpts,
-    ): CraftSimulationResult => {
+    (_evt, _pluginId: string, item: PoeItem, actionId: string, opts?: CraftResolveOpts): CraftSimulationResult => {
       if (!PLUGIN_ID_PATTERN.test(_pluginId)) throw new Error('invalid plugin id')
       assertPoe2()
       const { data, state } = resolveState(item, opts)
@@ -89,13 +84,7 @@ export function registerPluginCraftHandlers(): void {
 
   ipcMain.handle(
     'plugins:craft-fresh-state',
-    (
-      _evt,
-      _pluginId: string,
-      baseType: string,
-      itemLevel: number,
-      opts?: CraftResolveOpts,
-    ): CraftItemState => {
+    (_evt, _pluginId: string, baseType: string, itemLevel: number, opts?: CraftResolveOpts): CraftItemState => {
       if (!PLUGIN_ID_PATTERN.test(_pluginId)) throw new Error('invalid plugin id')
       assertPoe2()
       const data = getCraftDataset()
@@ -179,13 +168,7 @@ export function registerPluginCraftHandlers(): void {
 
   ipcMain.handle(
     'plugins:craft-search-bases',
-    (
-      _evt,
-      _pluginId: string,
-      query: string,
-      limit?: number,
-      itemClass?: string,
-    ): string[] => {
+    (_evt, _pluginId: string, query: string, limit?: number, itemClass?: string): string[] => {
       if (!PLUGIN_ID_PATTERN.test(_pluginId)) throw new Error('invalid plugin id')
       assertPoe2()
       const data = getCraftDataset()
@@ -223,4 +206,10 @@ export function registerPluginCraftHandlers(): void {
       return searchModTiers(data, opts)
     },
   )
+
+  ipcMain.handle('plugins:craft-get-catalog', async (_evt, _pluginId: string) => {
+    if (!PLUGIN_ID_PATTERN.test(_pluginId)) throw new Error('invalid plugin id')
+    assertPoe2()
+    return loadCoeCatalog()
+  })
 }

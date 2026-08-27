@@ -18,6 +18,12 @@ const PLUGIN_IDS = [
   'scalpel-advisor',
   'runeshape-checker',
   'well-tiers',
+  'scalpel-dps',
+  'scalpel-skill-dps',
+  'scalpel-warrants',
+  'scalpel-filter-editor',
+  'timeless-jewels',
+  'scalpel-deals',
 ]
 const installedRoot =
   process.env.SCALPEL_INSTALL_DIR ??
@@ -105,12 +111,23 @@ function installPrefabCheatSheet(opts) {
       console.warn(`${categoryName} cheat sheet missing (${sheet.src}) — skip`)
       continue
     }
-    copyFileSync(sheetSrc, join(destDir, `${sheet.id}.png`))
+    const ext = (sheet.src.split('.').pop() || 'png').toLowerCase()
+    copyFileSync(sheetSrc, join(destDir, `${sheet.id}.${ext}`))
     const thumb = join(destDir, `${sheet.id}.thumb.jpg`)
     if (existsSync(thumb)) rmSync(thumb, { force: true })
-    installedSheets.push({ id: sheet.id, label: sheet.label, ext: 'png' })
+    installedSheets.push({ id: sheet.id, label: sheet.label, ext })
   }
   if (installedSheets.length === 0) return
+
+  let links
+  const linksPath = join(root, 'cheat-sheet-prefabs', slug, '_links.json')
+  if (existsSync(linksPath)) {
+    try {
+      links = JSON.parse(readFileSync(linksPath, 'utf8'))
+    } catch {
+      links = undefined
+    }
+  }
 
   for (const name of readdirSync(profilesDir)) {
     if (!name.endsWith('.json')) continue
@@ -133,6 +150,7 @@ function installPrefabCheatSheet(opts) {
       hotkey: existing?.hotkey ?? '',
       prefabSlug: slug,
       sheets: installedSheets,
+      ...(Array.isArray(links) && links.length ? { links } : existing?.links ? { links: existing.links } : {}),
     }
     profile.cheatSheets.categories = [
       ...cats.filter((c) => c.id !== categoryId && c.prefabSlug !== slug),
@@ -165,6 +183,35 @@ function installRegexCheatSheet() {
   })
 }
 
+function installLiveGuidePrefabs() {
+  installPrefabCheatSheet({
+    slug: 'belton-wand-craft',
+    categoryId: 'cat-belton-wand-craft',
+    categoryName: 'Belton Crafting',
+    sheets: [
+      { id: '01-belton-wand-craft', label: 'Wand', src: 'belton-wand-craft/01-belton-wand-craft.webp' },
+      { id: '02-belton-archmage-amulet', label: 'Amulet', src: 'belton-wand-craft/02-belton-archmage-amulet.webp' },
+    ],
+  })
+  installPrefabCheatSheet({
+    slug: 'mirror-ritual',
+    categoryId: 'cat-mirror-ritual',
+    categoryName: 'Mirror Ritual Farming',
+    sheets: [{ id: '01-mirror-ritual-farming', label: 'Farming', src: 'mirror-ritual/01-mirror-ritual-farming.png' }],
+  })
+  installPrefabCheatSheet({
+    slug: 'wa-monk-crafts',
+    categoryId: 'cat-wa-monk-crafts',
+    categoryName: 'WA Monk Crafts',
+    sheets: [
+      { id: '01-sapphire-jewel', label: 'Sapphire Jewel', src: 'wa-monk-crafts/01-sapphire-jewel.webp' },
+      { id: '02-solar-amulet', label: 'Solar Amulet', src: 'wa-monk-crafts/02-solar-amulet.webp' },
+      { id: '03-dusk-ring', label: 'Dusk Ring', src: 'wa-monk-crafts/03-dusk-ring.webp' },
+      { id: '04-sinister-quarterstaff', label: 'Sinister Quarterstaff', src: 'wa-monk-crafts/04-sinister-quarterstaff.webp' },
+    ],
+  })
+}
+
 function patchInstalledAsar(version) {
   const srcAsar = join(root, 'dist', `v${version}`, 'app.asar')
   const srcUnpacked = `${srcAsar}.unpacked`
@@ -191,35 +238,49 @@ function patchInstalledAsar(version) {
   }
   console.log(`Patched ${destAsar}`)
   if (existsSync(backup)) console.log(`Backup: ${backup}`)
+  const manifestSrc = join(root, 'dist', `v${version}`, 'manifest.json')
+  const manifestDest = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Scalpel', 'install-manifest.json')
+  if (existsSync(manifestSrc)) {
+    copyFileSync(manifestSrc, manifestDest)
+    console.log(`Updated install-manifest.json to v${version}`)
+  }
 }
 
 async function main() {
   const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
   const builtAsar = join(root, 'dist', `v${version}`, 'app.asar')
+  const forcePack = process.env.SCALPEL_FORCE_PACK === '1' || !existsSync(builtAsar)
   console.log('Building Scalpel with Lab support…')
   await run('node', ['scripts/build-coe-crafting-data.js'])
-  if (!existsSync(builtAsar)) {
+  if (forcePack) {
     process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS ?? ''} --max-old-space-size=8192`.trim()
-    await run('npm', ['run', 'build'])
+    if (process.env.SCALPEL_SKIP_BUILD !== '1') await run('npm', ['run', 'build'])
     await run('node', ['scripts/pack-asar.js'])
   } else {
     console.log('Using existing dist build:', builtAsar)
     verifyAsar(builtAsar)
   }
 
-  for (const pluginId of PLUGIN_IDS) {
-    const pluginDir = join(root, 'plugins', pluginId)
-    if (!existsSync(join(pluginDir, 'package.json'))) continue
-    if (!existsSync(join(pluginDir, 'node_modules'))) await run('npm', ['install'], pluginDir)
-    await run('npm', ['run', 'build'], pluginDir)
+  if (process.env.SCALPEL_SKIP_PLUGINS === '1') {
+    console.log('Skipping plugin rebuild (SCALPEL_SKIP_PLUGINS=1)')
+  } else {
+    for (const pluginId of PLUGIN_IDS) {
+      const pluginDir = join(root, 'plugins', pluginId)
+      if (!existsSync(join(pluginDir, 'package.json'))) continue
+      if (!existsSync(join(pluginDir, 'node_modules'))) await run('npm', ['install'], pluginDir)
+      await run('npm', ['run', 'build'], pluginDir)
+    }
   }
 
   stopScalpel()
   patchInstalledAsar(version)
   ensureInstalledJson()
-  for (const pluginId of PLUGIN_IDS) installPlugin(pluginId)
+  if (process.env.SCALPEL_SKIP_PLUGINS !== '1') {
+    for (const pluginId of PLUGIN_IDS) installPlugin(pluginId)
+  }
   installExpeditionCheatSheet()
   installRegexCheatSheet()
+  installLiveGuidePrefabs()
 
   console.log('\nDone. Launching normal Scalpel…')
   const exe = join(installedRoot, 'Scalpel.exe')

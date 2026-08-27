@@ -34,7 +34,17 @@ function isMinMaxRangeStat(statText: string): boolean {
  *  default behavior excludes the indexable family (so regular items match correctly);
  *  callers that know they're looking at a randomized-support mod pass
  *  preferIndexableSupport=true to flip the filter. */
-const INDEXABLE_SUPPORT_RE = /^[a-z]+\.indexable_support_\d+/
+export const INDEXABLE_SUPPORT_RE = /^[a-z]+\.indexable_support_\d+/
+
+// Result cache for matchModToStat, keyed on the full argument tuple. Invalidation
+// rides on the statEntries array reference swap (same idiom as statTextById in
+// stats-cache.ts) -- stats refetch, invalidateStatsCache(), and
+// _setStatEntriesForTests all replace the array, which this detects below.
+let matchResultCache = new Map<
+  string,
+  { statId: string; value: number | null; option?: number; aggregated?: boolean } | null
+>()
+let matchResultCacheEntries: StatEntry[] | null = null
 
 export function matchModToStat(
   modText: string,
@@ -43,14 +53,37 @@ export function matchModToStat(
   preferIndexableSupport = false,
   preferQualifier: string | null = null,
 ): { statId: string; value: number | null; option?: number; aggregated?: boolean } | null {
+  const currentEntries = getStatEntries()
+  if (currentEntries !== matchResultCacheEntries) {
+    matchResultCache = new Map()
+    matchResultCacheEntries = currentEntries
+  }
+  const cacheKey = [
+    modType,
+    preferLocal ? '1' : '0',
+    preferIndexableSupport ? '1' : '0',
+    preferQualifier ?? '',
+    modText,
+  ].join('\0')
+  // A stored null means "no match" - get() returning undefined is the only miss signal.
+  const cached = matchResultCache.get(cacheKey)
+  if (cached !== undefined) return cached ? { ...cached } : null
+
   // Check direct mappings first (for mods with completely different trade API wording)
   const directKey = modText.toLowerCase().trim()
-  if (DIRECT_MOD_MAPPINGS[directKey]) return DIRECT_MOD_MAPPINGS[directKey]
+  if (DIRECT_MOD_MAPPINGS[directKey]) {
+    const direct = DIRECT_MOD_MAPPINGS[directKey]
+    matchResultCache.set(cacheKey, { ...direct })
+    // Copy on return too - handing out the live table entry would let a caller
+    // mutation corrupt the shared static mapping for the process lifetime.
+    return { ...direct }
+  }
 
   const result = _matchModToStat(modText, preferLocal, modType, preferIndexableSupport, preferQualifier)
   if (result && STAT_ID_REMAPS[result.statId]) {
     result.statId = STAT_ID_REMAPS[result.statId]
   }
+  matchResultCache.set(cacheKey, result ? { ...result } : null)
   return result
 }
 
@@ -61,6 +94,21 @@ export function matchModToStat(
  *  and prefers the entry whose qualifier matches the item's class. `(Local)` is
  *  handled separately because it also gates local-vs-global affix logic. */
 const TRAILING_QUALIFIER_RE = /\s*\(([^)]+)\)\s*$/
+
+/** True when a pattern's `#` placeholders captured ordinary words instead of a
+ *  number. `statTextToPattern` compiles `#` to an unconstrained `(.+?)`, so a
+ *  stat text that happens to be the tail of a longer candidate matches by
+ *  eating everything in front of it: the joined two-line candidate "Minions
+ *  deal 61% increased Damage / Minions have 5% chance to deal Double Damage"
+ *  matched "#% chance to deal Double Damage" -- the PLAYER's chance, a
+ *  completely unrelated stat -- with "Minions deal 61% increased Damage Minions
+ *  have 5" in the capture (#558). A `#` always stands for a number, so a
+ *  letter in the capture is proof of that swallowing; a locale-formatted number
+ *  ("1 000", "1,5") still passes, keeping its valueless-but-correct row.
+ *  Option stats are exempt -- their `#` legitimately captures option text. */
+function swallowedWords(match: RegExpMatchArray): boolean {
+  return match.slice(1).some((c) => c != null && /\p{L}/u.test(c))
+}
 
 function _matchModToStat(
   modText: string,
@@ -127,6 +175,7 @@ function _matchModToStat(
       const pattern = statTextToPattern(textForPattern)
       const match = normalizedVariant.match(pattern)
       if (match) {
+        if (!entry.option && swallowedWords(match)) continue
         // For min-max roll stats (e.g. "Adds # to # Damage"), average the two
         // numbers -- the trade site indexes that average. Other multi-# stats
         // (e.g. "#% chance … Spend at least # Life") are independent magnitudes;
@@ -252,6 +301,10 @@ function _matchModToStat(
       const relaxedPattern = statTextToRelaxedPattern(entry.text)
       const match = normalizedVariant.match(relaxedPattern)
       if (match) {
+        // Same wildcard-swallowing guard as the exact pass -- the relaxed
+        // pattern only widens the stat text's hardcoded numbers, so its `#`
+        // groups are just as free to eat a neighbouring clipboard line.
+        if (!entry.option && swallowedWords(match)) continue
         const numericCaptures = Array.from(match)
           .slice(1)
           .filter((v) => v && NUMERIC_CAPTURE.test(v))

@@ -1,11 +1,12 @@
 import type { MacroScope } from '../macro-scope'
 import type { ThemePalette } from '../theme/palette'
-import type { AppLocale, TradePriceOption, AdaptiveMode } from './core'
+import type { GameVariant, AppLocale, TradePriceOption, AdaptiveMode, AffixesPrechecked } from './core'
 import type { CheatSheetsSettings } from './overlay'
 import type { RegexPreset } from './regex'
 import type { PoeProfile } from './profiles'
 import type { HideableTabKey } from './items'
-import type { GameVariant } from './game-variant'
+import type { RadialMenuSettings } from './radial'
+import type { LauncherSliceMode, LauncherStyle } from '../launcher'
 
 export interface LegacyAppSettings {
   filterPathPoe1?: string
@@ -30,6 +31,11 @@ export interface AppSettings {
   leaguesFetchedAt?: number
   hotkey: string
   priceCheckHotkey: string
+  launcherHotkey: string
+  /** Radial tool launcher slice contents: names, icons, or both. Default `names`. */
+  launcherSliceMode: LauncherSliceMode
+  /** Launcher layout: classic pie wedges or hub-and-spoke chips. Default `classic`. */
+  launcherStyle: LauncherStyle
   overlayOpacity: number
   overlayScale: number
   openSide: 'both' | 'right' | 'left'
@@ -55,7 +61,9 @@ export interface AppSettings {
     | '2months'
   tradeResultsView?: 'default' | 'open-all' | 'shrinkydink'
   priceCheckDefaultPercent: number
-  tradeDefaultToBase: boolean
+  /** @deprecated Migrated to tradeAffixesPrechecked; kept optional for store back-compat. */
+  tradeDefaultToBase?: boolean
+  tradeAffixesPrechecked: AffixesPrechecked
   tradePoe2CraftingReadyDefault?: boolean
   tradeKeepUncheckedVisible?: boolean
   tradeNeverAutoSearch?: boolean
@@ -70,11 +78,11 @@ export interface AppSettings {
   hiddenPluginTabIds?: string[]
   developerMode?: boolean
   pluginRegistryUrl?: string
-  /** When true, opted-in: outdated registry plugins update silently in the
-   *  background (curated registry only). Default false. */
   pluginAutoUpdate: boolean
   themeId: string
   customThemePalette: ThemePalette | null
+  /** Font stack package id from `FONT_PACKAGES`. Default `fontin`. */
+  fontPackageId: string
   locale: AppLocale
   adaptiveDefaultsMode: AdaptiveMode
   activeProfileId: string
@@ -82,6 +90,7 @@ export interface AppSettings {
   lastProfileIdPoe2: string
   startInTray: boolean
   appWindowPosition?: { x: number; y: number }
+  radialMenu?: RadialMenuSettings
   onboardingCompleted: boolean
   onboardingStep?: string
   onboardingSelectedGames?: { poe1: boolean; poe2: boolean }

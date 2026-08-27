@@ -32,6 +32,11 @@ export function FilterPicker({
   const [conflictEntry, setConflictEntry] = useState<FilterListEntry | null>(null)
   const [updatedFilters, setUpdatedFilters] = useState<Set<string>>(new Set())
   const [merging, setMerging] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createWarning, setCreateWarning] = useState<string | null>(null)
+  const [origin, setOrigin] = useState<'scalpel' | 'filterblade' | 'other'>('other')
+  const [scalpelConflict, setScalpelConflict] = useState(false)
   const [mergeResult, setMergeResult] = useState<{
     filterName: string
     stats: {
@@ -79,6 +84,14 @@ export function FilterPicker({
   useEffect(() => {
     if (fDir) scanDir(fDir)
   }, [fDir])
+
+  useEffect(() => {
+    if (!fPath) {
+      setOrigin('other')
+      return
+    }
+    void window.api.getFilterOrigin().then((r) => setOrigin(r.origin))
+  }, [fPath])
 
   const pickDir = async (): Promise<void> => {
     const dir = await window.api.pickFilterDir()
@@ -148,6 +161,48 @@ export function FilterPicker({
       await window.api.switchIngameFilter(filterName, currentFilter)
       setSwitching(false)
     }
+  }
+
+  const applyScalpelPath = async (path: string): Promise<void> => {
+    const updated = await window.api.setProfileSettingForGame(gameVariant, 'filterPath', path)
+    onSettingsChange(updated)
+    setOrigin('scalpel')
+    await scanDir(settings.activeProfile?.filterDir ?? '')
+    const filterName = path.replace(/^.*[\\/]/, '').replace(/\.filter$/i, '')
+    if (autoSwitchInGame) {
+      setSwitching(true)
+      const currentFilter = fPath ? fPath.replace(/^.*[\\/]/, '').replace(/\.filter$/i, '') : undefined
+      await window.api.switchIngameFilter(filterName, currentFilter)
+      setSwitching(false)
+    } else {
+      onOnlineImport?.(filterName)
+    }
+  }
+
+  const createScalpelFilter = async (force: boolean): Promise<void> => {
+    setCreating(true)
+    setCreateError(null)
+    setCreateWarning(null)
+    setScalpelConflict(false)
+    const result =
+      origin === 'scalpel' && !force
+        ? await window.api.refreshScalpelFilter()
+        : await window.api.createScalpelFilter({ force })
+    setCreating(false)
+    if (result.conflict) {
+      setScalpelConflict(true)
+      return
+    }
+    if (!result.ok || !result.path) {
+      setCreateError(result.error ?? 'Failed to create filter')
+      return
+    }
+    if (result.warning) setCreateWarning(result.warning)
+    if (origin === 'scalpel') {
+      setOrigin('scalpel')
+      return
+    }
+    await applyScalpelPath(result.path)
   }
 
   const mergeOnlineFilter = async (entry: FilterListEntry): Promise<void> => {
@@ -239,6 +294,46 @@ export function FilterPicker({
           >
             {dirName ? 'Change' : 'Browse...'}
           </button>
+        </div>
+      )}
+
+      {showList && fDir && (
+        <div className="flex flex-col gap-1.5">
+          <button
+            className="primary px-3 py-1.5 text-[11px] self-start"
+            disabled={creating || switching}
+            onClick={() => void createScalpelFilter(false)}
+          >
+            {creating
+              ? origin === 'scalpel'
+                ? 'Refreshing...'
+                : 'Creating...'
+              : origin === 'scalpel'
+                ? 'Refresh economy'
+                : 'Create Scalpel Filter'}
+          </button>
+          <p className="text-[10px] text-text-dim m-0 ml-1">
+            {origin === 'scalpel'
+              ? 'Rebuilds tiers from live prices and reapplies your Scalpel edits.'
+              : 'Builds a loot filter from live prices. FilterBlade / online filters stay available below.'}
+          </p>
+          {createWarning && <p className="text-[11px] text-accent m-0">{createWarning}</p>}
+          {createError && <p className="text-[11px] text-red-400 m-0">{createError}</p>}
+          {scalpelConflict && (
+            <div className="p-3 rounded flex flex-col gap-2 bg-[rgba(200,169,110,0.08)]">
+              <p className="text-xs text-text m-0">
+                <strong>Scalpel.filter</strong> already exists and is not a Scalpel filter.
+              </p>
+              <div className="flex gap-2">
+                <button className="primary px-3 py-1.5 text-[11px]" onClick={() => void createScalpelFilter(true)}>
+                  Overwrite
+                </button>
+                <button onClick={() => setScalpelConflict(false)} className="px-3 py-1.5 text-[11px]">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

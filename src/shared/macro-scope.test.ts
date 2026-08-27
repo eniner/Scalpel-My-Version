@@ -39,6 +39,7 @@ describe('chatCommandScope', () => {
 describe('appMacroScope', () => {
   it('returns poe1 for openDust and openDivCards', () => {
     expect(appMacroScope('openDust')).toBe('poe1')
+    expect(appMacroScope('openUniqueTiers')).toBe('poe1')
     expect(appMacroScope('openDivCards')).toBe('poe1')
   })
 

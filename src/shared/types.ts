@@ -13,6 +13,7 @@ export type {
   ConditionResult,
   TradePriceOption,
   AdaptiveMode,
+  AffixesPrechecked,
 } from './contracts/core'
 
 export type {
@@ -25,9 +26,12 @@ export type {
   FilterListEntry,
   AdvancedMod,
   PoeItem,
+  MercenarySkill,
+  CustomTier,
   Zone,
   EvaluatedCondition,
   MatchResult,
+  RemovalPreview,
   TierSibling,
   TierGroup,
   StackSizeBreakpoint,
@@ -52,7 +56,30 @@ export type { InstallManifest, Manifest, AuthResult } from './contracts/updates'
 
 export type { HistoryEntry, FilterChange, FilterVersion } from './contracts/history'
 
-export type { FilterSection, FilterSectionTier } from './contracts/filter-sections'
+export type {
+  ApplySectionDeltaRequest,
+  ApplySectionDeltaResult,
+  ConditionPreset,
+  FilterMatchRequest,
+  FilterMatchResponse,
+  FilterMatchStep,
+  FilterPreflightIssue,
+  FilterPreflightResult,
+  FilterReapplyPreview,
+  FilterReapplyResult,
+  FilterVersionDiff,
+  MoveConflictPreview,
+  ParsedClipboardItem,
+  SectionDiffTier,
+  StrictnessDiffRequest,
+} from './contracts/filter-section-tools'
+
+export type {
+  FilterSection,
+  FilterSectionTier,
+  FilterSectionEffects,
+  FilterContinueParent,
+} from './contracts/filter-sections'
 
 export type {
   LootSimAlert,
@@ -62,6 +89,21 @@ export type {
   LootSimRequest,
   LootSimResult,
 } from './contracts/loot-sim'
+
+export type {
+  RadialAction,
+  RadialBackdrop,
+  RadialBackdropEvent,
+  RadialBackdropFailure,
+  RadialBackdropImage,
+  RadialBackdropMiss,
+  RadialSlice,
+  RadialMenuSettings,
+  RadialOpenPayload,
+  RadialPendingState,
+} from './contracts/radial'
+
+export { RADIAL_MAX_SLICES, RADIAL_MACRO_ACTION } from './contracts/radial'
 
 export type { MacroScope }
 export type { ThemePalette }

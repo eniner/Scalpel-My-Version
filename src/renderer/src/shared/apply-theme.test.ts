@@ -103,6 +103,7 @@ describe('bootstrapTheme', () => {
     expect(document.documentElement.style.getPropertyValue('--accent')).toBe(
       resolveCssVars(SAMPLE_A.palette)['--accent'],
     )
+    expect(document.documentElement.style.getPropertyValue('--font-ui')).toContain('Segoe UI')
 
     updatedCb!('themeId', SAMPLE_B.id)
     expect(document.documentElement.style.getPropertyValue('--accent')).toBe(

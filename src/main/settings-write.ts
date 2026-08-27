@@ -12,11 +12,14 @@ import {
   setChatCommands,
   setHotkey,
   setPriceCheckHotkey,
+  setLauncherHotkey,
   refreshScopedHotkeys,
   setStashScrollEnabled,
   setStashScrollModifier,
 } from './hotkeys'
 import { applyPinnedZoneEnabled, getPinnedZoneOverlay } from './pinned-zone'
+import { getRadialMenuOverlay } from './radial-menu'
+import { getLauncherOverlay } from './launcher'
 import { updateOnlineSyncDir } from './online-sync'
 import { refreshPrices } from './trade/prices'
 import { setUpdateChannel } from './update/updater'
@@ -38,7 +41,13 @@ import {
 export function broadcastSettingUpdate(sender: WebContents | null, key: SettingChangeKey, value: unknown): void {
   const csWin = getCheatSheetsOverlay()?.getWindow() ?? null
   const pinnedWin = getPinnedZoneOverlay()?.getWindow() ?? null
-  for (const win of [getOverlayWindow(), getAppWindow(), csWin, pinnedWin]) {
+  // The radial window is persistent once created (it hides by dropping opacity,
+  // never by closing), so without this it keeps whatever palette it booted with
+  // for the rest of the session. Null until the first open, which needs no
+  // event: bootstrapTheme reads current settings when the window is created.
+  const radialWin = getRadialMenuOverlay()?.getWindow() ?? null
+  const launcherWin = getLauncherOverlay()?.getWindow() ?? null
+  for (const win of [getOverlayWindow(), getAppWindow(), csWin, pinnedWin, radialWin, launcherWin]) {
     if (win && win.webContents !== sender) {
       win.webContents.send('setting-updated', key, value)
     }
@@ -83,6 +92,8 @@ function sideEffect(setting: ProfileChangedSetting, prevAppSettings?: AppSetting
     setHotkey(value as string)
   } else if (key === 'priceCheckHotkey') {
     setPriceCheckHotkey(value as string)
+  } else if (key === 'launcherHotkey') {
+    setLauncherHotkey(value as string)
   } else if (key === 'closeOnClickOutside') {
     setCloseOnClickOutside(value as boolean)
   } else if (key === 'chatCommands') {

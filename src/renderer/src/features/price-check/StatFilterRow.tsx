@@ -4,6 +4,7 @@ import { ScrubInput } from '../../components/primitives/ScrubInput'
 import { scrubAccumulate, snapToStep } from '../../components/primitives/scrub-math'
 import { LearnedIcon } from './LearnedIcon'
 import { divCardArtMap, RARITY_COLORS } from '../../shared/constants'
+import { MOD_SOURCE_ICONS, MOD_SOURCE_LABELS } from '../../shared/item-display'
 import { getModColor, MOD_BOLD_TYPES, uniqueToBase } from './constants'
 import type { StatFilter } from './types'
 import { zebraRowBg } from '../../shared/utils'
@@ -156,6 +157,10 @@ export function StatFilterRow({
   const tierOpacity =
     ladder && liveTier && worstNum > bestNum ? 0.5 + (0.5 * (worstNum - liveTier.tier)) / (worstNum - bestNum) : 1
   const showChip = (hovered || !!ladder) && (hasTier || hasRange || !!ladder)
+  // Mercenary Warrant skills and supports are presence-only on trade -- a
+  // support's tier is baked into its stat id, so there is nothing to dial. The
+  // row is a pure toggle; min/max boxes would only invite input trade ignores.
+  const presenceOnly = f.type === 'mercenary'
 
   const startTierScrub = (e: React.MouseEvent): void => {
     if (!ladder) return
@@ -235,7 +240,10 @@ export function StatFilterRow({
         className="flex-1 text-[11px] cursor-pointer select-none flex items-center gap-1"
         style={{
           color: getModColor(f.type, f.foulborn),
-          fontWeight: MOD_BOLD_TYPES.has(f.type) ? 600 : 400,
+          // A warrant support belongs to the skill above it -- indent so the rows
+          // read as the item prints them, and dim it so the skill heads its block.
+          fontWeight: MOD_BOLD_TYPES.has(f.type) ? 600 : f.mercenarySkillId ? 400 : f.type === 'mercenary' ? 600 : 400,
+          ...(f.mercenarySkillId ? { paddingLeft: 12, opacity: 0.85 } : {}),
         }}
       >
         {f.type === 'temple-key' && <Star size={12} theme="filled" fill="#ffd700" />}
@@ -249,6 +257,16 @@ export function StatFilterRow({
           </span>
         )}
         {f.text}
+        {f.modSource && (
+          <img
+            src={MOD_SOURCE_ICONS[f.modSource]}
+            alt=""
+            title={MOD_SOURCE_LABELS[f.modSource]}
+            width={18}
+            height={18}
+            className="inline-block shrink-0 ml-[3px] object-contain"
+          />
+        )}
         {showChip && (
           <span
             onMouseDown={ladder ? startTierScrub : undefined}
@@ -286,7 +304,7 @@ export function StatFilterRow({
         // (e.g. "Defeat waves of enemies"); the trade query uses `option` (the
         // API id like "Exterminate") directly via the query builder.
         <StaticValueBox value={f.displayValue ?? (typeof f.option === 'string' ? f.option : '')} />
-      ) : (
+      ) : presenceOnly ? null : (
         <>
           <ScrubInput
             value={f.min}

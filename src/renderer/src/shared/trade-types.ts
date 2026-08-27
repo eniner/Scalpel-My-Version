@@ -27,13 +27,19 @@ export interface Listing {
     heistJob?: { skill: string; level: number }
     corrupted?: boolean
     mirrored?: boolean
+    sanctified?: boolean
     identified?: boolean
     templeOpenRooms?: string[]
     templeObstructedRooms?: string[]
     storedExperience?: number
     memoryStrands?: number
+    /** Allflame crafting (3.29) fail chance, whole percent. Lower is better. */
+    intangibility?: number
     modTiers?: Record<string, { tier: string; name: string; ranges: string }>
     grantedSkills?: Array<{ text: string; icon?: string }>
+    /** Mercenary Warrant kit: each skill with the supports linked to it, in the
+     *  order the item prints them. */
+    mercenarySkills?: Array<{ name: string; icon?: string; supports: Array<{ name: string; tier?: number }> }>
     rarity?: string
     armour?: number
     evasion?: number

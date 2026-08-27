@@ -174,12 +174,7 @@ export function buildModPoolReport(data: CraftDataset, query: ModPoolQuery): Mod
   }
 }
 
-export function searchBaseTypes(
-  data: CraftDataset,
-  query: string,
-  limit = 50,
-  itemClass?: string,
-): string[] {
+export function searchBaseTypes(data: CraftDataset, query: string, limit = 50, itemClass?: string): string[] {
   let names = Object.keys(data.bases)
   if (itemClass) {
     names = names.filter((n) => data.bases[n]?.c === itemClass)

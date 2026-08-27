@@ -17,6 +17,7 @@ const PLUGIN_IDS = [
   'scalpel-advisor',
   'runeshape-checker',
   'well-tiers',
+  'scalpel-deals',
 ]
 const OUT_DIR = join(root, 'src', 'shared', 'data', 'crafting')
 const appDataPlugins = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Scalpel', 'plugins')

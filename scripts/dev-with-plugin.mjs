@@ -16,6 +16,7 @@ const PLUGIN_IDS = [
   'scalpel-economy',
   'runeshape-checker',
   'well-tiers',
+  'scalpel-deals',
 ]
 const appDataPlugins = join(
   process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'),

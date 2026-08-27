@@ -3,14 +3,7 @@ import type { OmenEffect } from './omens'
 import { modBindGroups, pickWeighted, spawnWeight } from './weights'
 import { buildItemTags, countByKind, usedGroups } from './pool'
 import { craftModToItemMod } from './roll'
-import type {
-  CraftDataset,
-  CraftItemMod,
-  CraftItemState,
-  CraftMod,
-  DesecrationRevealChoice,
-  GenKind,
-} from './types'
+import type { CraftDataset, CraftItemMod, CraftItemState, CraftMod, DesecrationRevealChoice, GenKind } from './types'
 
 export const DESECRATION_SPAWN_RATE = [0.8, 0.15, 0.05]
 
@@ -231,10 +224,7 @@ export function rollDesecrationChoices(
   return picks
 }
 
-export function pickVeiledKind(
-  state: CraftItemState,
-  forcedKind?: GenKind,
-): GenKind | null {
+export function pickVeiledKind(state: CraftItemState, forcedKind?: GenKind): GenKind | null {
   const counts = countByKind(state.mods.filter((m) => !m.veiled))
   if (forcedKind) {
     if (forcedKind === 'p' && counts.p >= 3) return null

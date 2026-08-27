@@ -15,7 +15,10 @@ import {
   _setPricesForTests,
   _setPriceEntriesForTests,
   _setUniquesByBaseForTests,
+  buildUnidCandidates,
+  getNinjaType,
   getPriceEntries,
+  lookupBestUniquePrice,
   lookupItemPrice,
   lookupPrice,
   lookupPriceForItem,
@@ -196,6 +199,69 @@ describe('lookupUniquePriceForBase', () => {
   })
 })
 
+describe('buildUnidCandidates', () => {
+  beforeEach(() => {
+    setPoeVersion(1)
+    _setPricesForTests([
+      { name: 'Mageblood', variant: 'Heavy Belt', chaos: 11888 },
+      { name: "Bisco's Leash", variant: 'Heavy Belt', chaos: 2 },
+    ])
+    _setUniquesByBaseForTests({ 'Heavy Belt': ["Bisco's Leash", 'Mageblood', 'String of Servitude'] })
+  })
+
+  it('offers every unique on the base, including ones poe.ninja never prices (#579)', () => {
+    expect(buildUnidCandidates('Heavy Belt')).toEqual([
+      { name: 'Mageblood', chaosValue: 11888 },
+      { name: "Bisco's Leash", chaosValue: 2 },
+      { name: 'String of Servitude', chaosValue: 0 },
+    ])
+  })
+
+  it('returns nothing for a base with no known uniques', () => {
+    expect(buildUnidCandidates('Rustic Sash')).toEqual([])
+  })
+
+  describe('generic "Map (Tier N)" base (unid unique maps)', () => {
+    // Post-atlas-rework clients print every map base as "Map (Tier N)", which
+    // cannot say WHICH unique map dropped, and listings for one unique span
+    // several tiers (Death and Taxes sells at T13 and T16 at once), so the
+    // tier cannot narrow the pool either. Offer every unique map instead --
+    // same never-hide policy as #579.
+    it('offers every unique map, priced ones first', () => {
+      _setPricesForTests([
+        { name: 'Cortex', chaos: 70 },
+        { name: "Doryani's Machinarium", chaos: 65 },
+      ])
+      const candidates = buildUnidCandidates('Map (Tier 16)')
+      expect(candidates[0]).toEqual({ name: 'Cortex', chaosValue: 70 })
+      expect(candidates[1]).toEqual({ name: "Doryani's Machinarium", chaosValue: 65 })
+      const names = candidates.map((c) => c.name)
+      // Distant Memory maps never had a base key (their legacy base was their
+      // own name) but drop on the generic base like every other unique map.
+      expect(names).toContain('Altered Distant Memory')
+      expect(names).toContain('The Beachhead')
+      expect(names.length).toBeGreaterThanOrEqual(30)
+    })
+
+    it('matches any tier but not other map-like bases', () => {
+      expect(buildUnidCandidates('Map (Tier 3)').length).toBeGreaterThan(0)
+      expect(buildUnidCandidates('Valdo Map')).toEqual([])
+      expect(buildUnidCandidates('Blighted Map (Tier 16)')).toEqual([])
+    })
+
+    it('does not apply to PoE2', () => {
+      setPoeVersion(2)
+      expect(buildUnidCandidates('Map (Tier 16)')).toEqual([])
+      setPoeVersion(1)
+    })
+
+    it('feeds the unid price estimate through lookupBestUniquePrice', () => {
+      _setPricesForTests([{ name: 'Cortex', chaos: 70 }])
+      expect(lookupBestUniquePrice('Map (Tier 16)')?.chaosValue).toBe(70)
+    })
+  })
+})
+
 describe('getPriceEntries', () => {
   it('filters by category and reports them all when no filter is given', () => {
     _setPriceEntriesForTests(
@@ -338,5 +404,29 @@ describe('processDenseResponse price entries', () => {
     processDenseResponse(resp as never, entries)
     expect(entries.filter((e) => e.name === 'Chaos Orb')).toHaveLength(1)
     expect(lookupPrice('Chaos Orb', 'Chaos Orb')?.graph).toEqual([0, 1])
+  })
+})
+
+describe('ninjaType capture', () => {
+  it('records the dense overview type on each entry', () => {
+    const entries: PriceEntry[] = []
+    processDenseResponse(
+      {
+        currencyOverviews: [{ type: 'Currency', lines: [{ name: 'Divine Orb', chaos: 808 }] }],
+        itemOverviews: [{ type: 'DivinationCard', lines: [{ name: 'The Doctor', chaos: 863.8 }] }],
+      },
+      entries,
+    )
+    expect(entries.find((e) => e.name === 'Divine Orb')?.ninjaType).toBe('Currency')
+    expect(entries.find((e) => e.name === 'The Doctor')?.ninjaType).toBe('DivinationCard')
+  })
+
+  it('resolves a type by case-insensitive name', () => {
+    _setPriceEntriesForTests(
+      [{ name: "Omen of Death's Door", category: 'omens', chaosValue: 10, ninjaType: 'Omen' }],
+      Date.now(),
+    )
+    expect(getNinjaType("omen of death's door")).toBe('Omen')
+    expect(getNinjaType('Nonexistent Thing')).toBeUndefined()
   })
 })

@@ -30,7 +30,10 @@ describe('cheat-sheets-grid App thumbnail homing (#465)', () => {
                 id: 'cat1',
                 name: 'Maps',
                 hotkey: '',
-                sheets: [{ id: 's1', ext: 'png', areaCodes: ['1_1_1'] }],
+                sheets: [
+                  { id: 's1', ext: 'png', areaCodes: ['1_1_1'] },
+                  { id: 's2', ext: 'png', areaCodes: ['1_2_1'] },
+                ],
               },
             ],
           },
@@ -42,6 +45,7 @@ describe('cheat-sheets-grid App thumbnail homing (#465)', () => {
         zoneHandler = cb
         return () => {}
       }),
+      getCurrentZone: vi.fn(async () => null),
       closeCheatSheets: vi.fn(),
       minimizeCheatSheets: vi.fn(),
       restoreCheatSheets: vi.fn(),
@@ -61,7 +65,7 @@ describe('cheat-sheets-grid App thumbnail homing (#465)', () => {
       zoneHandler?.({ areaLevel: 5, areaCode: '1_1_1' })
     })
 
-    expect(scrollIntoViewMock).toHaveBeenCalled()
+    await waitFor(() => expect(scrollIntoViewMock).toHaveBeenCalled())
   })
 
   it('does not scroll while the window is minimized', async () => {
@@ -91,6 +95,6 @@ describe('cheat-sheets-grid App thumbnail homing (#465)', () => {
       window.dispatchEvent(new Event('resize'))
     })
 
-    expect(scrollIntoViewMock).toHaveBeenCalled()
+    await waitFor(() => expect(scrollIntoViewMock).toHaveBeenCalled())
   })
 })

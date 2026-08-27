@@ -153,9 +153,6 @@ export function searchModTiers(data: CraftDataset, query: ModSearchQuery): ModSe
 
 function sortModSearchHits(hits: ModSearchHit[]): ModSearchHit[] {
   return hits.sort(
-    (a, b) =>
-      a.text.localeCompare(b.text) ||
-      a.baseType.localeCompare(b.baseType) ||
-      b.spawnWeight - a.spawnWeight,
+    (a, b) => a.text.localeCompare(b.text) || a.baseType.localeCompare(b.baseType) || b.spawnWeight - a.spawnWeight,
   )
 }

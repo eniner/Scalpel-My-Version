@@ -119,6 +119,10 @@ export function hideAllOnPoeBlur(): void {
     if (!state.win || state.win.isDestroyed()) continue
     state.wasVisibleBeforeFocusLoss = state.win.isVisible()
     if (state.wasVisibleBeforeFocusLoss) state.win.hide()
+    // Drop any pending snap along with the window. A drag still waiting on
+    // 'moved' loses its snap here (the raw drop position persists instead) -
+    // accepted, because a ghost with no owner on screen is the worse outcome.
+    state.snapGhostActive = false
   }
   setSnapGhost(null)
   // Let auxiliary windows (cheat-sheet hover preview) clear themselves so
@@ -176,7 +180,14 @@ export function hideFocusedOrAnyVisibleSecondaryOverlay(): boolean {
 function hideOverlayState(state: import('./state').OverlayState): void {
   if (!state.win || state.win.isDestroyed()) return
   state.wasVisibleBeforeFocusLoss = false
+  // Same deliberate-hide notification showState/hideState do: an Esc sweep is
+  // the user closing the window, so an overlay that resets itself on close
+  // must hear about it. hideAllOnPoeBlur stays silent by contrast - it hides
+  // in place and expects to restore. Guarded on the transition so an
+  // already-hidden overlay caught by the sweep doesn't re-notify.
+  const wasVisible = state.win.isVisible()
   state.win.hide()
+  if (wasVisible) state.spec.onVisibilityChange?.(false)
 }
 
 /** Hide every secondary overlay because PoE itself exited. Used by the
@@ -187,8 +198,13 @@ function hideOverlayState(state: import('./state').OverlayState): void {
  *  is no PoE focus event coming back to restore from. */
 export function closeAllOverlaysOnPoeExit(): void {
   for (const state of overlays.values()) {
+    state.snapGhostActive = false
     hideOverlayState(state)
   }
+  // The snap canvas is never hidden, only its rect cleared, so a ghost left up
+  // when PoE exits keeps painting on the bare desktop with nothing alive to
+  // clear it - every other path that hides overlays clears it too.
+  setSnapGhost(null)
   // Auxiliary windows (preview) need to clear too - they're not in the
   // overlays map but the user shouldn't see leftover content after PoE exits.
   firePoeLeaveHooks()

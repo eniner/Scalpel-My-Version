@@ -60,6 +60,29 @@ export interface RegisterOverlayOptions {
   /** Initial window size in CSS px. Falls back to a Scalpel default if absent. */
   defaultSize?: { width: number; height: number }
   /**
+   * Where the overlay first appears, as fractions of the game window (the
+   * window's top-left corner). Omit for Scalpel's centered default. Each
+   * fraction is clamped so the window stays fully on the game window - fracX to
+   * 0..(1 - the window's fractional width), fracY likewise - so a position past
+   * the far edge is pulled back rather than left off-screen. A non-finite value
+   * falls back to centering on that axis. This is also the window's snap-home,
+   * so a drag-snap returns it here. Ignored in 'annotation' mode, which always
+   * spans the game window,
+   * and ignored once the user has moved the window - the moved position is
+   * remembered from then on.
+   */
+  defaultPosition?: { fracX: number; fracY: number }
+  /**
+   * Additional drag-snap homes besides defaultPosition, in the same fractional
+   * coordinates and sized like it from defaultSize. While dragging, the
+   * nearest home (defaultPosition included) shows the snap ghost and wins on
+   * drop. A home flush against the game window's left or right edge (fracX of
+   * 0, or 1 clamped back to flush) mounts the window there: it stays flush at
+   * the window's current size, and the chrome squares its corners on the
+   * mounted side. Ignored in 'annotation' mode.
+   */
+  snapPositions?: { fracX: number; fracY: number }[]
+  /**
    * Overlay surface kind. 'window' (default) is the chrome'd, draggable,
    * snap-anchored window. 'annotation' is a borderless, transparent,
    * click-through surface locked to the full game window: `render`'s container
@@ -146,6 +169,56 @@ export interface PluginTradeSearchItem {
   statPriority?: string[]
   /** When true, search by slot + stats instead of the guide's exact base type. */
   similarItems?: boolean
+  /**
+   * Upgrade finder: AND stats, apply rolled minimums, never fall back to a
+   * slot-only search. Pass real rolled mod text in `statPriority`.
+   */
+  upgradeSearch?: boolean
+  /** Parallel kinds for `statPriority` (explicit / crafted / rune / …). */
+  statKinds?: string[]
+  /** Trade-site indexed window, e.g. `'1hour'`. Host scan only; ignored by priceCheck. */
+  listedTime?: string
+  /** Inclusive divine buyout floor (`trade_filters.price.min`, option divine). */
+  priceMin?: number
+  /** Inclusive divine buyout ceiling (`trade_filters.price.max`, option divine). */
+  priceMax?: number
+}
+
+/** One fetched trade listing from `TradeApi.scanListings`. */
+export interface PluginListingRow {
+  id: string
+  name: string
+  baseType: string
+  rarity?: string
+  priceAmount: number | null
+  priceCurrency: string | null
+  priceDivine: number | null
+  account: string
+  online: boolean
+  instantBuyout: boolean
+  explicitMods: string[]
+  implicitMods: string[]
+  ilvl?: number
+  /** Whisper template from the trade site. Never send automatically — copy/open only. */
+  whisper?: string
+  indexed?: string
+  /** GGG CDN item icon URL. */
+  icon?: string
+  characterName?: string
+}
+
+export interface PluginListingScanResult {
+  url: string
+  queryId: string
+  league: string
+  total: number
+  matchedStats?: number
+  unmatchedMods?: string[]
+  listings: PluginListingRow[]
+  pricesDivine: number[]
+  cheapestDivine: number | null
+  estimateDivine: number | null
+  pricedCount: number
 }
 
 export interface WebPanelApi {
@@ -392,6 +465,23 @@ export interface CraftApi {
     kind?: 'all' | 'p' | 's'
     limit?: number
   }): Promise<ModSearchHitResult[]>
+  /** Full CoE crafting catalog (bases, mods, currencies). */
+  getCatalog(): Promise<unknown>
+}
+
+export type WarrantScanOptions = {
+  limit?: number
+  onlineOnly?: boolean
+  pricedOnly?: boolean
+  sort?: 'asc' | 'desc'
+  maxAskDivine?: number | null
+  excludeJokeCurrencies?: boolean
+  wantSkills?: string[]
+  skillMatchMode?: 'all' | 'any'
+  wantSupports?: import('../../shared/warrants').WantSupportFilter[]
+  supportPresenceMode?: import('../../shared/warrants').SupportPresenceMode
+  supportLinkOrder?: import('../../shared/warrants').SupportLinkOrder
+  linkSkill?: string | null
 }
 
 export interface TradeApi {
@@ -404,7 +494,123 @@ export interface TradeApi {
     queryId: string
     total: number
     matchedStats?: number
+    unmatchedMods?: string[]
   }>
+  /**
+   * Same query as `openSearch`, but returns a rough divine estimate from live
+   * listing buyouts (does not open the trade browser).
+   */
+  priceCheck(item: PluginTradeSearchItem): Promise<{
+    url: string
+    queryId: string
+    total: number
+    matchedStats?: number
+    unmatchedMods?: string[]
+    pricesDivine: number[]
+    cheapestDivine: number | null
+    estimateDivine: number | null
+    pricedCount: number
+  }>
+  /**
+   * Same query as `priceCheck`, but returns the fetched listing rows (ids,
+   * ask, mods) so a plugin can flag outliers. Uses the host's authenticated
+   * trade path + rate limits; plugins cannot call trade themselves.
+   */
+  scanListings(item: PluginTradeSearchItem): Promise<PluginListingScanResult>
+  /** Scan Mercenary Warrants on the official trade site (PoE1). */
+  scanWarrants(opts?: WarrantScanOptions): Promise<import('../../shared/warrants').WarrantScanResult>
+  /** Full mercenary.skill_* / support_* catalog from trade stats. */
+  warrantsCatalog(): Promise<{
+    skills: string[]
+    supports: import('../../shared/warrants').WantSupportFilter[]
+  }>
+  whisperSeller(queryId: string, listingId: string, league: string): Promise<void>
+  visitHideout(queryId: string, listingId: string, league: string): Promise<void>
+  getAuth(): Promise<{ loggedIn: boolean }>
+  login(): Promise<void>
+}
+
+export interface NinjaCharacterModelRequest {
+  account: string
+  league: string
+  name: string
+  modelVersion?: number
+}
+
+export interface NinjaCharacterModelResult {
+  type: string
+  charModel: unknown
+  modelVersion: number
+}
+
+export interface NinjaApi {
+  getCharacterModel(opts: NinjaCharacterModelRequest): Promise<NinjaCharacterModelResult>
+}
+
+/** Host loot-filter editing surface for plugins (Filter Section Editor, etc.). */
+export interface FilterApi {
+  getSections(): Promise<{ ok: boolean; error?: string; path?: string; sections: unknown[] }>
+  getBlock(blockIndex: number): Promise<{ ok: boolean; error?: string; block?: unknown; blockIndex?: number }>
+  setTierVisibility(
+    blockIndex: number,
+    visibility: 'Show' | 'Hide' | 'Minimal',
+  ): Promise<{ ok: boolean; error?: string }>
+  saveBlockEdit(blockIndex: number, block: unknown, itemJson?: string): Promise<{ ok: boolean; error?: string }>
+  addBaseTypeToTier(blockIndex: number, baseType: string): Promise<{ ok: boolean; error?: string }>
+  removeBaseTypeFromTier(blockIndex: number, baseType: string): Promise<{ ok: boolean; error?: string }>
+  moveItemTier(
+    baseType: string,
+    fromBlockIndex: number,
+    toBlockIndex: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string }>
+  batchMoveItemTier(
+    baseTypes: string[],
+    fromBlockIndex: number,
+    toBlockIndex: number,
+    itemJson: string,
+  ): Promise<{ ok: boolean; error?: string }>
+  previewBaseTypeMove(baseType: string, toBlockIndex: number): Promise<unknown>
+  deleteFilterBlock(blockIndex: number): Promise<{ ok: boolean; error?: string }>
+  moveFilterBlock(fromIndex: number, toIndex: number): Promise<{ ok: boolean; error?: string }>
+  insertSectionRule(opts: Record<string, unknown>): Promise<{ ok: boolean; error?: string }>
+  applySectionDelta(req: unknown): Promise<unknown>
+  matchItem(req: unknown): Promise<unknown>
+  parseItemText(text: string): Promise<unknown>
+  getLastEvaluatedItem(): Promise<unknown>
+  getRecentEvaluatedItems(): Promise<unknown[]>
+  simulateLootDrops(req: unknown): Promise<unknown>
+  preflight(): Promise<unknown>
+  findConditions(query: Record<string, unknown>): Promise<unknown>
+  getHistory(): Promise<unknown[]>
+  undoEdit(itemJson?: string): Promise<{ ok: boolean; error?: string }>
+  undoToEntry(entryId: number | string): Promise<{ ok: boolean; error?: string }>
+  undoSectionHistory(typePath: string): Promise<{ ok: boolean; undone: number; error?: string }>
+  listVersions(): Promise<unknown[]>
+  createCheckpoint(label?: string): Promise<{ ok: boolean; error?: string }>
+  restoreVersion(filename: string, itemJson?: string): Promise<{ ok: boolean; error?: string }>
+  deleteVersion(filename: string): Promise<{ ok: boolean; error?: string }>
+  diffFilterFiles(leftPath: string, rightPath: string): Promise<unknown>
+  diffFilterVsVersion(versionFilename: string): Promise<unknown>
+  previewReapply(): Promise<unknown>
+  applyReapply(): Promise<unknown>
+  exportIntents(): Promise<unknown>
+  importIntents(payload: { json: string; mode: 'replace' | 'merge'; replay?: boolean }): Promise<unknown>
+  getChanges(): Promise<unknown[]>
+  reload(): Promise<{ ok: boolean; error?: string }>
+  getSearchableItems(): Promise<unknown>
+  getIconCache(): Promise<unknown>
+  onIconCacheUpdated(handler: (cache: unknown) => void): () => void
+  getSettings(): Promise<unknown>
+  listProfiles(): Promise<unknown>
+  scanFilterDir(dir: string): Promise<unknown>
+  detectActiveGameFilter(filterDirOverride?: string): Promise<unknown>
+  scanSoundFiles(dir: string): Promise<string[]>
+  getSoundDataUrl(dir: string, filename: string): Promise<string | null>
+  batchLookupPrices(names: string[]): Promise<unknown>
+  onChanged(handler: () => void): () => void
+  onZoneChanged?(handler: (zone: unknown) => void): () => void
+  filterBladeUrl?(): Promise<string | null>
 }
 
 export interface PricesApi {
@@ -424,6 +630,50 @@ export interface PricesApi {
    * subscription. Returns an unsubscribe function.
    */
   onChange(handler: () => void): () => void
+}
+
+export interface MediaSession {
+  /** The source player's app id as Windows reports it, e.g. `'Spotify.exe'`. */
+  sourceAppId: string
+  title: string
+  artist: string
+  album: string
+  /** Album art as a `data:` URL (png/jpeg), or null when the player publishes none. */
+  thumbnail: string | null
+  playing: boolean
+  /** Track position/length in seconds. Both 0 when the player publishes no timeline. */
+  position: number
+  duration: number
+  /**
+   * Epoch-ms when `position` was last reported. While `playing`, the live
+   * position is `position + (Date.now() - positionAt) / 1000`; players push
+   * timeline updates sparsely (Spotify roughly every 5s), so interpolate
+   * between events rather than waiting for the next one.
+   */
+  positionAt: number
+}
+
+export interface MediaApi {
+  /**
+   * The session Windows considers current (the one the hardware media keys
+   * would control). Resolves null when no player is registered with the
+   * system media controls, and always on non-Windows hosts.
+   */
+  getSession(): Promise<MediaSession | null>
+  /**
+   * Fires with the full new state whenever the current session changes:
+   * track/metadata changes, play/pause, timeline updates, the player closing
+   * (null) or another player taking over. Does not fire on initial
+   * subscription - call getSession() for the starting state. Returns an
+   * unsubscribe function.
+   */
+  onChange(handler: (session: MediaSession | null) => void): () => void
+  /** Toggle play/pause via the system media key. Fire-and-forget; the state change arrives through onChange. */
+  playPause(): void
+  /** Skip to the next track via the system media key. */
+  next(): void
+  /** Skip to the previous track via the system media key. */
+  previous(): void
 }
 
 export interface ScalpelPluginContext {
@@ -491,6 +741,42 @@ export interface ScalpelPluginContext {
   closeOverlay(): void
 
   /**
+   * Subscribe to this plugin's overlay window being opened or closed. Returns
+   * an unsubscribe function.
+   *
+   * Closing an overlay does NOT unmount your `registerOverlay` render - Scalpel
+   * hides the window rather than destroying it, so the same DOM (and any React
+   * state in it) is still there when the user reopens. Nothing in the DOM
+   * reflects that: the window stays visible to the OS and is never focused, so
+   * `visibilitychange` and focus events don't fire. Use this when reopening
+   * should feel like a fresh start - clearing stale input, resetting a form,
+   * restoring focus to your main field.
+   *
+   * Fires only on a real change, and only for deliberate opens and closes. The
+   * transient hide when the user alt-tabs out of PoE (and the matching restore
+   * when they come back) is not reported - that isn't the user closing your
+   * window, and resetting there would discard work they still want. The first
+   * open after the window is created isn't reported either; your render has
+   * only just mounted at that point, so it is already in its initial state.
+   *
+   * Only meaningful inside the overlay window itself - inert when your plugin
+   * code is running in Scalpel's main overlay.
+   */
+  onOverlayVisibility(handler: (visible: boolean) => void): () => void
+
+  /**
+   * Annotation overlays only. Declare the screen region (in overlay/game CSS px,
+   * measured from the overlay's top-left) that should receive mouse input. While
+   * the cursor is inside it, Scalpel flips the otherwise click-through overlay
+   * interactive so clicks land on your elements; everywhere else the overlay
+   * stays click-through and clicks pass to the game. Pass null to clear it. Call
+   * this from your overlay's render code (re-call when the region moves or
+   * resizes); it is a no-op for 'window'-mode overlays, which are already
+   * interactive.
+   */
+  setInteractiveRegion(rect: { x: number; y: number; width: number; height: number } | null): void
+
+  /**
    * Trigger the same flow Scalpel's main hotkey runs: send Ctrl+C to PoE,
    * read the clipboard, parse the item, fire onCurrentItem for everyone
    * (other plugins + Scalpel's filter/price-check views), and resolve to
@@ -555,6 +841,8 @@ export interface ScalpelPluginContext {
    */
   readonly trade: TradeApi
   readonly craft: CraftApi
+  readonly ninja?: NinjaApi
+  readonly filter: FilterApi
   /**
    * Read the poe.ninja price data Scalpel already maintains (the same source
    * powering Price Check). Read-only; the host owns fetching, so plugins never
@@ -567,6 +855,14 @@ export interface ScalpelPluginContext {
    * to pass PoE item text to external tools (e.g. Craft of Exile eimport).
    */
   readClipboardText(): Promise<string>
+  /**
+   * What Windows is currently playing (Spotify, a browser tab, any player
+   * registered with the system media transport controls) plus transport
+   * control. Commands are synthesized system media keys, so they reach
+   * whichever player is current without any account or player-specific API.
+   * Windows only: on Linux getSession resolves null and commands are no-ops.
+   */
+  readonly media: MediaApi
   openExternal(url: string): void
   log(...args: unknown[]): void
 }

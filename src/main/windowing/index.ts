@@ -5,6 +5,7 @@ import { guardNativeListener } from '../diagnostics'
 import { hideAllOnPoeBlur, isAnyScalpelWindowFocused } from './focus'
 import { seedUserPinned } from './pin'
 import { prewarmSnapCanvas, type Rect, setSnapGhost } from './snap-canvas'
+import { type FlushEdges, nearestMountTarget } from './snap-mounts'
 import { fireOnLeaveScalpel, type OverlayState, overlays } from './state'
 import { createOverlayWindow } from './window'
 
@@ -47,6 +48,12 @@ export interface OverlaySpec {
    *  mount point is conceptually elsewhere (center+bottom, etc.) supply this
    *  so the ghost (and snap commit) tracks the user's resize. */
   snapTarget?: (defaultRect: Rect, cur: Rect) => Rect
+  /** Optional extra snap homes besides the default anchor. During drag the
+   *  candidate nearest to the window wins (default anchor included), each
+   *  derived mount-aware (see mountAwareTarget): an anchor flush against an
+   *  edge keeps the window flush there at its current size. Ignored when
+   *  `snapTarget` is supplied. */
+  snapAnchors?: () => OverlayAnchor[]
   /** Fired once after did-finish-load + the very first show (or, when
    *  `gateShow` suppresses the show, once after did-finish-load with no
    *  actual show). The earliest safe point to deliver IPCs whose payload
@@ -59,6 +66,13 @@ export interface OverlaySpec {
    *  must re-evaluate each time the window is shown. Default (false) keeps the
    *  position the window last had. */
   repositionOnShow?: boolean
+  /** Seed for the user pin (the Chrome header toggle) when the pin store has
+   *  no explicit entry for this overlay. The pin exempts the overlay from the
+   *  Esc hide sweep. Plugin overlays default it on: they are user-summoned
+   *  persistent surfaces, and a game-Esc (menus, stash, inventory) dismissing
+   *  them also clears the alt-tab restore memory - the card silently never
+   *  comes back. An explicit user unpin persists and beats this default. */
+  defaultUserPinned?: boolean
   /** Optional predicate consulted before showing an already-created window
    *  (regular show, the first show after did-finish-load, and the PoE-refocus
    *  restore). Return false to suppress the show. Window creation itself is
@@ -66,6 +80,17 @@ export interface OverlaySpec {
    *  For overlays whose content is state-dependent (pinned-zone) so a blind
    *  show can't surface an empty-but-mouse-interactive transparent window. */
   gateShow?: () => boolean
+  /** Optional: fired when the overlay is explicitly shown or hidden - hotkey
+   *  toggle, close button, or an Esc sweep. Deliberately NOT fired for the
+   *  transient PoE-blur hide and its auto-restore: alt-tabbing out of the game
+   *  and back is not the user closing the window, and a consumer that resets
+   *  its state on hide would otherwise throw away work the user still wants.
+   *  Only fires on an actual transition, never twice for the same state.
+   *
+   *  Note this skips the very first show too: that one goes through
+   *  ensureWin's did-finish-load handler rather than showState, and a freshly
+   *  loaded renderer has nothing to reset. Use `onFirstShow` for that edge. */
+  onVisibilityChange?: (visible: boolean) => void
 }
 
 /** Multiply an anchor against a rect, returning a rect in the same coordinate
@@ -172,14 +197,19 @@ function resolveAnchor(spec: OverlaySpec): OverlayAnchor {
 
 /** Snap target = the spec's default anchor's POSITION, with the window's
  *  CURRENT size. Lets the user resize the window then drag-snap back to its
- *  "home" without losing the new size. Returns null when PoE isn't attached
- *  (no anchor frame of reference). */
-function snapTargetFor(state: OverlayState, cur: Rect): Rect | null {
-  if (!state.win || state.win.isDestroyed()) return null
-  const defaultRect = anchorToDipBounds(state.win, state.spec.defaultAnchor())
-  if (!defaultRect) return null
-  if (state.spec.snapTarget) return state.spec.snapTarget(defaultRect, cur)
-  return { x: defaultRect.x, y: defaultRect.y, width: cur.width, height: cur.height }
+ *  "home" without losing the new size. Specs with `snapAnchors` contribute
+ *  those as additional homes and the nearest to the drag wins. Returns null
+ *  when PoE isn't attached (no anchor frame of reference). */
+function snapTargetFor(state: OverlayState, cur: Rect): { rect: Rect; edges: FlushEdges } | null {
+  const win = state.win
+  if (!win || win.isDestroyed()) return null
+  if (state.spec.snapTarget) {
+    const defaultRect = anchorToDipBounds(win, state.spec.defaultAnchor())
+    if (!defaultRect) return null
+    return { rect: state.spec.snapTarget(defaultRect, cur), edges: { left: false, right: false } }
+  }
+  const anchors = [state.spec.defaultAnchor(), ...(state.spec.snapAnchors?.() ?? [])]
+  return nearestMountTarget(anchors, (anchor) => anchorToDipBounds(win, anchor), cur)
 }
 
 /** Mark a programmatic bounds change in flight, run `apply` (the actual
@@ -261,19 +291,75 @@ function applyAnchorBounds(state: OverlayState): void {
 // within snap range of the default. Mirrors how the main overlay only updates
 // snap state inside its drag-bound mousemove handler.
 let leftMouseHeld = false
+/** Safety clear for the shared snap-ghost canvas. Windows sometimes never
+ *  fires 'moved' after a title-bar drag release; without this the dashed ghost
+ *  can stick over the game until restart. */
+let snapGhostSafetyTimer: ReturnType<typeof setTimeout> | null = null
+
+function cancelSnapGhostSafetyClear(): void {
+  if (snapGhostSafetyTimer == null) return
+  clearTimeout(snapGhostSafetyTimer)
+  snapGhostSafetyTimer = null
+}
+
+/** Commit a pending snap: clear the ghost, move the window onto its snap
+ *  target, persist. Persisting explicitly (rather than letting the next 'moved'
+ *  do it) is required because the synthetic 'moved' Windows fires from a
+ *  setBounds-inside-a-moved-handler doesn't reliably arrive. Shared by the
+ *  'moved' handler and the mouseup safety-clear so the two can't diverge. */
+function commitSnap(state: OverlayState): void {
+  state.snapGhostActive = false
+  setSnapGhost(null)
+  if (!state.win || state.win.isDestroyed()) return
+  const target = snapTargetFor(state, state.win.getBounds())
+  if (!target) return
+  setBoundsProgrammatic(state, target.rect)
+  persistBounds(state)
+}
+
+/** If 'moved' never arrived after mouseup, commit any pending snap (same as
+ *  the moved handler) or just clear the visual ghost. */
+function runSnapGhostSafetyClear(): void {
+  snapGhostSafetyTimer = null
+  // mousedown cancels this timer, so a button still held at fire time means a
+  // native event went missing - which is the exact failure this fallback
+  // exists for. Re-arm instead of bailing, or the ghost stays stuck forever.
+  // The next real mouseup replaces the timer, so this can't outlive the drag.
+  if (leftMouseHeld) {
+    scheduleSnapGhostSafetyClear()
+    return
+  }
+  for (const state of overlays.values()) {
+    if (!state.snapGhostActive) continue
+    commitSnap(state)
+  }
+}
+
+function scheduleSnapGhostSafetyClear(): void {
+  cancelSnapGhostSafetyClear()
+  snapGhostSafetyTimer = setTimeout(runSnapGhostSafetyClear, 300)
+}
+
 uIOhook.on(
   'mousedown',
   guardNativeListener('mousedown-snap', (e) => {
-    if (e.button === 1) leftMouseHeld = true
+    if (e.button === 1) {
+      leftMouseHeld = true
+      cancelSnapGhostSafetyClear()
+    }
   }),
 )
 uIOhook.on(
   'mouseup',
   guardNativeListener('mouseup-snap', (e) => {
-    if (e.button === 1) leftMouseHeld = false
-    // Don't clear snapGhostActive here - the gridWin 'moved' event fires
-    // *after* this mouseup and needs the flag set to know whether to commit
-    // the snap. Clearing it here would silently break the snap.
+    if (e.button === 1) {
+      leftMouseHeld = false
+      // Don't clear snapGhostActive here - the gridWin 'moved' event fires
+      // *after* this mouseup and needs the flag set to know whether to commit
+      // the snap. Clearing it here would silently break the snap. Schedule a
+      // fallback in case 'moved' never arrives.
+      scheduleSnapGhostSafetyClear()
+    }
   }),
 )
 
@@ -396,6 +482,9 @@ function showState(state: OverlayState): void {
   if (state.spec.gateShow && !state.spec.gateShow()) return
   if (state.spec.repositionOnShow) applyAnchorBounds(state)
   win.show()
+  // Guarded by the isVisible() bail above, so this only fires on a real
+  // hidden -> visible transition.
+  state.spec.onVisibilityChange?.(true)
 }
 
 function hideState(state: OverlayState): void {
@@ -403,7 +492,11 @@ function hideState(state: OverlayState): void {
   // Explicit user-driven hide: clear the auto-restore memory so PoE
   // refocusing doesn't bring it back. Only PoE alt-tab cycles restore.
   state.wasVisibleBeforeFocusLoss = false
+  // isVisible() reflects the opacity-hide (installOpacityHideShow overrides
+  // it), so an already-hidden overlay doesn't re-notify.
+  const wasVisible = state.win.isVisible()
   state.win.hide()
+  if (wasVisible) state.spec.onVisibilityChange?.(false)
 }
 
 // Secondary overlays hide-instead-of-close so their hotkey can re-show them.
@@ -430,18 +523,11 @@ function wireWindowEvents(state: OverlayState, win: BrowserWindow): void {
   })
   win.on('moved', () => {
     if (state.inProgrammaticMove) return
+    cancelSnapGhostSafetyClear()
     if (state.snapGhostActive) {
-      // Snap will commit: skip persisting the user's pre-snap drop position
-      // and persist the snapped position once after setBounds. The synthetic
-      // 'moved' Windows fires from setBounds-inside-a-moved-handler doesn't
-      // reliably arrive on Windows, so we have to persist explicitly.
-      state.snapGhostActive = false
-      setSnapGhost(null)
-      const target = snapTargetFor(state, win.getBounds())
-      if (target) {
-        setBoundsProgrammatic(state, target)
-        persistBounds(state)
-      }
+      // Snap will commit: skip persisting the user's pre-snap drop position,
+      // commitSnap persists the snapped one instead.
+      commitSnap(state)
     } else {
       persistBounds(state)
       setSnapGhost(null)
@@ -497,11 +583,11 @@ function maybeUpdateSnap(state: OverlayState): void {
   const cur = state.win.getBounds()
   const target = snapTargetFor(state, cur)
   if (!target) return
-  const dist = Math.hypot(cur.x - target.x, cur.y - target.y)
+  const dist = Math.hypot(cur.x - target.rect.x, cur.y - target.rect.y)
   const wantActive = dist < SNAP_RANGE
   if (wantActive === state.snapGhostActive) return
   state.snapGhostActive = wantActive
-  setSnapGhost(state.snapGhostActive ? target : null)
+  setSnapGhost(state.snapGhostActive ? { ...target.rect, edges: target.edges } : null)
 }
 
 /** The current anchor (fractions of PoE's window) of a registered secondary

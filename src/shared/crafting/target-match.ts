@@ -36,5 +36,8 @@ export function modMatchesTargetQuery(
 }
 
 function humanGroup(name: string): string {
-  return name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').toLowerCase()
+  return name
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .toLowerCase()
 }

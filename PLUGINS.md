@@ -120,7 +120,7 @@ interface ScalpelPluginContext {
   // 'annotation' (transparent, click-through, full-game-window surface).
   // See "Overlay windows" below.
   registerOverlay(
-    opts: { title: string; icon?: string; hotkeyLabel?: string; defaultSize?: { width: number; height: number }; mode?: 'window' | 'annotation' },
+    opts: { title: string; icon?: string; hotkeyLabel?: string; defaultSize?: { width: number; height: number }; defaultPosition?: { fracX: number; fracY: number }; mode?: 'window' | 'annotation' },
     render: (container: HTMLElement) => (() => void) | void,
   ): void
   openOverlay(): void   // show the overlay window
@@ -159,6 +159,16 @@ interface ScalpelPluginContext {
     getPrices(opts?: { category?: string }): Promise<{ prices: PriceEntry[]; updatedAt: number | null }>
     refresh(): Promise<void>
     onChange(handler: () => void): () => void
+  }
+
+  // What Windows is currently playing + transport control via the system
+  // media keys. Windows only. See "Now playing" below.
+  media: {
+    getSession(): Promise<MediaSession | null>
+    onChange(handler: (session: MediaSession | null) => void): () => void
+    playPause(): void
+    next(): void
+    previous(): void
   }
 
   // Screen capture - returns null when PoE is not focused
@@ -299,6 +309,51 @@ await ctx.prices.refresh() // force a refetch now, bypassing the host cache TTL
 - `refresh()` forces a refetch; `onChange(handler)` fires after any host refresh
   and returns an unsubscribe function.
 
+### Now playing
+
+`ctx.media` reads the media session Windows considers current - the one the
+hardware media keys would control: Spotify, a YouTube tab, foobar2000, anything
+registered with the system media transport controls (SMTC). No account, no
+player-specific API, and it works the same for every player.
+
+```ts
+interface MediaSession {
+  sourceAppId: string       // e.g. 'Spotify.exe'
+  title: string
+  artist: string
+  album: string
+  thumbnail: string | null  // album art as a data: URL (png/jpeg), or null
+  playing: boolean
+  position: number          // seconds; 0 when the player publishes no timeline
+  duration: number          // seconds; 0 when the player publishes no timeline
+  positionAt: number        // epoch-ms when `position` was last reported
+}
+```
+
+```tsx
+const session = await ctx.media.getSession() // null when nothing is registered
+
+const off = ctx.media.onChange((session) => {
+  // full new state on track change, play/pause, timeline update, player
+  // close (null), or another player taking over
+})
+
+ctx.media.playPause() // also next() / previous()
+```
+
+- **Interpolate the position.** Players push timeline updates sparsely (Spotify
+  roughly every 5s), so a progress bar should tick locally: while `playing`,
+  the live position is `position + (Date.now() - positionAt) / 1000`, clamped
+  to `duration`.
+- The transport commands are synthesized system media keys, so Windows routes
+  them to the current player exactly like the hardware keys - fire-and-forget,
+  with the resulting state change arriving through `onChange`. There is no
+  seek.
+- `onChange` does not fire on subscription; call `getSession()` for the
+  starting state.
+- **Windows only.** On Linux `getSession` resolves `null` unconditionally and
+  the commands are no-ops.
+
 ### Screen capture
 
 `ctx.captureGameWindow(region?)` takes a one-shot screenshot of the PoE window and
@@ -411,6 +466,8 @@ export default function activate(ctx) {
 
 Launch it three ways: the **Pop out** button on the plugin's tab, the dedicated **hotkey** (when you set `hotkeyLabel`; it is a separate Settings > Macros row from your `registerHotkey` action hotkey), or programmatically via `ctx.openOverlay()` / `ctx.closeOverlay()`.
 
+**Window position persists.** A window-mode overlay remembers where the user drags it, across restarts, once they've moved it. `defaultPosition` sets where it first appears - as fractions of the game window, from the window's top-left corner - and doubles as the window's drag-snap home. It stops applying once the user has moved the window; from then on the remembered position wins. Each fraction is clamped so the window stays fully on the game window.
+
 **The render runs in a separate process.** Each window is its own renderer process, so the `render` you pass to `registerOverlay` cannot be the same live function object your tab uses - Scalpel loads (imports and runs) your plugin module a *second time* inside the overlay window and calls your `registerOverlay` render there. Two consequences:
 
 - Inside the overlay window, `registerTab` and `registerHotkey` are inert no-ops (your tab and action hotkey already took effect in the main overlay). Only the overlay `render` is used.
@@ -439,7 +496,7 @@ ctx.registerOverlay(
 
 Key differences from `mode: 'window'` (the default):
 
-- The surface locks to the game window and cannot be moved or resized - `defaultSize` is ignored.
+- The surface locks to the game window and cannot be moved or resized - `defaultSize` and `defaultPosition` are ignored. Annotation overlays never persist a position either, since they always span the whole game window.
 - The root `container` is always `position:absolute; inset:0; pointer-events:none`, sized to the full game window in CSS px. Position your child elements absolutely within it.
 - The entire surface passes mouse events through to the game by default. To make a specific child element interactive, set `pointer-events: auto` on that element only.
 - There is no title bar, border, or window chrome.
@@ -591,6 +648,7 @@ These render the standard Scalpel settings-row chrome (label on the left, contro
 - `PoeItem`, `Zone`, `RelatedRef`, `RelatedEntry`, `GameFeatures`, `TrendDirection`
 - `ModTier`, `TierLadder`, `TierStat` - data shape for an affix's tier ladder (tier number, roll range, required level)
 - `GameRect`, `GameCapture` - geometry and pixel-data shapes for `captureGameWindow`
+- `MediaSession`, `MediaApi` - the now-playing shapes for `ctx.media`
 
 ## Project setup
 

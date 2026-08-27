@@ -13,14 +13,17 @@ import {
 } from './diagnostics'
 import { getPoeVersion } from './game-state'
 import { focusGameWindow, isTypingInOverlay, setOverlayVisibilityListener } from './overlay'
+import { advancedCopyTracker } from './trade/advanced-copy'
 import { hideFocusedOrAnyVisibleSecondaryOverlay, isAnyScalpelBrowserWindowFocused } from './windowing'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let currentAccelerator: string | null = null
 let priceCheckAccelerator: string | null = null
+let launcherAccelerator: string | null = null
 let triggerCombo: KeyCombo | null = null
 let priceCheckCombo: KeyCombo | null = null
+let launcherCombo: KeyCombo | null = null
 type ChatCommandConfig = { hotkey: string; command: string; autoSubmit?: boolean; scope?: MacroScope }
 type AppMacroConfig = { action: string; hotkey: string; tag?: string; presetId?: string; scope?: MacroScope }
 type ScopedHotkeyCategory = 'chat-command' | 'app-macro'
@@ -45,6 +48,7 @@ let secondaryOverlayHotkeys: OverlayHotkey[] = []
 let registeredOverlayAccelerators: string[] = []
 let onTrigger: (() => void) | null = null
 let onPriceCheck: (() => void) | null = null
+let onLauncher: (() => void) | null = null
 let onEscape: (() => void) | null = null
 let hookStarted = false
 let hookSuspended = false
@@ -62,6 +66,7 @@ let hookResumeTimer: ReturnType<typeof setTimeout> | null = null
 const DEDUPE_MS = 100
 let lastTriggerFireAt = 0
 let lastPriceCheckFireAt = 0
+let lastLauncherFireAt = 0
 let lastEscapeFireAt = 0
 
 // Escape is also registered as a real globalShortcut (not just the uiohook
@@ -83,8 +88,8 @@ function matchesCombo(
  *  game, and the game keeps moving until it sees a keyup. Inject a keyup for the
  *  non-modifier key the instant the hotkey fires so movement stops immediately.
  *  Modifiers are left held - they don't move the character, they're tracked by
- *  heldModifiers, and the follow-up Ctrl+Alt+C copy relies on them. Mirrors
- *  Exiled-Exchange-2's keepModKeys release. */
+ *  heldModifiers, and the follow-up copy relies on them. Mirrors Exiled-
+ *  Exchange-2's keepModKeys release. */
 function releaseHotkeyKey(combo: KeyCombo | null): void {
   if (!combo) return
   uIOhook.keyToggle(combo.keycode, 'up')
@@ -106,6 +111,15 @@ function firePriceCheck(): void {
   lastPriceCheckFireAt = now
   releaseHotkeyKey(priceCheckCombo)
   if (onPriceCheck) onPriceCheck()
+}
+
+function fireLauncher(): void {
+  if (injecting || isTypingInOverlay() || !hotkeyContextIsActive()) return
+  const now = Date.now()
+  if (now - lastLauncherFireAt < DEDUPE_MS) return
+  lastLauncherFireAt = now
+  releaseHotkeyKey(launcherCombo)
+  if (onLauncher) onLauncher()
 }
 
 /** Shared entry point for both Escape delivery paths (the globalShortcut
@@ -195,7 +209,9 @@ function runChatCommand(entry: ChatCommandConfig, autoSubmit: boolean, combo: Ke
   )
     return
   releaseHotkeyKey(combo)
-  sendChatCommand(entry.command, autoSubmit)
+  // Fire-and-forget: a paste that never got focus (or the clipboard) rejects
+  // rather than injecting, and that is a diagnostic, not a crash.
+  sendChatCommand(entry.command, autoSubmit).catch((e) => recordMainDiagnostic('chat-command', e))
 }
 
 function runAppMacro(entry: AppMacroConfig, combo: KeyCombo | null): void {
@@ -260,6 +276,7 @@ export function startHotkeyListener(handler: () => void): void {
       // same foreground-context rule as the Electron callbacks.
       if (triggerCombo && matchesCombo(e, triggerCombo)) fireTrigger()
       if (priceCheckCombo && matchesCombo(e, priceCheckCombo)) firePriceCheck()
+      if (launcherCombo && matchesCombo(e, launcherCombo)) fireLauncher()
       // Chat commands / app macros / secondary overlays bound to international or
       // OEM keys globalShortcut cannot register (see ActionBinding above).
       fireMatchingActionBindings(e)
@@ -382,6 +399,7 @@ export function resumeHotkeys(): void {
   if (suspendDepth > 0) return
   if (currentAccelerator) setHotkey(currentAccelerator)
   if (priceCheckAccelerator) setPriceCheckHotkey(priceCheckAccelerator)
+  if (launcherAccelerator) setLauncherHotkey(launcherAccelerator)
   refreshScopedHotkeys('resume')
   setSecondaryOverlayHotkeys(secondaryOverlayHotkeys)
   syncEscapeShortcut()
@@ -431,6 +449,27 @@ export function setPriceCheckHotkey(accelerator: string): void {
 
 export function setPriceCheckHandler(handler: (() => void) | null): void {
   onPriceCheck = handler
+}
+
+export function setLauncherHotkey(accelerator: string): void {
+  if (launcherAccelerator && suspendDepth === 0 && isElectronRegisterable(launcherAccelerator)) {
+    try {
+      globalShortcut.unregister(launcherAccelerator)
+    } catch {}
+  }
+  launcherAccelerator = accelerator
+  launcherCombo = parseAccelerator(accelerator)
+  if (suspendDepth > 0) return
+  if (!isElectronRegisterable(accelerator)) return
+  try {
+    globalShortcut.register(accelerator, () => fireLauncher())
+  } catch (e) {
+    console.error(`[hotkeys] Failed to register launcher hotkey "${accelerator}":`, e)
+  }
+}
+
+export function setLauncherHandler(handler: (() => void) | null): void {
+  onLauncher = handler
 }
 
 export function setEscapeHandler(handler: (() => void) | null): void {
@@ -588,69 +627,147 @@ const AUTO_CLEAR = [
   '/', // Command
 ]
 
+/** How long to wait for PoE to actually reach the foreground. A normal handoff
+ *  lands in well under 100ms; past this, assume the game is gone or the OS
+ *  refused the request rather than injecting into someone else's window. */
+const FOCUS_WAIT_MS = 300
+const FOCUS_POLL_MS = 10
+/** How long the command stays on the clipboard after the keys are injected.
+ *  The client reads the clipboard when it *processes* Ctrl+V, which can be well
+ *  after SendInput returns - parsing a reloaded filter alone hitches it past
+ *  several frames. Hand the clipboard back too early and the game pastes the
+ *  user's own content instead, which the trailing Enter then broadcasts to
+ *  chat. 250ms covers a reload hitch; the borrow watchdog covers the rest. */
+const CLIPBOARD_HOLD_MS = 250
+/** Keys are out and the chat window has closed - let the next flow start. */
+const PASTE_SETTLE_MS = 50
+const CLIPBOARD_WRITE_TRIES = 3
+const CLIPBOARD_WRITE_RETRY_MS = 15
+
+const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+
+/** Resolve once the attached game owns OS focus; throw if it never does.
+ *  Injected keys go to whatever window is foreground when the OS routes them,
+ *  so firing during the handoff sprays Enter/Ctrl+V/Enter at the window the
+ *  user was just in - and burns the clipboard hold before the game can read
+ *  the paste. targetHasFocus is the same signal that authorizes every gameplay
+ *  hotkey (see hotkeyContextIsActive). */
+async function awaitGameFocus(): Promise<void> {
+  if (OverlayController.targetHasFocus) return
+  focusGameWindow()
+  for (let waited = 0; waited < FOCUS_WAIT_MS; waited += FOCUS_POLL_MS) {
+    await wait(FOCUS_POLL_MS)
+    if (OverlayController.targetHasFocus) return
+  }
+  throw new Error('PoE did not take focus - chat command not sent')
+}
+
+/** Put `text` on the clipboard and prove it landed before anything is injected.
+ *  A clipboard manager (Win+V history, Ditto) holding the clipboard open makes
+ *  Electron's write a silent no-op; pasting anyway submits whatever the user
+ *  had copied. */
+async function writeChatText(text: string): Promise<void> {
+  // Compared line-ending-insensitively: Windows stores CRLF, and a multi-line
+  // macro must not read back as a failed write.
+  const normalize = (s: string): string => s.replace(/\r\n/g, '\n')
+  for (let attempt = 0; attempt < CLIPBOARD_WRITE_TRIES; attempt++) {
+    clipboard.writeText(text)
+    if (normalize(clipboard.readText()) === normalize(text)) return
+    await wait(CLIPBOARD_WRITE_RETRY_MS)
+  }
+  throw new Error('clipboard write did not land - chat command not sent')
+}
+
 /**
  * Paste text into PoE chat via clipboard + uiohook keyTaps.
  * Layout-independent, near-instant.
+ *
+ * Both preconditions - game focused, command provably on the clipboard - are
+ * confirmed before a single key is injected. The paste ends with Enter, so
+ * anything we get wrong is broadcast to chat rather than quietly dropped.
  */
 let chatLocked = false
-function pasteToPoEChat(text: string, submit: boolean): Promise<void> {
-  if (chatLocked) return Promise.resolve()
+async function pasteToPoEChat(text: string, submit: boolean): Promise<void> {
+  if (chatLocked) return
   chatLocked = true
 
   const restoreClip = snapshotClipboard()
-  injecting = true
 
-  // Focus PoE so keystrokes reach the game (only if it doesn't already have focus)
-  if (!OverlayController.targetHasFocus) focusGameWindow()
+  // Injection is native (uiohook SendInput) and focusing the game reaches into
+  // a window that may already be gone, so both can throw. Without this, a throw
+  // would strand `chatLocked` true and silently kill every later chat command,
+  // filter reload and filter switch for the rest of the session (#562).
+  try {
+    await awaitGameFocus()
 
-  // All keystrokes fire synchronously so the chat window
-  // opens and closes in a single frame, preventing visible flash
-  if (text.startsWith(PLACEHOLDER_LAST)) {
-    // Ctrl+Enter pre-fills @<lastwhisperer> in the chat input; paste body after
-    text = text.slice(`${PLACEHOLDER_LAST} `.length)
-    clipboard.writeText(text)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
-    uIOhook.keyTap(UiohookKey.Enter)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
-  } else if (text.endsWith(PLACEHOLDER_LAST)) {
-    // Ctrl+Enter pre-fills @CharName at position 0; Home x2 then Delete strips the @
-    text = text.slice(0, -PLACEHOLDER_LAST.length)
-    clipboard.writeText(text)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
-    uIOhook.keyTap(UiohookKey.Enter)
-    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
-    uIOhook.keyTap(UiohookKey.Home)
-    // press twice to focus input when using controller
-    uIOhook.keyTap(UiohookKey.Home)
-    uIOhook.keyTap(UiohookKey.Delete)
-  } else {
-    clipboard.writeText(text)
-    uIOhook.keyTap(UiohookKey.Enter)
-    // PoE auto-clears the input when the text starts with a chat-prefix char
-    if (!AUTO_CLEAR.includes(text[0])) {
-      uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
-      uIOhook.keyTap(UiohookKey.A)
-      uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+    // Resolve the body and the chat-opening keys first so the clipboard write
+    // (and its verification) happens before any key goes out.
+    let body = text
+    let openChat: () => void
+    if (text.startsWith(PLACEHOLDER_LAST)) {
+      // Ctrl+Enter pre-fills @<lastwhisperer> in the chat input; paste body after
+      body = text.slice(`${PLACEHOLDER_LAST} `.length)
+      openChat = () => {
+        uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
+        uIOhook.keyTap(UiohookKey.Enter)
+        uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+      }
+    } else if (text.endsWith(PLACEHOLDER_LAST)) {
+      // Ctrl+Enter pre-fills @CharName at position 0; Home x2 then Delete strips the @
+      body = text.slice(0, -PLACEHOLDER_LAST.length)
+      openChat = () => {
+        uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
+        uIOhook.keyTap(UiohookKey.Enter)
+        uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+        uIOhook.keyTap(UiohookKey.Home)
+        // press twice to focus input when using controller
+        uIOhook.keyTap(UiohookKey.Home)
+        uIOhook.keyTap(UiohookKey.Delete)
+      }
+    } else {
+      openChat = () => {
+        uIOhook.keyTap(UiohookKey.Enter)
+        // PoE auto-clears the input when the text starts with a chat-prefix char
+        if (!AUTO_CLEAR.includes(text[0])) {
+          uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
+          uIOhook.keyTap(UiohookKey.A)
+          uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+        }
+      }
     }
+
+    await writeChatText(body)
+
+    injecting = true
+    // All keystrokes fire synchronously so the chat window
+    // opens and closes in a single frame, preventing visible flash
+    openChat()
+
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
+    uIOhook.keyTap(UiohookKey.V)
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+
+    if (submit) {
+      uIOhook.keyTap(UiohookKey.Enter)
+    }
+  } catch (e) {
+    restoreClip()
+    chatLocked = false
+    injecting = false
+    recordMainDiagnostic('chat-paste', e)
+    throw e
   }
 
-  uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
-  uIOhook.keyTap(UiohookKey.V)
-  uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+  // Hand the clipboard back on its own timer, decoupled from the promise, so
+  // the command outlives a client hitch without holding up the caller (a filter
+  // switch pastes twice). Overlapping borrows nest, so a flow that starts
+  // inside the hold still restores correctly.
+  setTimeout(restoreClip, CLIPBOARD_HOLD_MS).unref?.()
 
-  if (submit) {
-    uIOhook.keyTap(UiohookKey.Enter)
-  }
-
-  // Restore clipboard and re-register hotkeys after paste completes
-  return new Promise((resolve) =>
-    setTimeout(() => {
-      restoreClip()
-      chatLocked = false
-      injecting = false
-      resolve()
-    }, 50),
-  )
+  // Re-register hotkeys once the keys are out
+  await wait(PASTE_SETTLE_MS)
+  chatLocked = false
+  injecting = false
 }
 
 export function sendChatCommand(command: string, autoSubmit = true): Promise<void> {
@@ -662,7 +779,59 @@ export function sendChatCommand(command: string, autoSubmit = true): Promise<voi
   if (held.shift) uIOhook.keyToggle(held.shift, 'up')
   if (held.alt) uIOhook.keyToggle(held.alt, 'up')
   injecting = prevInjecting
-  return pasteToPoEChat(command, autoSubmit).then(() => restoreModifiers(held))
+  // finally, not then: an aborted paste must still re-press the modifiers the
+  // user is physically holding, or the game keeps thinking they let go.
+  return pasteToPoEChat(command, autoSubmit).finally(() => restoreModifiers(held))
+}
+
+/**
+ * Paste a regex into PoE's stash/inventory search (Ctrl+F, Ctrl+V).
+ * Same hardening as chat paste: release held modifiers, await game focus,
+ * verify the clipboard write, mark injecting so the hook ignores synthetic
+ * keys, and settle briefly so a bare F-key hotkey (flask conflict) finishes
+ * releasing before Ctrl+F is synthesized.
+ */
+let regexPasteLocked = false
+export async function pasteRegexToPoESearch(regex: string): Promise<void> {
+  if (!regex || regexPasteLocked || injecting) return
+  regexPasteLocked = true
+
+  const held: ModSnapshot = { ...heldModifiers }
+  const prevInjecting = injecting
+  injecting = true
+  if (held.ctrl) uIOhook.keyToggle(held.ctrl, 'up')
+  if (held.shift) uIOhook.keyToggle(held.shift, 'up')
+  if (held.alt) uIOhook.keyToggle(held.alt, 'up')
+  injecting = prevInjecting
+
+  const restoreClip = snapshotClipboard()
+  try {
+    // Let the triggering hotkey keyup (and any flask F1–F5 collision) settle.
+    await wait(50)
+    await awaitGameFocus()
+    await writeChatText(regex)
+
+    injecting = true
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
+    uIOhook.keyTap(UiohookKey.F)
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
+    uIOhook.keyTap(UiohookKey.V)
+    uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+  } catch (e) {
+    restoreClip()
+    regexPasteLocked = false
+    injecting = false
+    restoreModifiers(held)
+    recordMainDiagnostic('regex-paste', e)
+    throw e
+  }
+
+  setTimeout(restoreClip, CLIPBOARD_HOLD_MS).unref?.()
+  await wait(PASTE_SETTLE_MS)
+  regexPasteLocked = false
+  injecting = false
+  restoreModifiers(held)
 }
 
 /** Track physically held modifier keys via uiohook (ignores synthetic key events during injection) */
@@ -761,55 +930,147 @@ export async function sendItemFilterCommand(filterName: string, currentFilter?: 
 
 // ─── Ctrl+C sender ───────────────────────────────────────────────────────────
 
+/** True when this accelerator's non-modifier key is C -- the key the copy
+ *  injection taps -- and it goes through globalShortcut (uiohook matchers only
+ *  observe; they can't consume). */
+function acceleratorTapsC(accelerator: string): boolean {
+  return isElectronRegisterable(accelerator) && parseAccelerator(accelerator)?.keycode === UiohookKey.C
+}
+
 /**
- * Send Ctrl+Alt+C to PoE via uiohook (OS-level SendInput).
- * Releases any modifier keys the user is holding from their hotkey combo
- * so PoE receives a clean Ctrl+Alt+C.
+ * Unregister every OS-registered hotkey whose key is C for the duration of a
+ * copy injection. Returns a restore callback, or null when nothing was held.
+ *
+ * The user may bind Ctrl+C -- PoE's own copy key -- as a hotkey; the collision
+ * guard warns but allows it (POE_PROTECTED_HOTKEYS). globalShortcut backs onto
+ * RegisterHotKey, which consumes matching keystrokes system-wide *including
+ * injected ones*, so with such a binding the injected copy fired the user's
+ * hotkey (then dropped by the `injecting` guard) and never reached the game:
+ * every capture failed (#601). 1.0.1 escaped by accident -- it always injected
+ * Ctrl+Alt+C, which a Ctrl+C registration doesn't match. Released combos are
+ * restored through each slot's canonical (re)registration path.
  */
-export async function sendCtrlCToPoE(): Promise<void> {
-  injecting = true
+function releaseCKeyedRegistrationsForInjection(): (() => void) | null {
+  if (suspendDepth > 0) return null // nothing is OS-registered while suspended
+  const restores: Array<() => void> = []
 
-  // Instead of releasing all user modifiers (racy to restore), piggyback on
-  // whatever the user already holds and only add what's missing for Ctrl+Alt+C.
-  const needCtrl = !heldModifiers.ctrl
-  const needAlt = !heldModifiers.alt
-
-  // Temporarily release Shift if held. PoE2 ignores the copy when Shift is still
-  // down at the moment C is tapped -- most visibly on equipped items, which
-  // silently fail and drop through to the slow focus-retry fallback (issue #338).
-  // The release must land *before* the tap, and PoE2 drops modifier events that
-  // fire too close together (same fragility as the post-tap hold below, ee2 issue
-  // #124), so a synchronous Shift-up immediately followed by the tap doesn't take.
-  // Give the Shift-up ~30ms to register first. Only paid when Shift is held.
-  const heldShift = heldModifiers.shift
-  if (heldShift) {
-    uIOhook.keyToggle(UiohookKey.Shift, 'up')
-    uIOhook.keyToggle(UiohookKey.ShiftRight, 'up')
-    await new Promise((r) => setTimeout(r, 30))
+  // Restores re-read the live slot state rather than the released accelerator,
+  // so a hotkey changed mid-injection isn't clobbered by its old value.
+  if (currentAccelerator && acceleratorTapsC(currentAccelerator)) {
+    try {
+      globalShortcut.unregister(currentAccelerator)
+    } catch {}
+    restores.push(() => {
+      if (currentAccelerator) setHotkey(currentAccelerator)
+    })
+  }
+  if (priceCheckAccelerator && acceleratorTapsC(priceCheckAccelerator)) {
+    try {
+      globalShortcut.unregister(priceCheckAccelerator)
+    } catch {}
+    restores.push(() => {
+      if (priceCheckAccelerator) setPriceCheckHotkey(priceCheckAccelerator)
+    })
+  }
+  if (launcherAccelerator && acceleratorTapsC(launcherAccelerator)) {
+    try {
+      globalShortcut.unregister(launcherAccelerator)
+    } catch {}
+    restores.push(() => {
+      if (launcherAccelerator) setLauncherHotkey(launcherAccelerator)
+    })
+  }
+  const scoped = [...registeredChatAccelerators, ...appMacroAccelerators].filter(acceleratorTapsC)
+  if (scoped.length > 0) {
+    for (const accelerator of scoped) {
+      try {
+        globalShortcut.unregister(accelerator)
+      } catch {}
+    }
+    restores.push(() => refreshScopedHotkeys('copy-injection'))
+  }
+  const overlayScoped = registeredOverlayAccelerators.filter(acceleratorTapsC)
+  if (overlayScoped.length > 0) {
+    for (const accelerator of overlayScoped) {
+      try {
+        globalShortcut.unregister(accelerator)
+      } catch {}
+    }
+    restores.push(() => setSecondaryOverlayHotkeys(secondaryOverlayHotkeys))
   }
 
-  if (needCtrl) uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
-  if (needAlt) uIOhook.keyToggle(UiohookKey.Alt, 'down')
-  uIOhook.keyTap(UiohookKey.C)
+  if (restores.length === 0) return null
+  return () => {
+    for (const restore of restores) restore()
+  }
+}
 
-  // PoE2 drops modifier keyup events when they fire too soon after the C tap,
-  // leaving the in-game advanced tooltip stuck "Alt-pinned" on the item (the
-  // symptom shows up most when the overlay closes via click-outside, where no
-  // focus round-trip resyncs PoE's view of held modifiers). Hold the modifiers
-  // ~10ms before releasing so PoE registers them in order. Same root cause and
-  // fix as Exiled-Exchange-2 issue #124.
-  await new Promise<void>((resolve) => {
-    setTimeout(() => {
-      if (needAlt) uIOhook.keyToggle(UiohookKey.Alt, 'up')
-      if (needCtrl) uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
-      // Re-press Shift immediately if it was held
-      if (heldShift) uIOhook.keyToggle(heldShift, 'down')
-    }, 10)
-    setTimeout(() => {
-      injecting = false
-      resolve()
-    }, 100)
-  })
+/**
+ * Send Ctrl+C to PoE via uiohook (OS-level SendInput).
+ *
+ * Both games now emit the advanced item description for a plain Ctrl+C, so Alt
+ * (PoE's "show advanced item descriptions" modifier) is no longer held (#560).
+ * `withAlt` restores the legacy Ctrl+Alt+C for a client that still needs it --
+ * see the advanced-copy tracker, which decides when that is.
+ *
+ * A user who *holds* Alt as part of their own hotkey is left alone either way:
+ * the game seeing Ctrl+Alt+C copies the same advanced text, so there is nothing
+ * to fight. A user whose hotkey *is* a C combo is handled by releasing that
+ * registration for the injection window -- see
+ * releaseCKeyedRegistrationsForInjection (#601).
+ */
+export async function sendCtrlCToPoE(opts?: { withAlt?: boolean }): Promise<void> {
+  injecting = true
+  const restoreCKeyedRegistrations = releaseCKeyedRegistrationsForInjection()
+
+  // Instead of releasing all user modifiers (racy to restore), piggyback on
+  // whatever the user already holds and only add what's missing.
+  const needCtrl = !heldModifiers.ctrl
+  const needAlt = opts?.withAlt === true && !heldModifiers.alt
+
+  try {
+    // Temporarily release Shift if held. PoE2 ignores the copy when Shift is still
+    // down at the moment C is tapped -- most visibly on equipped items, which
+    // silently fail and drop through to the slow focus-retry fallback (issue #338).
+    // The release must land *before* the tap, and PoE2 drops modifier events that
+    // fire too close together (same fragility as the post-tap hold below, ee2 issue
+    // #124), so a synchronous Shift-up immediately followed by the tap doesn't take.
+    // Give the Shift-up ~30ms to register first. Only paid when Shift is held.
+    const heldShift = heldModifiers.shift
+    if (heldShift) {
+      uIOhook.keyToggle(UiohookKey.Shift, 'up')
+      uIOhook.keyToggle(UiohookKey.ShiftRight, 'up')
+      await new Promise((r) => setTimeout(r, 30))
+    }
+
+    if (needCtrl) uIOhook.keyToggle(UiohookKey.Ctrl, 'down')
+    if (needAlt) uIOhook.keyToggle(UiohookKey.Alt, 'down')
+    uIOhook.keyTap(UiohookKey.C)
+
+    // PoE2 drops modifier keyup events when they fire too soon after the C tap,
+    // leaving PoE's view of held modifiers out of sync -- on the Alt path that
+    // showed up as the in-game advanced tooltip stuck "Alt-pinned" on the item
+    // (most visible when the overlay closes via click-outside, where no focus
+    // round-trip resyncs it). Hold the modifiers ~10ms before releasing so PoE
+    // registers them in order. Same root cause and fix as Exiled-Exchange-2
+    // issue #124.
+    await new Promise<void>((resolve) => {
+      setTimeout(() => {
+        if (needAlt) uIOhook.keyToggle(UiohookKey.Alt, 'up')
+        if (needCtrl) uIOhook.keyToggle(UiohookKey.Ctrl, 'up')
+        // Re-press Shift immediately if it was held
+        if (heldShift) uIOhook.keyToggle(heldShift, 'down')
+      }, 10)
+      setTimeout(() => {
+        injecting = false
+        resolve()
+      }, 100)
+    })
+  } finally {
+    // Re-register only after the injected tap has cleared the OS input queue --
+    // restoring earlier would let our own registration swallow it (#601).
+    restoreCKeyedRegistrations?.()
+  }
 }
 
 function getHotkeyDiagnostics(): Record<string, unknown> {
@@ -820,6 +1081,7 @@ function getHotkeyDiagnostics(): Record<string, unknown> {
     suspendDepth,
     triggerHotkeyConfigured: currentAccelerator !== null,
     priceCheckHotkeyConfigured: priceCheckAccelerator !== null,
+    launcherHotkeyConfigured: launcherAccelerator !== null,
     chatCommandConfiguredCount: configuredChatCommands.length,
     chatCommandApplicableCount: applicableChatCommandCount,
     chatCommandHotkeyCount: registeredChatAccelerators.length,
@@ -834,6 +1096,8 @@ function getHotkeyDiagnostics(): Record<string, unknown> {
     failedScopedRegistrations,
     stashScrollEnabled,
     stashScrollModifier,
+    // 'alt' means this client only yields advanced item text with Alt held (#560).
+    advancedCopyState: advancedCopyTracker.state(),
     lastHookStartError,
     lastHookStopError,
   }

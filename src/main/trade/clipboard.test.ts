@@ -91,6 +91,111 @@ describe('parseItemText', () => {
       expect(item.itemLevel).toBe(83)
     })
 
+    it('parses Allflame intangibility off the property block (#588)', () => {
+      // 3.29 prints it with the property block, as a percentage.
+      const text = [
+        'Item Class: Rings',
+        'Rarity: Rare',
+        'Oblivion Grip',
+        'Manifold Ring',
+        '--------',
+        'Quality (Life and Mana Modifiers): +20% (augmented)',
+        'Intangibility: 67%',
+        '--------',
+        'Item Level: 84',
+        '--------',
+        '+42 to maximum Life',
+      ].join('\n')
+
+      expect(parseItemText(text)!.intangibility).toBe(67)
+    })
+
+    it('leaves intangibility undefined on an item that never saw an Allflame craft', () => {
+      const text = [
+        'Item Class: Rings',
+        'Rarity: Rare',
+        'Storm Knuckle',
+        'Ruby Ring',
+        '--------',
+        'Item Level: 75',
+      ].join('\n')
+
+      expect(parseItemText(text)!.intangibility).toBeUndefined()
+    })
+
+    it('parses the level requirement from the requirements section', () => {
+      const text = [
+        'Item Class: Helmets',
+        'Rarity: Rare',
+        'Dread Visor',
+        'Iron Hat',
+        '--------',
+        'Armour: 120',
+        '--------',
+        'Requirements:',
+        'Level: 40',
+        'Str: 62',
+        '--------',
+        'Item Level: 55',
+        '--------',
+        '+42 to maximum Life',
+      ].join('\n')
+
+      expect(parseItemText(text)!.requiredLevel).toBe(40)
+    })
+
+    it('reads the gem level requirement, not the gem property-block level', () => {
+      // A gem prints "Level: 20" in its property block before the requirements
+      // section. An unscoped read takes the first match and returns the gem level.
+      const text = [
+        'Item Class: Active Skill Gems',
+        'Rarity: Gem',
+        'Fireball',
+        '--------',
+        'Fire, Projectile, Spell, AoE',
+        'Level: 20',
+        '--------',
+        'Requirements:',
+        'Level: 70',
+        'Int: 155',
+        '--------',
+        'Deals 1095 to 1643 Fire Damage',
+      ].join('\n')
+
+      const item = parseItemText(text)!
+      expect(item.gemLevel).toBe(20)
+      expect(item.requiredLevel).toBe(70)
+    })
+
+    it('parses a level requirement the character cannot meet', () => {
+      const text = [
+        'Item Class: Body Armours',
+        'Rarity: Rare',
+        'Doom Shell',
+        'Astral Plate',
+        '--------',
+        'Requirements:',
+        'Level: 62 (unmet)',
+        'Str: 180',
+        '--------',
+        'Item Level: 86',
+      ].join('\n')
+
+      expect(parseItemText(text)!.requiredLevel).toBe(62)
+    })
+
+    it('leaves the level requirement absent when the item prints none', () => {
+      const text = [
+        'Item Class: Stackable Currency',
+        'Rarity: Currency',
+        'Chaos Orb',
+        '--------',
+        'Stack Size: 5/10',
+      ].join('\n')
+
+      expect(parseItemText(text)!.requiredLevel).toBeUndefined()
+    })
+
     it('parses quality', () => {
       const text = [
         'Item Class: Body Armours',
@@ -572,6 +677,38 @@ describe('parseItemText', () => {
       expect(item.corrupted).toBe(true)
     })
 
+    it('resolves a renamed Vaal half to the real gem name (Purity of Fire -> Vaal Impurity of Fire)', () => {
+      // A hybrid Vaal gem is named by its non-Vaal half, with the Vaal skill heading a
+      // later section. The Vaal half of Purity of Fire is "Vaal Impurity of Fire", not
+      // "Vaal Purity of Fire", so the prefix rule alone names a gem that does not
+      // exist and the price check returns nothing (#589).
+      const text = [
+        'Item Class: Skill Gems',
+        'Rarity: Gem',
+        'Purity of Fire',
+        '--------',
+        'Aura, Spell, AoE, Duration, Vaal, Fire',
+        'Level: 20 (Max)',
+        'Reservation: 35% Mana',
+        'Cast Time: Instant',
+        'Quality: +20% (augmented)',
+        '--------',
+        'Your aura grants +49% to Fire Resistance to you and your allies',
+        '--------',
+        'Vaal Impurity of Fire',
+        '--------',
+        'Souls Per Use: 40',
+        'Can Store 1 Use',
+        'Soul Gain Prevention: 0 sec',
+        '--------',
+        'Corrupted',
+      ].join('\n')
+      const item = parseItemText(text)!
+      expect(item.name).toBe('Vaal Impurity of Fire')
+      expect(item.baseType).toBe('Vaal Impurity of Fire')
+      expect(item.vaalGem).toBe(true)
+    })
+
     it('does not flag Vaal-related Support gems as vaalGem (regression: Vaal Temptation Support)', () => {
       // Support gems carry a "Vaal" tag because they *support* Vaal skills, but they are
       // not themselves Vaal skills -- no "Souls Per Use" mechanic, no Vaal-prefixed name
@@ -940,7 +1077,9 @@ describe('parseItemText', () => {
 
     it('parses a Flask', () => {
       const text = [
-        'Item Class: Flasks',
+        // Real PoE1 clipboards split the flask family: Life/Mana/Hybrid/Utility
+        // Flasks. Bare "Flasks" never appears in a modern copy.
+        'Item Class: Life Flasks',
         'Rarity: Magic',
         "Chemist's Divine Life Flask of Staunching",
         '--------',
@@ -958,7 +1097,7 @@ describe('parseItemText', () => {
       ].join('\n')
 
       const item = parseItemText(text)!
-      expect(item.itemClass).toBe('Flasks')
+      expect(item.itemClass).toBe('Life Flasks')
       expect(item.quality).toBe(10)
     })
 
@@ -1274,6 +1413,66 @@ describe('parseItemText', () => {
       const item = parseItemText(text)!
       expect(item.mercenaryBuild).toBeUndefined()
       expect(item.mercenaryLevel).toBeUndefined()
+      expect(item.mercenarySkills).toBeUndefined()
+    })
+
+    // A real level-83 Bladecaster, copied in-game after 3.27 made warrants
+    // Ctrl+C-able. Every skill and support here resolves to a live
+    // mercenary.skill_* / mercenary.support_* trade stat id.
+    const KRIMON = [
+      'Item Class: Map Fragments',
+      'Rarity: Normal',
+      'Mercenary Warrant',
+      '--------',
+      'Krimon Howl-scream',
+      '--------',
+      'Build: Bladecaster',
+      'Mercenary Level: 83',
+      '--------',
+      'Clutches of the Damned',
+      '--------',
+      'Bloody Warp',
+      'Critical Chance (Tier: 2)',
+      'Cooldown Recovery (Tier: 2)',
+      '--------',
+      'Bladefall of Trarthus',
+      'Greater Concentrated Effect (Tier: 3)',
+      'Brutality (Tier: 2)',
+      '--------',
+      'Grace',
+      '--------',
+      'Right click this item to view Mercenary details.',
+      'Can be used in a personal Map Device alongside a Map to have this previously fought Mercenary reappear in the area for a rematch.',
+    ].join('\n')
+
+    it('parses each skill block with its supports, in clipboard order', () => {
+      expect(parseItemText(KRIMON)!.mercenarySkills).toEqual([
+        { name: 'Clutches of the Damned', supports: [] },
+        { name: 'Bloody Warp', supports: ['Critical Chance (Tier: 2)', 'Cooldown Recovery (Tier: 2)'] },
+        {
+          name: 'Bladefall of Trarthus',
+          supports: ['Greater Concentrated Effect (Tier: 3)', 'Brutality (Tier: 2)'],
+        },
+        { name: 'Grace', supports: [] },
+      ])
+    })
+
+    it('keeps the skill blocks out of the mod list', () => {
+      const item = parseItemText(KRIMON)!
+
+      expect(item.explicits ?? []).toEqual([])
+      expect(item.implicits ?? []).toEqual([])
+    })
+
+    it('stops at the description, so a trade note is never read as a skill', () => {
+      const withNote = `${KRIMON}\n--------\nNote: ~b/o 5 divine`
+      const names = parseItemText(withNote)!.mercenarySkills!.map((s) => s.name)
+
+      expect(names).toEqual(['Clutches of the Damned', 'Bloody Warp', 'Bladefall of Trarthus', 'Grace'])
+    })
+
+    it('leaves the field undefined on a warrant printed without skill blocks', () => {
+      expect(parseItemText(warrantText('Mysterious Diver'))!.mercenarySkills).toBeUndefined()
     })
   })
 
@@ -1424,6 +1623,38 @@ describe('parseItemText', () => {
       expect(item.vestigial).toBe(false)
     })
 
+    it('detects the PoE2 Sanctified marker line (#597)', () => {
+      const item = parseItemText(makeRing(['--------', 'Sanctified']))!
+      expect(item.sanctified).toBe(true)
+    })
+
+    it('a plain item is not sanctified, and a Sanctified base-type line does not trip the flag', () => {
+      // "Sanctified Staff" is a real PoE2 base type -- the marker check must be an
+      // exact line match, not a substring/prefix test.
+      const plain = parseItemText(makeRing([]))!
+      expect(plain.sanctified).toBe(false)
+      const text = [
+        'Item Class: Staves',
+        'Rarity: Rare',
+        'Storm Call',
+        'Sanctified Staff',
+        '--------',
+        'Item Level: 80',
+        '--------',
+        '+30 to Strength',
+      ].join('\n')
+      const item = parseItemText(text)!
+      expect(item.sanctified).toBe(false)
+      expect(item.explicits).toContain('+30 to Strength')
+    })
+
+    it('the Sanctified section is not swallowed into explicit mods', () => {
+      const item = parseItemText(makeRing(['--------', '+30 to Strength', '--------', 'Sanctified']))!
+      expect(item.sanctified).toBe(true)
+      expect(item.explicits).toContain('+30 to Strength')
+      expect(item.explicits).not.toContain('Sanctified')
+    })
+
     it('detects a foulborn unique via the name prefix and does NOT strip it (#532)', () => {
       // Unlike vestigial, the Foulborn prefix stays on `name` -- trade.ts strips it
       // at query time instead, since poe.ninja/the clipboard need the full name.
@@ -1552,7 +1783,7 @@ describe('parseItemText', () => {
   })
 
   // ---------------------------------------------------------------------------
-  // Advanced mods (Ctrl+Alt+C format)
+  // Advanced mods (advanced copy format)
   // ---------------------------------------------------------------------------
 
   describe('advanced mods', () => {
@@ -1788,6 +2019,37 @@ describe('parseItemText', () => {
       expect(item.explicits).toContain('Passives granting Fire Resistance\nalso grant increased Maximum Life')
     })
 
+    it('pushes intermediate contiguous joins for 3+ line mods (#559)', () => {
+      // "Tacati's" pairs a two-line stat ("Trigger a Socketed Spell ... Cooldown" +
+      // "Spells Triggered this way ...", one trade stat) with a third independent
+      // line. Neither the single lines nor the whole-block join matches that stat,
+      // so the 2-line prefix run has to be emitted too.
+      const text = [
+        'Item Class: Sceptres',
+        'Rarity: Rare',
+        'Phoenix Roar',
+        'Void Sceptre',
+        '--------',
+        'Item Level: 86',
+        '--------',
+        '{ Prefix Modifier "Tacati\'s" — Damage, Caster, Gem }',
+        'Trigger a Socketed Spell on Using a Skill, with a 4 second Cooldown',
+        'Spells Triggered this way have 150% more Cost',
+        '70(70-74)% increased Spell Damage',
+      ].join('\n')
+
+      const item = parseItemText(text)!
+      expect(item.explicits).toContain(
+        'Trigger a Socketed Spell on Using a Skill, with a 4 second Cooldown\nSpells Triggered this way have 150% more Cost',
+      )
+      expect(item.explicits).toContain('Spells Triggered this way have 150% more Cost\n70% increased Spell Damage')
+      // Individual lines and the whole-block join are still emitted.
+      expect(item.explicits).toContain('70% increased Spell Damage')
+      expect(item.explicits).toContain(
+        'Trigger a Socketed Spell on Using a Skill, with a 4 second Cooldown\nSpells Triggered this way have 150% more Cost\n70% increased Spell Damage',
+      )
+    })
+
     it('handles hybrid mods (socketed gem + bonus under one header)', () => {
       const text = [
         'Item Class: Helmets',
@@ -1831,6 +2093,7 @@ describe('parseItemText', () => {
       const eldritchMod = item.advancedMods?.find((m) => m.eldritch)
       expect(eldritchMod).toBeDefined()
       expect(eldritchMod?.type).toBe('implicit')
+      expect(eldritchMod?.eldritchSource).toBe('searing-exarch')
       expect(item.implicits).toContain('+2% to maximum Fire Resistance')
     })
 
@@ -1854,6 +2117,25 @@ describe('parseItemText', () => {
       const eldritchMod = item.advancedMods?.find((m) => m.eldritch)
       expect(eldritchMod).toBeDefined()
       expect(eldritchMod?.type).toBe('implicit')
+      expect(eldritchMod?.eldritchSource).toBe('eater-of-worlds')
+    })
+
+    it('leaves eldritchSource unset on an ordinary affix', () => {
+      const text = [
+        'Item Class: Rings',
+        'Rarity: Rare',
+        'Doom Loop',
+        'Iron Ring',
+        '--------',
+        'Item Level: 86',
+        '--------',
+        '{ Prefix Modifier "Test" (Tier: 1) -- Life }',
+        '+50 to maximum Life',
+      ].join('\n')
+
+      const mod = parseItemText(text)!.advancedMods?.[0]
+      expect(mod?.eldritch).toBe(false)
+      expect(mod?.eldritchSource).toBeUndefined()
     })
 
     it('stops collecting mod lines at section separators', () => {
@@ -2103,7 +2385,7 @@ describe('parseItemText', () => {
         'Item Level: 83',
       ].join('\n')
       const item = parseItemText(text)!
-      expect(item.heistJob).toEqual({ skill: 'Engineering', level: 3 })
+      expect(item.heistJobs).toEqual([{ skill: 'Engineering', level: 3 }])
     })
 
     it('parses heist job requirement from a contract with "(unmet)" suffix', () => {
@@ -2117,7 +2399,33 @@ describe('parseItemText', () => {
         'Item Level: 83',
       ].join('\n')
       const item = parseItemText(text)!
-      expect(item.heistJob).toEqual({ skill: 'Engineering', level: 3 })
+      expect(item.heistJobs).toEqual([{ skill: 'Engineering', level: 3 }])
+    })
+
+    it('parses every job requirement from a blueprint (#591)', () => {
+      const text = [
+        'Item Class: Blueprints',
+        'Rarity: Rare',
+        'Chimeric Pledge',
+        'Blueprint: Bunker',
+        '--------',
+        'Area Level: 83',
+        'Wings Revealed: 1/3',
+        'Escape Routes Revealed: 1/6',
+        'Reward Rooms Revealed: 3/21',
+        'Requires Demolition (Level 2)',
+        'Requires Counter-Thaumaturgy (Level 5)',
+        'Requires Trap Disarmament (Level 1)',
+        'Item Quantity: +58%',
+        '--------',
+        'Item Level: 84',
+      ].join('\n')
+      const item = parseItemText(text)!
+      expect(item.heistJobs).toEqual([
+        { skill: 'Demolition', level: 2 },
+        { skill: 'Counter-Thaumaturgy', level: 5 },
+        { skill: 'Trap Disarmament', level: 1 },
+      ])
     })
 
     it('parses wings revealed and total from a blueprint', () => {
@@ -2134,6 +2442,39 @@ describe('parseItemText', () => {
       const item = parseItemText(text)!
       expect(item.wingsRevealed).toBe(1)
       expect(item.wingsTotal).toBe(3)
+    })
+
+    it('parses Heist Target property from a blueprint', () => {
+      const text = [
+        'Item Class: Blueprints',
+        'Rarity: Normal',
+        'Blueprint: Bunker',
+        '--------',
+        'Heist Target: Currency',
+        'Area Level: 83',
+        'Wings Revealed: 3/3',
+        '--------',
+        'Item Level: 83',
+      ].join('\n')
+      const item = parseItemText(text)!
+      expect(item.heistTarget).toBe('Currency')
+    })
+
+    it('parses Heist Targets are always line as heistTarget', () => {
+      const text = [
+        'Item Class: Blueprints',
+        'Rarity: Normal',
+        'Blueprint: Bunker',
+        '--------',
+        'Area Level: 83',
+        'Wings Revealed: 1/3',
+        '--------',
+        'Heist Targets are always Enchanted Armaments',
+        '--------',
+        'Item Level: 83',
+      ].join('\n')
+      const item = parseItemText(text)!
+      expect(item.heistTarget).toBe('Enchanted Armaments')
     })
   })
 

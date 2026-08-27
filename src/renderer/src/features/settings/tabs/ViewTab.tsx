@@ -3,7 +3,8 @@ import type { AppSettings, HideableTabKey } from '@shared/types'
 import { ScrubInput } from '@renderer/components/primitives/ScrubInput'
 import { SettingToggleBox } from '@renderer/components/primitives/SettingToggleBox'
 import { ThemeSettings } from './ThemeSettings'
-import { Setting, CloseSmall, Buy, Filter, AllApplication } from '@icon-park/react'
+import { OpenSideSelector } from '@renderer/shared/OpenSideSelector'
+import { Setting, CloseSmall, Buy, Filter, AllApplication, Ranking } from '@icon-park/react'
 import { getGameFeatures } from '@shared/game-features'
 import { DIV_CARD_ICON_URL, IP } from '@renderer/shared/constants'
 import dustIconAsset from '@renderer/assets/currency/thaumaturgic-dust.png'
@@ -82,6 +83,12 @@ export function ViewTab({ settings, update, updateMany }: Props): JSX.Element {
       show: features.dustExplorer,
     },
     {
+      key: 'uniquetiers',
+      icon: <Ranking size={16} {...IP} />,
+      title: m.feature_unique_tiers(),
+      show: features.uniqueTiers,
+    },
+    {
       key: 'divcards',
       icon: <img src={DIV_CARD_ICON_URL} alt="" className="w-[18px] h-[18px] object-contain" />,
       title: m.feature_div_card_explorer(),
@@ -129,11 +136,13 @@ export function ViewTab({ settings, update, updateMany }: Props): JSX.Element {
 
   return (
     <>
+      <ThemeSettings settings={settings} update={update} updateMany={updateMany} />
+
       <div className="settings-section-title mt-3">{m.settings_customize_view()}</div>
 
       <section>
         <label>{m.settings_show_hide_tabs()}</label>
-        <div className="flex gap-1.5 mt-[6px] items-center">
+        <div className="flex flex-wrap gap-1.5 mt-[6px] items-center">
           {TOGGLEABLE.filter((t) => t.show).map((t) => {
             const isHidden = hidden.has(t.key)
             // poere logo is a fixed-color SVG, so we darken it via a brightness filter
@@ -235,25 +244,7 @@ export function ViewTab({ settings, update, updateMany }: Props): JSX.Element {
       {/* Open side (mount side at scan time; doesn't affect dragging) */}
       <section>
         <label>{m.settings_open_scalpel_on()}</label>
-        <div className="flex gap-1.5 mt-[6px]">
-          {(
-            [
-              ['both', m.settings_side_both()],
-              ['right', m.settings_side_right()],
-              ['left', m.settings_side_left()],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => update('openSide', value)}
-              className={`text-[11px] px-3 py-1.5 ${
-                (settings.openSide ?? 'both') === value ? 'bg-accent text-bg-solid' : 'text-text-dim'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <OpenSideSelector value={settings.openSide} onChange={(v) => update('openSide', v)} />
       </section>
 
       {/* Close on click outside */}
@@ -267,7 +258,6 @@ export function ViewTab({ settings, update, updateMany }: Props): JSX.Element {
         checked={settings.currencyLabelsAsText}
         onChange={(val) => update('currencyLabelsAsText', val)}
       />
-      <ThemeSettings settings={settings} update={update} updateMany={updateMany} />
     </>
   )
 }

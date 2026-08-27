@@ -1,4 +1,4 @@
-import type { FilterBlock, FilterFile } from '@shared/types'
+import type { FilterBlock, FilterFile, PoeItem } from '@shared/types'
 import type { LootSimAlert, LootSimDrop, LootSimRequest, LootSimResult } from '@shared/contracts/loot-sim'
 import { defaultPoeItem } from '@shared/poe-item'
 import { findMatchingBlocks } from './matcher'

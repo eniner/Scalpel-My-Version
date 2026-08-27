@@ -21,9 +21,13 @@ interface Props {
   onOpenSettingsTab: (tab: string) => void
   /** Hide this tab (adds 'extras' to hiddenTabs) and navigate away. */
   onHideTab: () => void
+  /** Installed plugin tabs — shown as the extras icon grid (1.0.2 Extra Features). */
+  pluginTabs?: Array<{ pluginId: string; label: string; icon: string }>
+  hiddenPluginTabIds?: ReadonlySet<string>
+  onOpenPlugin?: (pluginId: string) => void
 }
 
-type AppMacroAction = 'toggleRegexRemote' | 'toggleWhiteboard'
+type AppMacroAction = 'toggleRegexRemote' | 'toggleWhiteboard' | 'toggleFilterSectionEditor'
 
 export function ExtraFeaturesPanel({
   settings,
@@ -32,6 +36,9 @@ export function ExtraFeaturesPanel({
   tryHotkey,
   onOpenSettingsTab,
   onHideTab,
+  pluginTabs = [],
+  hiddenPluginTabIds,
+  onOpenPlugin,
 }: Props): JSX.Element {
   const currentGame = usePoeVersion()
   const cheatSheets = settings.activeProfile?.cheatSheets ?? { globalHotkey: '', categories: [] }
@@ -70,11 +77,28 @@ export function ExtraFeaturesPanel({
     update('appMacros', macros)
   }
 
+  const visiblePlugins = pluginTabs.filter((t) => !hiddenPluginTabIds?.has(t.pluginId))
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <h2 className="section-title">Additional Tools & Plugins</h2>
       </div>
+
+      {visiblePlugins.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {visiblePlugins.map((t) => (
+            <button
+              key={t.pluginId}
+              type="button"
+              title={t.label}
+              onClick={() => onOpenPlugin?.(t.pluginId)}
+              className="btn-bounce w-[30px] h-[30px] flex items-center justify-center shrink-0 bg-white/[0.06] [&_svg]:w-4 [&_svg]:h-4 [&_svg]:block"
+              dangerouslySetInnerHTML={{ __html: t.icon }}
+            />
+          ))}
+        </div>
+      )}
 
       <FeatureCard
         icon={<img src={cheatSheetsArt} alt="" className="w-full h-full object-cover rounded" />}
@@ -113,6 +137,30 @@ export function ExtraFeaturesPanel({
         bgArt={whiteboardArt}
       >
         <HotkeyField value={macroHotkey('toggleWhiteboard')} onChange={(h) => setMacroHotkey('toggleWhiteboard', h)} />
+      </FeatureCard>
+
+      <FeatureCard
+        icon={
+          <div className="w-full h-full flex items-center justify-center text-accent text-lg font-bold rounded bg-black/40">
+            F
+          </div>
+        }
+        title="Filter Section Editor"
+        blurb="Large sister window to edit NeverSink-style section tiers (Show/Hide, move bases, match debug)."
+      >
+        <div className="flex flex-col gap-1.5">
+          <HotkeyField
+            value={macroHotkey('toggleFilterSectionEditor')}
+            onChange={(h) => setMacroHotkey('toggleFilterSectionEditor', h)}
+          />
+          <button
+            type="button"
+            className="text-[11px] px-3 py-1.5 self-start border border-border rounded"
+            onClick={() => window.api.filterSectionEditor.show()}
+          >
+            Open now
+          </button>
+        </div>
       </FeatureCard>
 
       <FeatureCard

@@ -4,6 +4,7 @@ import { attachTierLadder } from './tier-attach'
 import { BENEFICIAL_NEGATIVE_KEYWORDS } from '@shared/data/trade/beneficial-negatives'
 import { isClusterJewel } from '@shared/poe-item'
 import type { ModTier } from '@shared/data/tiers/types'
+import { modSourceForAffix } from '@shared/data/tiers/mod-sources'
 import type { StatFilter } from '../../trade'
 import { resolveStaffBlockAttackStatId } from '../../stat-exceptions'
 import { findAdvMod } from '../adv-mods'
@@ -11,7 +12,7 @@ import { computeValueBounds } from '../bounds'
 import { isDefenseMod, isLocalMod, isLowPriority } from '../classification'
 import { QUALIFIER_BY_ITEM_CLASS } from '../item-classes'
 import type { MatchContext } from '../context'
-import { matchModToStat } from '../mod-matcher'
+import { INDEXABLE_SUPPORT_RE, matchModToStat } from '../mod-matcher'
 import { accumulatePseudo, PSEUDO_CONTRIBUTIONS, type PseudoContribution } from '../pseudo'
 
 // Gem-level gear mods are discrete brackets where +2 listings are far pricier
@@ -86,6 +87,24 @@ function mergeDuplicateStats(rows: StatFilter[], pct: number): StatFilter[] {
       result.push(first)
       continue
     }
+    // Forbidden Shako / Replica Forbidden Shako can roll the same randomized support
+    // in both of their support slots (e.g. Level 4 + Level 30 Decay). The trade index
+    // keeps each indexable-support instance separate -- a search on indexable_support_92
+    // with min=36 over all of Standard returns 0 items -- so summing them into one
+    // Level-34 row (as the generic merge below does) searched only items that rolled a
+    // single Level-34 Decay, the wrong items at the wrong price (#552). Emit every row
+    // unmerged; only the highest roll (the price driver) keeps its computed enabled
+    // state, the rest surface disabled -- two filters on the same indexable id in one
+    // group match nothing (probe: indexable_support_30 with {1-10} AND {25-35} returns
+    // 0 on Standard while each bound alone returns hundreds).
+    if (INDEXABLE_SUPPORT_RE.test(first.id)) {
+      let best = group[0]
+      for (const row of group) {
+        if ((row.value ?? -Infinity) > (best.value ?? -Infinity)) best = row
+      }
+      for (const row of group) result.push(row === best ? row : { ...row, enabled: false })
+      continue
+    }
     // Sum values, recompute min/max from the summed value rather than the partial mins
     const allNull = group.every((r) => r.value == null)
     const sum = allNull ? null : group.reduce((acc, r) => acc + (r.value ?? 0), 0)
@@ -140,22 +159,43 @@ function mergeDuplicateStats(rows: StatFilter[], pct: number): StatFilter[] {
  *  real stat, in which case the joined row is the correct single stat. */
 export function dropFragmentDuplicates(rows: StatFilter[]): StatFilter[] {
   const idsWithValue = new Set(rows.filter((r) => r.value != null).map((r) => r.id))
-  // Physical lines of any row that survived as a "\n"-joined multi-line mod. A
-  // fragment can match a DIFFERENT (longer) stat id than the joined row via the
-  // substring fallback, so the same-id check above misses it -- but its text is
-  // always verbatim one of the joined row's lines.
+  // Every proper sub-run of the physical lines of any row that survived as a
+  // "\n"-joined multi-line mod. A fragment can match a DIFFERENT (longer) stat id
+  // than the joined row via the substring fallback, so the same-id check above
+  // misses it -- but its text is always verbatim a contiguous run of the joined
+  // row's lines. Runs (not just single lines) because clipboard.ts offers every
+  // contiguous run of an advanced-mod block as a match candidate, so a two-line
+  // fragment of a three-line stat is just as much an artifact as a one-line one.
   const joinedSegments = new Set<string>()
   for (const r of rows) {
     if (!r.text?.includes('\n')) continue
-    for (const seg of r.text.split('\n')) {
-      const trimmed = seg.trim()
-      if (trimmed) joinedSegments.add(trimmed)
+    const lines = r.text.split('\n').map((l) => l.trim())
+    for (let start = 0; start < lines.length; start++) {
+      for (let end = start + 1; end <= lines.length; end++) {
+        if (end - start === lines.length) continue // the whole row, not a fragment
+        const run = lines.slice(start, end).join('\n')
+        if (run) joinedSegments.add(run)
+      }
     }
   }
   return rows.filter(
     (r) =>
       r.value != null || r.option != null || (!idsWithValue.has(r.id) && !joinedSegments.has(r.text?.trim() ?? '')),
   )
+}
+
+/** Leave only the highest-rolled Forbidden Shako support enabled by default.
+ *  Its two support slots roll on different brackets (1-10 and 25-35), so the high one
+ *  is what the item sells on; searching both at once is what a listing almost never
+ *  matches -- live probe on Allflame: "Power Charge On Critical >= 8 AND Fork >= 31"
+ *  returns 0 while each alone returns results. The losing rows stay visible (and
+ *  tickable) so the pair is still one click away. */
+function onlyBestRandomSupport(rows: StatFilter[]): StatFilter[] {
+  const supports = rows.filter((r) => r.randomSupport)
+  if (supports.length < 2) return rows
+  let best = supports[0]
+  for (const row of supports) if ((row.value ?? -Infinity) > (best.value ?? -Infinity)) best = row
+  return rows.map((r) => (r.randomSupport && r !== best ? { ...r, enabled: false } : r))
 }
 
 export function processExplicits(ctx: MatchContext): StatFilter[] {
@@ -228,6 +268,18 @@ export function processExplicits(ctx: MatchContext): StatFilter[] {
       if (advMod?.crafted) isCrafted = true
       if (advMod?.randomSupport) isRandomSupport = true
     }
+    // Basic copies (e.g. chat-linked items) carry no advanced-mod data, so the roll
+    // bracket can never flag a randomized support here. The only PoE1 items with
+    // indexable supports are Forbidden Shako / Replica Forbidden Shako, both unique
+    // Great Crowns, so route their support lines by item identity instead (#552).
+    if (
+      !isRandomSupport &&
+      itemInfo?.rarity === 'Unique' &&
+      itemInfo?.baseType === 'Great Crown' &&
+      SOCKETED_SUPPORT_LEVEL_MOD.test(cleaned)
+    ) {
+      isRandomSupport = true
+    }
     const useLocal = hasLocalMods && isLocalMod(cleaned, isWeapon)
     // Trade stats that share display text across item categories carry a trailing
     // qualifier ("#% increased Duration (Charm)" / "(Flask)", jewel-only globals as
@@ -290,10 +342,18 @@ export function processExplicits(ctx: MatchContext): StatFilter[] {
       // (see normRange below) so detrimental rolls on a sign-flipped reduced bracket are
       // NOT mistaken for perfect.
       let perfectRoll = false
+      // Source badge. Read off the affix name resolved up front, not advModName: that
+      // one is only captured on the tier-ladder path, which is gated on a numeric value
+      // and skips socketed-support lines, and influence/delve mods can be value-less
+      // ("Curse Enemies with Despair on Hit") or Elder support hybrids.
+      let modSource = modSourceForAffix(advMod?.name, itemInfo?.itemClass)
       if (advancedMods && matched.value != null) {
         const rawCleaned = mod.replace(/\s*\((?:crafted|fractured)\)\s*$/i, '').trim()
         const advMod = findAdvMod(advancedMods, cleaned, 'explicit', rawCleaned)
         if (advMod) {
+          // The raw-text fallback above matches blocks the plain lookup misses (a basic
+          // copy's "(fractured)" suffix), so let it fill in a source the outer one missed.
+          modSource ??= modSourceForAffix(advMod.name, itemInfo?.itemClass)
           const range = advMod.ranges.find((r) => r.value === matched.value || r.value === -(matched.value ?? 0))
           // When the mod matched only via sign inversion (clipboard "fewer N" / "reduced N"
           // against the trade API's positive "additional" / "increased" stat, value negated
@@ -322,7 +382,16 @@ export function processExplicits(ctx: MatchContext): StatFilter[] {
           // search min=14 via 90% floor). Also ignore a coincidental value match
           // (Level 16 + 16% Area Damage sharing the same AdvancedMod.ranges entry).
           if (SOCKETED_SUPPORT_LEVEL_MOD.test(cleaned)) {
-            isFixedValue = true
+            // ...but a Forbidden Shako support level genuinely rolls (1-10 in one slot,
+            // 25-35 in the other), so keep its own bracket for the range display and the
+            // perfect-roll check below. Tier / ladder data still stays off: the block has
+            // no companion stat and a unique has no tier ladder to scrub (#564).
+            if (isRandomSupport) {
+              if (normRange && normRange.min !== normRange.max)
+                matchedRange = { min: normRange.min, max: normRange.max }
+            } else {
+              isFixedValue = true
+            }
           } else {
             if (advMod.tier > 0) matchedTier = advMod.tier
             if (normRange && normRange.min !== normRange.max) matchedRange = { min: normRange.min, max: normRange.max }
@@ -432,9 +501,12 @@ export function processExplicits(ctx: MatchContext): StatFilter[] {
       }
       // Same pin for "Socketed Gems are Supported by Level N …" (Elder hybrids etc.).
       // Support level is discrete/fixed; T1 companion widening must not rewrite it.
+      // Exception: a Forbidden Shako support level ROLLS, and the level is what the
+      // Shako is priced on, so search it open-ended (min = the rolled level) -- pinning
+      // min=max to one of 35 possible levels on BOTH support rows returns nothing (#564).
       if (SOCKETED_SUPPORT_LEVEL_MOD.test(cleaned) && matched.value != null) {
         minValue = matched.value
-        maxValue = matched.value
+        maxValue = isRandomSupport ? null : matched.value
       }
       const structurallyOff =
         craftedForTrade ||
@@ -481,9 +553,11 @@ export function processExplicits(ctx: MatchContext): StatFilter[] {
         premium: isPremium || undefined,
         modTier: matchedTier,
         modRange: matchedRange,
+        modSource,
         tierLadder,
         tierQualityMult: advModMult,
         fixedRoll: isFixedValue || undefined,
+        randomSupport: (isRandomSupport && INDEXABLE_SUPPORT_RE.test(matched.statId)) || undefined,
       })
       // Defer attribute contributions (Str -> Life, Int -> Mana) until post-loop so we
       // can check whether their target pseudo has a real contributor on this item.
@@ -509,6 +583,7 @@ export function processExplicits(ctx: MatchContext): StatFilter[] {
           aggregated: matched.aggregated,
           modTier: matchedTier,
           modRange: matchedRange,
+          modSource,
           tierLadder,
           tierQualityMult: advModMult,
         })
@@ -527,5 +602,5 @@ export function processExplicits(ctx: MatchContext): StatFilter[] {
     if (!d.forced && d.contributions.some((c) => !c.keepSourceRow)) d.row.enabled = false
   }
 
-  return mergeDuplicateStats(dropFragmentDuplicates(out), pct)
+  return onlyBestRandomSupport(mergeDuplicateStats(dropFragmentDuplicates(out), pct))
 }

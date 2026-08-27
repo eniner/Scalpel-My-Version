@@ -8,9 +8,14 @@
 
 export * from './runtime'
 export type {
+  MediaApi,
+  MediaSession,
   PluginActivate,
+  PluginListingRow,
+  PluginListingScanResult,
   PluginManifest,
   PluginStorage,
+  PluginTeardown,
   PluginTradeSearchItem,
   PriceEntry,
   PricesApi,

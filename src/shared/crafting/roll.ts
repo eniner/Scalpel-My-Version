@@ -147,7 +147,12 @@ export function rollFreshRare(
   return rollMods(data, state, target, 3, 3, new Set(), rollTagsForState(state), rng, tierFloor)
 }
 
-export function rollFreshMagic(data: CraftDataset, state: CraftItemState, rng: () => number, tierFloor = 0): CraftMod[] {
+export function rollFreshMagic(
+  data: CraftDataset,
+  state: CraftItemState,
+  rng: () => number,
+  tierFloor = 0,
+): CraftMod[] {
   const target = pickModCount(MAGIC_MOD_COUNT, rng)
   return rollMods(data, state, target, 1, 1, new Set(), rollTagsForState(state), rng, tierFloor)
 }

@@ -3,6 +3,7 @@ import type { PluginActivate, RegisterOverlayOptions, ScalpelPluginContext } fro
 import type { PoeItem, Zone } from '@shared/types'
 import { importPluginModule } from './import-plugin-module'
 import { resolveLeagueOptions } from '@renderer/shared/league-options'
+import { createFilterApi } from './create-filter-api'
 
 export interface ActivatedPlugin {
   captured: { opts: RegisterOverlayOptions; render: (container: HTMLElement) => (() => void) | void } | null
@@ -31,6 +32,8 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
       const poeVersion: 1 | 2 = (state?.poeVersion as 1 | 2) ?? 1
       const settings = await window.api.getSettings().catch(() => null)
       let league = settings?.activeProfile?.league ?? ''
+      const seededZone = await window.api.getCurrentZone().catch(() => null)
+      if (seededZone) latestZone = seededZone
       const mod = (await importPluginModule(entry.entryUrl)) as { default?: PluginActivate }
       if (cancelled || typeof mod.default !== 'function') return
       const capHolder: { value: ActivatedPlugin['captured'] } = { value: null }
@@ -68,6 +71,17 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
         closeOverlay: () => {
           void window.api.pluginCloseOverlay(pluginId)
         },
+        onOverlayVisibility: (h) => window.api.onPluginOverlayVisibility(h),
+        setInteractiveRegion: (rect) => {
+          // Report the rect (in this window's CSS px) as an interactive panel so
+          // the main-process uiohook hit-test flips THIS overlay window clickable
+          // while the cursor is inside it. Empty array clears (stays click-through).
+          if (rect && rect.width > 0 && rect.height > 0) {
+            window.api.reportPanelRect([{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }])
+          } else {
+            window.api.reportPanelRect([])
+          }
+        },
         openTab: () => {},
         copyAndEvaluateItem: (opts) => window.api.pluginTriggerMainHotkey(opts),
         captureGameWindow: (region) => window.api.pluginCaptureGameWindow(region),
@@ -93,12 +107,27 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
         },
         trade: {
           openSearch: (item) => window.api.tradeOpenSearch(item),
+          priceCheck: (item) => window.api.tradePriceCheck(item),
+          scanListings: (item) => window.api.tradeScanListings(item),
+          scanWarrants: (opts) => window.api.warrantsScan(opts),
+          warrantsCatalog: () => window.api.warrantsCatalog(),
+          whisperSeller: (queryId, listingId, league) => window.api.whisperSeller(queryId, listingId, league),
+          visitHideout: (queryId, listingId, league) => window.api.visitHideout(queryId, listingId, league),
+          getAuth: async () => {
+            const auth = await window.api.poeCheckAuth()
+            return { loggedIn: Boolean(auth?.loggedIn) }
+          },
+          login: () => window.api.poeLogin(),
         },
         prices: {
           getPrices: (opts) => window.api.pricesGet(opts),
           refresh: () => window.api.pricesRefresh(),
           onChange: (handler) => window.api.onPricesChange(handler),
         },
+        ninja: {
+          getCharacterModel: (opts) => window.api.ninjaGetCharacterModel(opts),
+        },
+        filter: createFilterApi(window.api),
         webPanel: {
           open: (opts) => window.api.pluginWebPanelOpen(pluginId, opts),
           navigate: (url) => window.api.pluginWebPanelNavigate(pluginId, url),
@@ -116,6 +145,14 @@ export function useActivatePlugin(pluginId: string): ActivatedPlugin {
           searchBases: (query, limit, itemClass) => window.api.craftSearchBases(pluginId, query, limit, itemClass),
           listItemClasses: () => window.api.craftListItemClasses(pluginId),
           searchMods: (opts) => window.api.craftSearchMods(pluginId, opts),
+          getCatalog: () => window.api.craftGetCatalog(pluginId),
+        },
+        media: {
+          getSession: () => window.api.pluginMediaGetSession(),
+          onChange: (handler) => window.api.onMediaChange(handler),
+          playPause: () => window.api.pluginMediaCommand('play-pause'),
+          next: () => window.api.pluginMediaCommand('next'),
+          previous: () => window.api.pluginMediaCommand('previous'),
         },
         openExternal: (url) => window.api.openExternal(url),
         log: (...args: unknown[]) => {

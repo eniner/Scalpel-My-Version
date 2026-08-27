@@ -16,14 +16,15 @@ export function removePluginHotkey(pluginId: string): void {
 }
 
 /** Registry for plugin overlay-toggle hotkeys. Keyed by plugin id; value
- *  carries the label shown in the Settings > Macros row. */
-const registeredOverlayHotkeys = new Map<string, { label: string }>()
+ *  carries the label shown in the Settings > Macros row and an optional icon
+ *  (SVG markup) for the radial launcher. */
+const registeredOverlayHotkeys = new Map<string, { label: string; icon?: string }>()
 
-export function setPluginOverlayHotkey(pluginId: string, label: string): void {
-  registeredOverlayHotkeys.set(pluginId, { label })
+export function setPluginOverlayHotkey(pluginId: string, label: string, icon?: string): void {
+  registeredOverlayHotkeys.set(pluginId, { label, icon })
 }
 
-export function getRegisteredOverlayHotkeys(): ReadonlyMap<string, { label: string }> {
+export function getRegisteredOverlayHotkeys(): ReadonlyMap<string, { label: string; icon?: string }> {
   return registeredOverlayHotkeys
 }
 

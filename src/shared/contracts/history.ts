@@ -2,8 +2,10 @@ export interface HistoryEntry {
   id: number
   timestamp: number
   description: string
-  action: 'block-edit' | 'tier-move' | 'stack-threshold' | 'strand-threshold'
+  action: 'block-edit' | 'tier-move' | 'basetype-remove' | 'stack-threshold' | 'strand-threshold'
   itemName?: string
+  /** NeverSink $type path when the edit was section-scoped */
+  typePath?: string
 }
 
 export interface FilterChange {
@@ -11,6 +13,9 @@ export interface FilterChange {
   description: string
   itemName?: string
   timestamp: number
+  typePath?: string
+  tier?: string
+  intentType?: string
 }
 
 export interface FilterVersion {

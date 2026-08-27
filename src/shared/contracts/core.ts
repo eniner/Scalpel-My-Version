@@ -1,3 +1,5 @@
+export type GameVariant = 1 | 2
+
 export type AppLocale = 'en' | 'es' | 'de'
 
 export type ItemRarity = 'Normal' | 'Magic' | 'Rare' | 'Unique' | 'Gem' | 'Currency'
@@ -27,13 +29,10 @@ export type ActionType =
 
 export type ConditionResult = 'pass' | 'fail' | 'unknown'
 
-export type TradePriceOption =
-  | 'chaos_divine'
-  | 'chaos_equivalent'
-  | 'chaos'
-  | 'divine'
-  | 'exalted_divine'
-  | 'exalted_equivalent'
-  | 'exalted'
+/** Derived from the buyout-currency catalog so the option list and the
+ *  persisted type can't drift apart. */
+export type { TradePriceOption } from '../trade-price-options'
 
 export type AdaptiveMode = 'eager' | 'conservative' | 'off'
+
+export type AffixesPrechecked = 'default' | 'base' | 'all'

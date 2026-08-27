@@ -4,6 +4,7 @@ import type { CheatSheetsSettings, CheatSheetCategory, RuntimeSettings } from '@
 import { CHEAT_SHEET_MINIMIZED_HEIGHT, CHEAT_SHEET_MINIMIZED_SLACK } from '@shared/cheat-sheet-window'
 import { Chrome } from '../secondary-overlay/Chrome'
 import { useStickyZone } from '../shared/use-current-zone'
+import { isLiveGuideSlug, LiveGuide } from './live-guides'
 
 /** Three thumbnail sizes the user can flip between via the header icons. The
  *  3:2 aspect ratio is preserved so thumb sources don't need re-cropping. */
@@ -99,19 +100,23 @@ export function App(): JSX.Element {
     setSettings(next)
     void window.api.setProfileSettingForGame(poeVersion, 'cheatSheets', next)
   }
-  const sizeControls = (
-    <SizeControls
-      value={thumbSize}
-      onChange={setThumbSize}
-      pinned={pinned}
-      onTogglePin={togglePin}
-      minimized={minimized}
-    />
-  )
 
   if (settings.categories.length === 0) {
     return (
-      <Chrome onClose={onClose} onMinimize={toggleMinimize} minimized={minimized} headerEnd={sizeControls}>
+      <Chrome
+        onClose={onClose}
+        onMinimize={toggleMinimize}
+        minimized={minimized}
+        headerEnd={
+          <SizeControls
+            value={thumbSize}
+            onChange={setThumbSize}
+            pinned={pinned}
+            onTogglePin={togglePin}
+            minimized={minimized}
+          />
+        }
+      >
         <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center">
           <span className="text-[11px] text-text-dim">You didn&apos;t add any cheat sheets. Add some in Settings</span>
           <button onClick={() => window.api.openSettingsTab('cheatsheets')} className="text-[11px] px-3 py-1.5">
@@ -131,6 +136,23 @@ export function App(): JSX.Element {
     ) : undefined
 
   const dims = THUMB_SIZES[thumbSize]
+  const links = !minimized && active.links && active.links.length > 0 ? active.links : null
+  // Live HTML guides (prefabSlug) replace raster images — sharp scrollable text.
+  // One sheet = document reader (full-res, scroll). Thumbnail grid only for
+  // multi-image packs that are not live guides.
+  const liveSlug = active.prefabSlug
+  const liveMode = isLiveGuideSlug(liveSlug)
+  const documentMode = liveMode || active.sheets.length === 1
+  const sizeControls = (
+    <SizeControls
+      value={thumbSize}
+      onChange={setThumbSize}
+      pinned={pinned}
+      onTogglePin={togglePin}
+      minimized={minimized}
+      hideThumbSize={documentMode}
+    />
+  )
   return (
     <Chrome
       onClose={onClose}
@@ -143,18 +165,48 @@ export function App(): JSX.Element {
       headerContent={minimized ? undefined : tabs}
       headerEnd={sizeControls}
     >
-      <div className="flex-1 overflow-y-auto p-2 flex flex-wrap gap-2 content-start">
-        {active.sheets.map((sheet) => (
-          <Thumbnail
-            key={sheet.id}
-            categoryId={active.id}
-            sheet={sheet}
-            width={dims.w}
-            height={dims.h}
-            isCurrentZone={!!currentZone && (sheet.areaCodes?.includes(currentZone.areaCode) ?? false)}
-            minimized={minimized}
-          />
-        ))}
+      <div
+        className={`flex-1 flex flex-col gap-2 min-h-0 ${liveMode ? 'p-0' : 'p-2'} ${
+          documentMode ? '' : 'overflow-y-auto'
+        }`}
+      >
+        {liveMode && liveSlug ? (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <LiveGuide slug={liveSlug} />
+          </div>
+        ) : documentMode ? (
+          <DocumentSheet categoryId={active.id} sheet={active.sheets[0]} />
+        ) : (
+          <div className="flex flex-wrap gap-2 content-start">
+            {active.sheets.map((sheet) => (
+              <Thumbnail
+                key={sheet.id}
+                categoryId={active.id}
+                sheet={sheet}
+                width={dims.w}
+                height={dims.h}
+                isCurrentZone={!!currentZone && (sheet.areaCodes?.includes(currentZone.areaCode) ?? false)}
+                minimized={minimized}
+              />
+            ))}
+          </div>
+        )}
+        {links && (
+          <div className="flex flex-wrap gap-1.5 items-center pt-0.5 shrink-0 px-2 pb-1">
+            <span className="text-[10px] text-text-dim mr-0.5">Open:</span>
+            {links.map((link) => (
+              <button
+                key={link.url}
+                type="button"
+                title={link.url}
+                onClick={() => void window.api.openExternal(link.url)}
+                className="text-[11px] px-2.5 py-1 rounded bg-bg-card-translucent border border-border text-text hover:border-accent hover:text-accent transition-colors"
+              >
+                {link.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </Chrome>
   )
@@ -206,12 +258,14 @@ function SizeControls({
   pinned,
   onTogglePin,
   minimized,
+  hideThumbSize = false,
 }: {
   value: ThumbSize
   onChange: (s: ThumbSize) => void
   pinned: boolean
   onTogglePin: () => void
   minimized: boolean
+  hideThumbSize?: boolean
 }): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -267,8 +321,9 @@ function SizeControls({
         </span>
       </button>
       {/* Thumb-size control hides while collapsed: the minimized strip has no
-          grid to resize, and dropping it keeps the narrow bar uncluttered. */}
-      {!minimized && (
+          grid to resize, and dropping it keeps the narrow bar uncluttered.
+          Also hidden in document mode (single full-page sheet). */}
+      {!minimized && !hideThumbSize && (
         <div ref={wrapRef} className="relative">
           <button
             type="button"
@@ -307,6 +362,22 @@ function SizeControls({
         </div>
       )}
     </>
+  )
+}
+
+function DocumentSheet({ categoryId, sheet }: { categoryId: string; sheet: { id: string; ext: string } }): JSX.Element {
+  const fullSrc = `cheatsheet://${categoryId}/${sheet.id}.${sheet.ext}`
+  // Fit the whole page in the pane (no mid-guide cutoff). Sheet art is authored
+  // to the reading-window aspect so text stays usable at ~1:1.
+  return (
+    <div className="flex-1 min-h-0 w-full rounded overflow-hidden bg-black/40 flex items-center justify-center">
+      <img
+        src={fullSrc}
+        alt=""
+        draggable={false}
+        className="max-w-full max-h-full w-auto h-auto object-contain select-none"
+      />
+    </div>
   )
 }
 

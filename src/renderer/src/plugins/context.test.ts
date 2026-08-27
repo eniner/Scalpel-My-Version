@@ -3,47 +3,169 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createPluginContext } from './context'
 import type { PoeItem } from '@shared/types'
+import type { CraftApi } from '../../../plugin-sdk/src/types'
+import type { PluginContextFactoryDeps } from './types'
 
-const baseDeps = () => ({
-  pluginId: 'test',
-  pluginVersion: '1.0.0',
-  getPoeVersion: () => 1 as const,
-  getLeague: () => 'Mirage',
-  getLeagues: vi.fn(async () => ['Standard']),
-  getCurrentItem: () => null,
-  getCurrentZone: () => null,
-  subscribeCurrentItem: () => () => {},
-  subscribeCurrentZone: () => () => {},
-  subscribeLeagueChange: () => () => {},
-  onLogLine: () => () => {},
-  getRecentLogLines: async () => [],
-  openExternal: vi.fn(),
-  registerTab: vi.fn(),
-  registerHotkey: vi.fn(),
-  openTab: vi.fn(),
-  copyAndEvaluateItem: vi.fn(async () => null),
-  captureGameWindow: vi.fn(async () => null),
-  getCursorPosition: vi.fn(async () => null),
-  registerOverlay: vi.fn(),
-  openOverlay: vi.fn(),
-  closeOverlay: vi.fn(),
-  storage: {
-    get: vi.fn(async () => null),
-    set: vi.fn(async () => undefined),
-    delete: vi.fn(async () => undefined),
-    keys: vi.fn(async () => []),
-  },
-  gameConfig: {
-    read: vi.fn(async () => ({ content: '', path: '' })),
-    write: vi.fn(async () => ({ backupPath: null })),
-    onChange: vi.fn(() => () => {}),
-  },
-  prices: {
-    getPrices: vi.fn(async () => ({ prices: [], updatedAt: null })),
-    refresh: vi.fn(async () => undefined),
-    onChange: vi.fn(() => () => {}),
-  },
-})
+const stubCraft = {
+  listActions: vi.fn(async () => []),
+  simulate: vi.fn(async () => ({ actionId: '', label: '', samples: 0, outcomes: [] })),
+  apply: vi.fn(async () => ({
+    ok: false,
+    state: {
+      baseType: '',
+      itemLevel: 1,
+      rarity: 'Normal' as const,
+      mods: [],
+      tags: [],
+      itemClass: '',
+      corrupted: false,
+    },
+    actionId: '',
+    label: '',
+    message: '',
+    error: 'stub',
+  })),
+  freshState: vi.fn(async () => ({
+    baseType: '',
+    itemLevel: 1,
+    rarity: 'Normal' as const,
+    mods: [],
+    tags: [],
+    itemClass: '',
+    corrupted: false,
+  })),
+  targetHit: vi.fn(async () => ({
+    actionId: '',
+    label: '',
+    samples: 0,
+    hitRate: 0,
+    meanAttempts: 0,
+    cumulative: [],
+  })),
+  craftPath: vi.fn(async () => ({
+    samples: 0,
+    hitRate: 0,
+    meanSteps: 0,
+    steps: [],
+  })),
+  modPool: vi.fn(async () => ({
+    baseType: '',
+    itemLevel: 1,
+    kind: 'all' as const,
+    context: 'fresh' as const,
+    modCount: 0,
+    totalWeight: 0,
+    outcomes: [],
+    note: '',
+  })),
+  searchBases: vi.fn(async () => []),
+  listItemClasses: vi.fn(async () => []),
+  searchMods: vi.fn(async () => []),
+} as unknown as CraftApi
+
+const baseDeps = () =>
+  ({
+    pluginId: 'test',
+    pluginVersion: '1.0.0',
+    getPoeVersion: () => 1 as const,
+    getLeague: () => 'Mirage',
+    getLeagues: vi.fn(async () => ['Standard']),
+    getCurrentItem: () => null,
+    getCurrentZone: () => null,
+    subscribeCurrentItem: () => () => {},
+    subscribeCurrentZone: () => () => {},
+    subscribeLeagueChange: () => () => {},
+    onLogLine: () => () => {},
+    getRecentLogLines: async () => [],
+    openExternal: vi.fn(),
+    registerTab: vi.fn(),
+    registerHotkey: vi.fn(),
+    openTab: vi.fn(),
+    copyAndEvaluateItem: vi.fn(async () => null),
+    captureGameWindow: vi.fn(async () => null),
+    getCursorPosition: vi.fn(async () => null),
+    registerOverlay: vi.fn(),
+    openOverlay: vi.fn(),
+    closeOverlay: vi.fn(),
+    storage: {
+      get: vi.fn(async () => null),
+      set: vi.fn(async () => undefined),
+      delete: vi.fn(async () => undefined),
+      keys: vi.fn(async () => []),
+    },
+    gameConfig: {
+      read: vi.fn(async () => ({ content: '', path: '' })),
+      write: vi.fn(async () => ({ backupPath: null })),
+      onChange: vi.fn(() => () => {}),
+    },
+    buildPlanner: {
+      getPath: vi.fn(async () => ({ path: '' })),
+      list: vi.fn(async () => ({ path: '', files: [] })),
+      read: vi.fn(async () => ({ path: '', content: '' })),
+      openFolder: vi.fn(async () => ({ path: '' })),
+    },
+    trade: {
+      openSearch: vi.fn(async () => ({ url: '', queryId: '', total: 0 })),
+      priceCheck: vi.fn(async () => ({
+        url: '',
+        queryId: '',
+        total: 0,
+        pricesDivine: [],
+        cheapestDivine: null,
+        estimateDivine: null,
+        pricedCount: 0,
+      })),
+      scanListings: vi.fn(async () => ({
+        url: '',
+        queryId: '',
+        league: '',
+        total: 0,
+        listings: [],
+        pricesDivine: [],
+        cheapestDivine: null,
+        estimateDivine: null,
+        pricedCount: 0,
+      })),
+      scanWarrants: vi.fn(async () => ({
+        total: 0,
+        fetched: 0,
+        queryId: '',
+        league: '',
+        scannedAt: 0,
+        groups: [],
+        listings: [],
+        webSearchUrl: '',
+      })),
+      warrantsCatalog: vi.fn(async () => ({ skills: [], supports: [] })),
+      whisperSeller: vi.fn(async () => undefined),
+      visitHideout: vi.fn(async () => undefined),
+      getAuth: vi.fn(async () => ({ loggedIn: false })),
+      login: vi.fn(async () => undefined),
+    },
+    ninja: {
+      getCharacterModel: vi.fn(async () => ({ type: 'found', charModel: {}, modelVersion: 92 })),
+    },
+    filter: {} as PluginContextFactoryDeps['filter'],
+    webPanel: {
+      open: vi.fn(async () => undefined),
+      navigate: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+    },
+    readClipboardText: vi.fn(async () => ''),
+    craft: stubCraft,
+    prices: {
+      getPrices: vi.fn(async () => ({ prices: [], updatedAt: null })),
+      refresh: vi.fn(async () => undefined),
+      onChange: vi.fn(() => () => {}),
+    },
+    media: {
+      getSession: vi.fn(async () => null),
+      onChange: vi.fn(() => () => {}),
+      playPause: vi.fn(),
+      next: vi.fn(),
+      previous: vi.fn(),
+    },
+  }) as unknown as PluginContextFactoryDeps
 
 describe('createPluginContext', () => {
   it('exposes pluginId and pluginVersion', () => {
@@ -163,6 +285,23 @@ describe('createPluginContext prices', () => {
   })
 })
 
+describe('createPluginContext media', () => {
+  it('routes getSession/onChange/transport commands through deps', async () => {
+    const deps = baseDeps()
+    const ctx = createPluginContext(deps)
+    await ctx.media.getSession()
+    expect(deps.media.getSession).toHaveBeenCalled()
+    ctx.media.onChange(() => {})
+    expect(deps.media.onChange).toHaveBeenCalled()
+    ctx.media.playPause()
+    expect(deps.media.playPause).toHaveBeenCalled()
+    ctx.media.next()
+    expect(deps.media.next).toHaveBeenCalled()
+    ctx.media.previous()
+    expect(deps.media.previous).toHaveBeenCalled()
+  })
+})
+
 describe('createPluginContext registerOverlay', () => {
   it('routes registerOverlay through deps with the plugin id and ignores render on this side', () => {
     const deps = baseDeps()
@@ -171,6 +310,22 @@ describe('createPluginContext registerOverlay', () => {
     ctx.registerOverlay({ title: 'T' }, render)
     expect(deps.registerOverlay).toHaveBeenCalledWith('test', expect.objectContaining({ title: 'T' }))
     expect(render).not.toHaveBeenCalled()
+  })
+
+  it('forwards defaultPosition and defaultSize to deps', () => {
+    const deps = baseDeps()
+    const ctx = createPluginContext(deps)
+    ctx.registerOverlay(
+      { title: 'T', defaultSize: { width: 307, height: 432 }, defaultPosition: { fracX: 0.505, fracY: 0.4 } },
+      () => {},
+    )
+    expect(deps.registerOverlay).toHaveBeenCalledWith(
+      'test',
+      expect.objectContaining({
+        defaultSize: { width: 307, height: 432 },
+        defaultPosition: { fracX: 0.505, fracY: 0.4 },
+      }),
+    )
   })
 
   it('throws if registerOverlay is called twice', () => {

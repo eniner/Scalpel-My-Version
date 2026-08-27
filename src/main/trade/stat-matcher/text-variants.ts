@@ -70,10 +70,19 @@ function generateTextVariants(text: string): string[] {
   // word, dropping the trailing 's' from the first plural word in that run (the noun, e.g.
   // "Rare Monsters" -> "Rare Monster"). Naive -s is sufficient for the regular plurals these
   // tablet count-mods use; an irregular plural (-es) would need a special case below.
+  //
+  // A verb the singularized noun governs has to come back with it: the PoE1 relic mod prints
+  // as "2 additional Rooms ARE revealed on the Sanctum Map" but its trade stat
+  // (sanctum.stat_386901949) reads "An additional Room IS revealed on the Sanctum Map", so
+  // singularizing only the noun still matched nothing and the relic lost the row (#582).
+  // Scoped to the verb directly after that noun -- a blanket "are"->"is" variant would fire
+  // on every mod carrying the word and cost a full catalog scan each time.
   if (/\b\d+ additional\b/i.test(text)) {
     const an = text.replace(/\b\d+ additional\b/i, 'an additional')
     variants.push(an)
-    const singular = an.replace(/\b(an additional (?:\w+ )*?\w+?)s\b/i, '$1')
+    const singular = an.replace(/\b(an additional (?:\w+ )*?\w+?)s\b( are\b)?/i, (_m, head, verb) =>
+      verb ? `${head} is` : head,
+    )
     if (singular !== an) variants.push(singular)
   }
 
@@ -81,10 +90,14 @@ function generateTextVariants(text: string): string[] {
   // but the trade API stores the numeric form: "Bow Attacks fire # additional Arrows").
   // Naive +s pluralization is sufficient for the PoE mods that hit this path (Arrow,
   // Projectile, Curse, Modifier) -- if an irregular plural shows up later, special-case it.
+  // Carries the governed verb the other way ("is" -> "are") for the mirror of the case above,
+  // where the trade stat is the one holding the plural form.
   const anAdditionalMatch = text.match(/\ban additional ([A-Za-z]+)\b/i)
   if (anAdditionalMatch) {
     const noun = anAdditionalMatch[1]
-    variants.push(text.replace(/\ban additional [A-Za-z]+\b/i, `1 additional ${noun}s`))
+    variants.push(
+      text.replace(/\ban additional [A-Za-z]+\b( is\b)?/i, (_m, verb) => `1 additional ${noun}s${verb ? ' are' : ''}`),
+    )
   }
 
   // PoE2 trade folds an always-100% "chance to <effect>" mod into a valueless binary
@@ -96,6 +109,21 @@ function generateTextVariants(text: string): string[] {
   const chanceToMatch = text.match(/^\d+(?:\.\d+)?% chance to (.+)$/i)
   if (chanceToMatch) {
     variants.push(chanceToMatch[1])
+  }
+
+  // One PoE1 added-damage stat is published with only the minimum end in its text:
+  // Tulfall's "Adds 50 to 70 Cold Damage to Spells per Power Charge" is indexed as
+  // "Adds # minimum Cold Damage to Spells per Power Charge" (explicit.stat_3408048164),
+  // so the two-ended clipboard line matched nothing and the wand lost the row (#587).
+  // That id is still indexed as an ordinary min-max range despite the wording -- probed
+  // on Allflame, value 50 returns 0 listings and 60 (the average of the two ends)
+  // returns 113 -- so the folded variant carries the average, which the ordinary
+  // numeric capture reads straight back out. Only used as a fallback: every stat that
+  // publishes both #s matches the unstripped text (variant 0) first.
+  const addsRangeMatch = text.match(/^Adds (\d+(?:\.\d+)?) to (\d+(?:\.\d+)?) (.+)$/i)
+  if (addsRangeMatch) {
+    const average = (parseFloat(addsRangeMatch[1]) + parseFloat(addsRangeMatch[2])) / 2
+    variants.push(`Adds ${average} minimum ${addsRangeMatch[3]}`)
   }
 
   // Oxford comma: the PoE2 clipboard writes three-item lists as "A, B, and C"

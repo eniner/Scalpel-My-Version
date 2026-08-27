@@ -41,4 +41,9 @@ describe('presets', () => {
     expect(new Set(ids).size).toBe(ids.length)
     for (const p of PRESETS) expect(PRESETS_BY_ID[p.id]).toBe(p)
   })
+
+  it('every preset has a known group', () => {
+    const groups = new Set(['core', 'studio', 'game', 'light'])
+    for (const p of PRESETS) expect(groups.has(p.group), p.id).toBe(true)
+  })
 })

@@ -37,4 +37,3 @@ describe('cheat sheet coverage', () => {
     expect(all.modCount).toBeGreaterThan(craft.modCount)
   })
 })
-

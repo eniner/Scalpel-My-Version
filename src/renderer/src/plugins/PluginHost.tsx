@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PoeItem, Zone } from '@shared/types'
 import type { PluginActivate, PluginManifest } from '../../../plugin-sdk/src/types'
 import { createPluginContext } from './context'
+import { createFilterApi } from './create-filter-api'
 import { resolveLeagueOptions } from '@renderer/shared/league-options'
 import { importPluginModule } from './import-plugin-module'
 
@@ -147,6 +148,17 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
         },
         trade: {
           openSearch: (item) => window.api.tradeOpenSearch(item),
+          priceCheck: (item) => window.api.tradePriceCheck(item),
+          scanListings: (item) => window.api.tradeScanListings(item),
+          scanWarrants: (opts) => window.api.warrantsScan(opts),
+          warrantsCatalog: () => window.api.warrantsCatalog(),
+          whisperSeller: (queryId, listingId, league) => window.api.whisperSeller(queryId, listingId, league),
+          visitHideout: (queryId, listingId, league) => window.api.visitHideout(queryId, listingId, league),
+          getAuth: async () => {
+            const auth = await window.api.poeCheckAuth()
+            return { loggedIn: Boolean(auth?.loggedIn) }
+          },
+          login: () => window.api.poeLogin(),
         },
         prices: {
           getPrices: (opts) => window.api.pricesGet(opts),
@@ -157,6 +169,10 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
             return u
           },
         },
+        ninja: {
+          getCharacterModel: (opts) => window.api.ninjaGetCharacterModel(opts),
+        },
+        filter: createFilterApi(window.api),
         webPanel: {
           open: (opts) => window.api.pluginWebPanelOpen(m.id, opts),
           navigate: (url) => window.api.pluginWebPanelNavigate(m.id, url),
@@ -174,6 +190,7 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
           searchBases: (query, limit, itemClass) => window.api.craftSearchBases(m.id, query, limit, itemClass),
           listItemClasses: () => window.api.craftListItemClasses(m.id),
           searchMods: (opts) => window.api.craftSearchMods(m.id, opts),
+          getCatalog: () => window.api.craftGetCatalog(m.id),
         },
         registerTab: (pluginId, opts) => {
           setTabs((prev) => {
@@ -201,6 +218,8 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
             title: opts.title,
             hotkeyLabel: opts.hotkeyLabel,
             defaultSize: opts.defaultSize,
+            defaultPosition: opts.defaultPosition,
+            snapPositions: opts.snapPositions,
             mode: opts.mode,
           })
         },
@@ -208,6 +227,17 @@ export function PluginHost(props: PluginHostProps): JSX.Element | null {
         closeOverlay: (pluginId) => void window.api.pluginCloseOverlay(pluginId),
         captureGameWindow: (region) => window.api.pluginCaptureGameWindow(region),
         getCursorPosition: () => window.api.pluginGetCursorPosition(),
+        media: {
+          getSession: () => window.api.pluginMediaGetSession(),
+          onChange: (handler) => {
+            const u = window.api.onMediaChange(handler)
+            disposers.push(u)
+            return u
+          },
+          playPause: () => window.api.pluginMediaCommand('play-pause'),
+          next: () => window.api.pluginMediaCommand('next'),
+          previous: () => window.api.pluginMediaCommand('previous'),
+        },
       })
       pluginDisposersRef.current.set(m.id, disposers)
       // PluginActivate may be async and may return a teardown fn (host runtime

@@ -5,6 +5,7 @@ import { prettyHotkey } from './hotkey-utils'
 export type HotkeySlot =
   | { kind: 'filter' }
   | { kind: 'pricecheck' }
+  | { kind: 'launcher' }
   | { kind: 'chat'; index: number }
   | { kind: 'appmacro'; index: number }
   | { kind: 'cheatsheet-global' }
@@ -13,6 +14,7 @@ export type HotkeySlot =
 const slotLabel: Record<string, string> = {
   filter: 'filter',
   pricecheck: 'price check',
+  launcher: 'tool launcher',
   chat: 'macro',
   appmacro: 'app macro',
   'cheatsheet-global': 'Cheat sheet overlay',
@@ -38,6 +40,7 @@ function buildSlots(settings: RuntimeSettings): SlotEntry[] {
   return [
     { slot: { kind: 'filter' }, value: settings.hotkey ?? '', scope: 'both' },
     { slot: { kind: 'pricecheck' }, value: settings.priceCheckHotkey ?? '', scope: 'both' },
+    { slot: { kind: 'launcher' }, value: settings.launcherHotkey ?? '', scope: 'both' },
     ...(settings.chatCommands ?? []).map<SlotEntry>((c, i) => ({
       slot: { kind: 'chat', index: i },
       value: c.hotkey ?? '',
@@ -114,8 +117,10 @@ export function narrowScopeForCrossGameConflict(
   return undefined
 }
 
-/** Hotkeys PoE itself uses - warn (don't block) when bound. */
-export const POE_PROTECTED_HOTKEYS = new Set(['CommandOrControl+F', 'CommandOrControl+Alt+C'])
+/** Hotkeys PoE itself uses - warn (don't block) when bound. Ctrl+C matters twice
+ *  over: it is PoE's item copy *and* the keystroke Scalpel injects to read the
+ *  item under the cursor (#560). */
+export const POE_PROTECTED_HOTKEYS = new Set(['CommandOrControl+F', 'CommandOrControl+C', 'CommandOrControl+Alt+C'])
 
 /** Build a tryHotkey guard shared by Settings tabs and the regex tool. Returns
  *  false (and shows an error) on a hard collision; true otherwise, warning on a

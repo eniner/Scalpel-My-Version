@@ -12,12 +12,19 @@ export interface CheatSheet {
   areaCodes?: string[]
 }
 
+/** Optional external links shown as clickable buttons on a cheat-sheet category. */
+export interface CheatSheetLink {
+  label: string
+  url: string
+}
+
 export interface CheatSheetCategory {
   id: string
   name: string
   hotkey: string
   sheets: CheatSheet[]
   prefabSlug?: string
+  links?: CheatSheetLink[]
 }
 
 export interface CheatSheetsSettings {
